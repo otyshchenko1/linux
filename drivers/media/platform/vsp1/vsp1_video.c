@@ -145,7 +145,7 @@ vsp1_video_remote_subdev(struct media_pad *local, u32 *pad)
 {
 	struct media_pad *remote;
 
-	remote = media_entity_remote_source(local);
+	remote = media_entity_remote_pad(local);
 	if (remote == NULL ||
 	    media_entity_type(remote->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
 		return NULL;
@@ -277,7 +277,7 @@ static int vsp1_pipeline_validate_branch(struct vsp1_rwpf *input,
 	struct media_pad *pad;
 	bool uds_found = false;
 
-	pad = media_entity_remote_source(&input->entity.pads[RWPF_PAD_SOURCE]);
+	pad = media_entity_remote_pad(&input->entity.pads[RWPF_PAD_SOURCE]);
 
 	while (1) {
 		if (pad == NULL)
@@ -312,7 +312,7 @@ static int vsp1_pipeline_validate_branch(struct vsp1_rwpf *input,
 		 * activated.
 		 */
 		pad = &entity->pads[entity->source_pad];
-		pad = media_entity_remote_source(pad);
+		pad = media_entity_remote_pad(pad);
 	}
 
 	/* The last entity must be the output WPF. */
