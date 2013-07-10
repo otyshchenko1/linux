@@ -283,6 +283,9 @@ static int vsp1_pipeline_validate_branch(struct vsp1_rwpf *input,
 	input->location.left = 0;
 	input->location.top = 0;
 
+	input->location.left = 0;
+	input->location.top = 0;
+
 	while (1) {
 		if (pad == NULL)
 			return -EPIPE;
