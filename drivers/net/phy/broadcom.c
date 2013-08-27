@@ -18,6 +18,9 @@
 #include <linux/phy.h>
 #include <linux/brcmphy.h>
 
+static char brreach_config[8] = CONFIG_BCM_BRREACH_MODE;
+module_param_string(brreach_config, brreach_config, 8, 0644);
+MODULE_PARM_DESC(brreach_config, " brreach_config=<master/slave>");
 
 #define BRCM_PHY_MODEL(phydev) \
 	((phydev)->drv->phy_id & (phydev)->drv->phy_id_mask)
@@ -682,6 +685,241 @@ static int brcm_fet_config_intr(struct phy_device *phydev)
 	return err;
 }
 
+static int brcm_lre_config_init(struct phy_device *phydev)
+{
+	if (!(phydev->drv->features & SUPPORTED_Autoneg)) {
+		phydev->autoneg = AUTONEG_DISABLE;
+		phydev->speed = SPEED_100;
+		phydev->duplex = DUPLEX_FULL;
+	}
+
+	return 0;
+}
+
+/**
+ * brcm_lre_config_advert - sanitize and advertise auto-negotiation parameters
+ * @phydev: target phy_device struct
+ *
+ * Description: Writes MII_ADVERTISE with the appropriate values,
+ *   after sanitizing the values to make sure we only advertise
+ *   what is supported.  Returns < 0 on error, 0 if the PHY's advertisement
+ *   hasn't changed, and > 0 if it has changed.
+ */
+static int brcm_lre_config_advert(struct phy_device *phydev)
+{
+	u32 advertise;
+	int oldadv, adv;
+	int err, changed = 0;
+
+	/**
+	 * Only allow advertising what
+	 * this PHY supports
+	 */
+	phydev->advertising &= 0x0022;
+	advertise = phydev->advertising;
+
+	/* Setup standard advertisement */
+	oldadv = adv = phy_read(phydev, MII_ADVERTISE);
+	if (adv < 0)
+		return adv;
+
+	/* 100M 1pr and 10M 1pr*/
+	adv &= 0x0022;
+	if (adv != oldadv) {
+		err = phy_write(phydev, MII_ADVERTISE, adv);
+
+		if (err < 0)
+			return err;
+		changed = 1;
+	}
+
+	return changed;
+}
+
+/**
+ * brcm_lre_setup_forced - configures/forces speed/duplex from @phydev
+ * @phydev: target phy_device struct
+ *
+ * Description: Configures MII_BMCR to force speed/duplex
+ *   to the values in phydev. Assumes that the values are valid.
+ *   Please see phy_sanitize_settings().
+ */
+static int brcm_lre_setup_forced(struct phy_device *phydev)
+{
+	bool slave;
+
+	phydev->pause = phydev->asym_pause = 0;
+
+	/* Check BroadR-Reach configuration */
+	slave = !strncmp(brreach_config, "slave", 5);
+
+	pr_info("PHY: %s using BroadR-Reach forced %s configuration\n",
+		dev_name(&phydev->dev), (slave) ? "Slave" : "Master");
+
+	phy_write(phydev, MII_BMCR, (slave) ? 0x0200 : 0x0208);
+
+	return 0;
+}
+
+
+/**
+ * brcm_lre_restart_aneg - Enable and Restart Autonegotiation
+ * @phydev: target phy_device struct
+ */
+int brcm_lre_restart_aneg(struct phy_device *phydev)
+{
+	int ctl;
+
+	ctl = phy_read(phydev, MII_BMCR);
+	if (ctl < 0)
+		return ctl;
+
+	ctl |= (BMCR_ANENABLE | 0x2000);
+
+	/* Don't isolate the PHY if we're negotiating */
+	ctl &= ~(BMCR_ISOLATE);
+
+	ctl = phy_write(phydev, MII_BMCR, ctl);
+
+	return ctl;
+}
+
+static int brcm_lre_config_aneg(struct phy_device *phydev)
+{
+	int result;
+
+	/* 15_[14:10] 1_01101 LED_Selector 1 */
+	phy_write(phydev, 0x1c, 0xb401);
+	/* Expansion Register Access */
+	/* Address - 0x0e Synchronous Ethernet Controls */
+	phy_write(phydev, 0x17, 0x0F0E);
+	/* MII-Lite Enable */
+	phy_write(phydev, 0x15, 0x0800);
+	/* Expansion Register Access */
+	/* Disable Expansion */
+	phy_write(phydev, 0x17, 0x0000);
+	/* Shadow [2:0] 111 Miscellaneous Control */
+	/* [8] RGMII RXD to RXC Skew : Enable skew */
+	/* [7] RGMII Enable : GMII/MII mode */
+	/* [6:5] write as 11, ignore on read  */
+	/* [4:3] reserved */
+	phy_write(phydev, 0x18, 0x8167);
+
+	if (AUTONEG_ENABLE != phydev->autoneg)
+		return brcm_lre_setup_forced(phydev);
+
+	pr_info("PHY: %s using Broadcom LDS Auto-Negotiation\n",
+		dev_name(&phydev->dev));
+
+	result = brcm_lre_config_advert(phydev);
+
+	if (result < 0) /* error */
+		return result;
+
+	if (result == 0) {
+		/**
+		 * Advertisement hasn't changed, but maybe aneg was never on to
+		 * begin with?  Or maybe phy was isolated?
+		 */
+		int ctl = phy_read(phydev, MII_BMCR);
+
+		if (ctl < 0)
+			return ctl;
+
+		if (!(ctl & BMCR_ANENABLE) || (ctl & BMCR_ISOLATE))
+			result = 1; /* do restart aneg */
+	}
+
+	/**
+	 * Only restart aneg if we are advertising something different
+	 * than we were before.
+	 */
+	if (result > 0)
+		result = brcm_lre_restart_aneg(phydev);
+
+	return result;
+}
+
+static int brcm_lre_read_status(struct phy_device *phydev)
+{
+	int ret;
+	int speed;
+
+	/**
+	 * Update the link, but return if there
+	 * was an error
+	 */
+	ret = genphy_update_link(phydev);
+	if (ret)
+		return ret;
+
+	if (AUTONEG_ENABLE == phydev->autoneg) {
+		int adv;
+		int lpa;
+		lpa = phy_read(phydev, 0x7);
+
+		if (lpa < 0)
+			return lpa;
+
+		adv = phy_read(phydev, MII_ADVERTISE);
+
+		if (adv < 0)
+			return adv;
+
+		lpa &= adv;
+
+		phydev->speed = SPEED_10;
+		phydev->duplex = DUPLEX_HALF;
+		phydev->pause = phydev->asym_pause = 0;
+
+		if (lpa & 0x0020) {
+			phydev->speed = SPEED_100;
+			phydev->duplex = DUPLEX_FULL;
+		} else if (lpa & 0x0002)
+			phydev->duplex = DUPLEX_FULL;
+		else
+			return lpa;
+	} else {
+		phy_write(phydev, 0x1c, 0x2000);
+		ret = phy_read(phydev, 0x1c);
+		speed = (ret & 0x0018) >> 3;
+
+		switch (speed) {
+		case 2:
+			phydev->speed = SPEED_10;
+			phydev->duplex = DUPLEX_FULL;
+			break;
+		case 1:
+			phydev->speed = SPEED_100;
+			phydev->duplex = DUPLEX_FULL;
+			break;
+		case 0:
+			phydev->speed = SPEED_1000;
+			phydev->duplex = DUPLEX_FULL;
+			break;
+		default:
+			break;
+		}
+
+		phydev->pause = phydev->asym_pause = 0;
+
+		if (phydev->link)
+			phydev->link_timeout = 0;
+	}
+
+	return 0;
+}
+
+static int brcm_lre_suspend(struct phy_device *phydev)
+{
+	return 0;
+}
+
+static int brcm_lre_resume(struct phy_device *phydev)
+{
+	return 0;
+}
+
 static struct phy_driver broadcom_drivers[] = {
 {
 	.phy_id		= PHY_ID_BCM5411,
@@ -826,6 +1064,36 @@ static struct phy_driver broadcom_drivers[] = {
 	.ack_interrupt	= brcm_fet_ack_interrupt,
 	.config_intr	= brcm_fet_config_intr,
 	.driver		= { .owner = THIS_MODULE },
+}, {
+	.phy_id		= PHY_ID_BCM54810,
+	.phy_id_mask	= 0xfffffff0,
+	.name		= "Broadcom BCM54810",
+	.features	= SUPPORTED_100baseT_Full |
+#if defined(CONFIG_BCM_LDS_AUTONEG)
+			  SUPPORTED_Autoneg |
+#endif
+			  SUPPORTED_TP | SUPPORTED_MII,
+	.config_init	= brcm_lre_config_init,
+	.config_aneg	= brcm_lre_config_aneg,
+	.read_status	= brcm_lre_read_status,
+	.suspend	= brcm_lre_suspend,
+	.resume		= brcm_lre_resume,
+	.driver		= { .owner = THIS_MODULE },
+}, {
+	.phy_id		= PHY_ID_BCM89810,
+	.phy_id_mask	= 0xfffffff0,
+	.name		= "Broadcom BCM89810",
+	.features	= SUPPORTED_100baseT_Full |
+#if defined(CONFIG_BCM_LDS_AUTONEG)
+			  SUPPORTED_Autoneg |
+#endif
+			  SUPPORTED_TP | SUPPORTED_MII,
+	.config_init	= brcm_lre_config_init,
+	.config_aneg	= brcm_lre_config_aneg,
+	.read_status	= brcm_lre_read_status,
+	.suspend	= brcm_lre_suspend,
+	.resume		= brcm_lre_resume,
+	.driver		= { .owner = THIS_MODULE },
 } };
 
 static int __init broadcom_init(void)
@@ -855,6 +1123,8 @@ static struct mdio_device_id __maybe_unused broadcom_tbl[] = {
 	{ PHY_ID_BCM57780, 0xfffffff0 },
 	{ PHY_ID_BCMAC131, 0xfffffff0 },
 	{ PHY_ID_BCM5241, 0xfffffff0 },
+	{ PHY_ID_BCM54810, 0xfffffff0 },
+	{ PHY_ID_BCM89810, 0xfffffff0 },
 	{ }
 };
 

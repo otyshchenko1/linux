@@ -65,6 +65,36 @@ config BROADCOM_PHY
 	  Currently supports the BCM5411, BCM5421, BCM5461, BCM5464, BCM5481
 	  and BCM5482 PHYs.
 
+if BROADCOM_PHY
+
+config BCM_LDS_AUTONEG
+	bool "Broadcom enable LDS Auto-Negotiation (EXPERIMENTAL)"
+	default n
+	---help---
+	  Using Link Discovery Signaling (LDS) Auto-Negotiation.
+
+	  If using LDS, Link partner also should support LDS.
+	  If using forced configuration, say N and confirm whether Link partner
+	  is configured appropriately or not.
+
+config BCM_BRREACH_MASTER
+	bool "BroadR-Reach forced master configuration (EXPERIMENTAL)"
+	depends on !BCM_LDS_AUTONEG
+	default y
+	---help---
+	  Using master configuration.
+
+	  If using master configuration, Link partner must be configured slave.
+	  If using slave configuration, say N and confirm whether Link partner
+	  is configured appropriately or not.
+
+config BCM_BRREACH_MODE
+	string
+	default "master" if BCM_BRREACH_MASTER
+	default "slave" if !BCM_BRREACH_MASTER
+
+endif #BROADCOM_PHY
+
 config BCM63XX_PHY
 	tristate "Drivers for Broadcom 63xx SOCs internal PHY"
 	depends on BCM63XX
