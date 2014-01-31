@@ -367,11 +367,11 @@ static const struct rcar_du_device_info rcar_du_r8a7790_info = {
 		 */
 		[RCAR_DU_OUTPUT_DPAD0] = {
 #if defined(CONFIG_DRM_ADV7511) || defined(CONFIG_DRM_ADV7511_MODULE)
-			.possible_crtcs = BIT(2) | BIT(1),
-			.possible_clones = BIT(1),
+			.possible_crtcs = BIT(2) | BIT(1) | BIT(0),
+			.possible_clones = BIT(2) | BIT(0),
 #else
 			.possible_crtcs = BIT(2) | BIT(1) | BIT(0),
-			.possible_clones = 0,
+			.possible_clones = BIT(1),
 #endif
 			.encoder_type = DRM_MODE_ENCODER_NONE,
 		},
@@ -383,10 +383,10 @@ static const struct rcar_du_device_info rcar_du_r8a7790_info = {
 		[RCAR_DU_OUTPUT_LVDS1] = {
 #if defined(CONFIG_DRM_ADV7511) || defined(CONFIG_DRM_ADV7511_MODULE)
 			.possible_crtcs = BIT(2) | BIT(1),
-			.possible_clones = BIT(2),
+			.possible_clones = BIT(1),
 #else
 			.possible_crtcs = BIT(2) | BIT(1),
-			.possible_clones = BIT(0),
+			.possible_clones = 0,
 #endif
 			.encoder_type = DRM_MODE_ENCODER_LVDS,
 		},
