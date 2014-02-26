@@ -386,8 +386,13 @@ static int sh_mobile_sdhi_prepare_tuning(struct tmio_mmc_host *host,
 static int sh_mobile_sdhi_select_tuning(struct tmio_mmc_host *host,
 							unsigned long *tap)
 {
-	unsigned long i, tap_num, tap_cnt, tap_set;
-	unsigned long tap_start = 0, tap_end = 0;
+	unsigned long tap_num;	/* total number of taps */
+	unsigned long tap_cnt;	/* counter of tuning success */
+	unsigned long tap_set;	/* tap position */
+	unsigned long tap_start;	/* start position of tuning success */
+	unsigned long tap_end;	/* end position of tuning success */
+	unsigned long ntap;	/* temporary counter of tuning success */
+	unsigned long i;
 
 	/* Clear SCC_RVSREQ */
 	writel(0x00000000, host->ctl + SH_MOBILE_SDHI_SCC_RVSREQ);
@@ -396,27 +401,30 @@ static int sh_mobile_sdhi_select_tuning(struct tmio_mmc_host *host,
 	tap_num = (readl(host->ctl + SH_MOBILE_SDHI_SCC_DTCNTL) >> 16) & 0xf;
 
 	tap_cnt = 0;
+	ntap = 0;
+	tap_start = 0;
+	tap_end = 0;
 	for (i = 0; i < tap_num * 2; i++) {
-		if (tap[i] == 0) {
-			if (tap_cnt == 0)
-				tap_start = i;
-			tap_cnt++;
-			if (tap_cnt == tap_num) {
-				tap_start = 0;
-				tap_end = i;
-				break;
+		if (tap[i] == 0)
+			ntap++;
+		else {
+			if (ntap > tap_cnt) {
+				tap_start = i - ntap;
+				tap_end = i - 1;
+				tap_cnt = ntap;
 			}
-		} else {
-			if (tap_cnt >= SH_MOBILE_SDHI_MAX_TAP) {
-				tap_end = i;
-				break;
-			}
-			tap_cnt = 0;
+			ntap = 0;
 		}
 	}
 
+	if (ntap > tap_cnt) {
+		tap_start = i - ntap;
+		tap_end = i - 1;
+		tap_cnt = ntap;
+	}
+
 	if (tap_cnt >= SH_MOBILE_SDHI_MAX_TAP)
-		tap_set = (tap_start + tap_end) / 2;
+		tap_set = (tap_start + tap_end) / 2 % tap_num;
 	else
 		return -EIO;
 
