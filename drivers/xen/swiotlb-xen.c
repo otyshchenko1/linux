@@ -425,6 +425,19 @@ dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
 EXPORT_SYMBOL_GPL(xen_swiotlb_map_page);
 
 /*
+ * Create userspace mapping for the DMA-coherent memory.
+ */
+int xen_swiotlb_dma_mmap(struct device *dev, struct vm_area_struct *vma,
+			 void *cpu_addr, dma_addr_t dma_addr, size_t size,
+			 struct dma_attrs *attrs)
+{
+	if (__generic_dma_ops(dev)->mmap)
+		return __generic_dma_ops(dev)->mmap(dev, vma, cpu_addr, dma_addr, size, attrs);
+	return -ENXIO;
+}
+EXPORT_SYMBOL_GPL(xen_swiotlb_dma_mmap);
+
+/*
  * Unmap a single streaming mode DMA translation.  The dma_addr and size must
  * match what was provided for in a previous xen_swiotlb_map_page call.  All
  * other usages are undefined.
