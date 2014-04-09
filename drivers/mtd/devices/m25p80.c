@@ -87,7 +87,7 @@ static void m25p80_write(struct spi_nor *nor, loff_t to, size_t len,
 
 	spi_message_init(&m);
 
-	if (nor->program_opcode == OPCODE_AAI_WP && nor->sst_write_second)
+	if (nor->program_opcode == SPINOR_OP_AAI_WP && nor->sst_write_second)
 		cmd_sz = 1;
 
 	flash->command[0] = nor->program_opcode;
@@ -172,7 +172,7 @@ static int m25p80_erase(struct spi_nor *nor, loff_t offset)
 		return ret;
 
 	/* Send write enable, then erase commands. */
-	ret = nor->write_reg(nor, OPCODE_WREN, NULL, 0, 0);
+	ret = nor->write_reg(nor, SPINOR_OP_WREN, NULL, 0, 0);
 	if (ret)
 		return ret;
 
