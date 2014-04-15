@@ -59,6 +59,7 @@ static void rcar_du_encoder_dpms(struct drm_encoder *encoder, int mode)
 		output = RCAR_DU_OUTPUT_LVDS0;
 
 	if ((renc->output == output) &&
+		(get_rcar_slave_funcs(encoder)) &&
 			(get_rcar_slave_funcs(encoder)->dpms))
 		get_rcar_slave_funcs(encoder)->dpms(encoder, mode);
 }
@@ -131,6 +132,7 @@ static void rcar_du_encoder_mode_prepare(struct drm_encoder *encoder)
 		output = RCAR_DU_OUTPUT_LVDS0;
 
 	if ((renc->output == output) &&
+		(get_rcar_slave_funcs(encoder)) &&
 		(get_rcar_slave_funcs(encoder)->dpms))
 		get_rcar_slave_funcs(encoder)->dpms(encoder, DRM_MODE_DPMS_OFF);
 }
@@ -150,6 +152,7 @@ static void rcar_du_encoder_mode_commit(struct drm_encoder *encoder)
 		output = RCAR_DU_OUTPUT_LVDS0;
 
 	if ((renc->output == output) &&
+		(get_rcar_slave_funcs(encoder)) &&
 		(get_rcar_slave_funcs(encoder)->dpms))
 		get_rcar_slave_funcs(encoder)->dpms(encoder, DRM_MODE_DPMS_ON);
 }
@@ -169,6 +172,7 @@ static void rcar_du_encoder_mode_set(struct drm_encoder *encoder,
 		output = RCAR_DU_OUTPUT_LVDS0;
 
 	if ((renc->output == output) &&
+		(get_rcar_slave_funcs(encoder)) &&
 		(get_rcar_slave_funcs(encoder)->mode_set))
 		get_rcar_slave_funcs(encoder)->mode_set(encoder,
 						 mode, adjusted_mode);
