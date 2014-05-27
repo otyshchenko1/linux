@@ -264,6 +264,8 @@ struct v4l2_capability {
 #define V4L2_CAP_RADIO			0x00040000  /* is a radio device */
 #define V4L2_CAP_MODULATOR		0x00080000  /* has a modulator */
 
+#define V4L2_CAP_EXT_PIX_FORMAT		0x00200000  /* Supports the extended pixel format */
+
 #define V4L2_CAP_READWRITE              0x01000000  /* read/write systemcalls */
 #define V4L2_CAP_ASYNCIO                0x02000000  /* async I/O */
 #define V4L2_CAP_STREAMING              0x04000000  /* streaming I/O ioctls */
@@ -445,6 +447,9 @@ struct v4l2_pix_format {
 
 /* Flags */
 #define V4L2_PIX_FMT_FLAG_PREMUL_ALPHA	0x00000001
+
+/* priv field value to indicates that subsequent fields are valid. */
+#define V4L2_PIX_FMT_PRIV_MAGIC		0xdeadbeef
 
 /*
  *	F O R M A T   E N U M E R A T I O N
@@ -739,7 +744,16 @@ struct v4l2_framebuffer {
 /* FIXME: in theory we should pass something like PCI device + memory
  * region + offset instead of some physical address */
 	void                    *base;
-	struct v4l2_pix_format	fmt;
+	struct {
+		__u32		width;
+		__u32		height;
+		__u32		pixelformat;
+		__u32		field;		/* enum v4l2_field */
+		__u32		bytesperline;	/* for padding, zero if unused */
+		__u32		sizeimage;
+		__u32		colorspace;	/* enum v4l2_colorspace */
+		__u32		priv;		/* private data, depends on pixelformat */
+	} fmt;
 };
 /*  Flags for the 'capability' field. Read only */
 #define V4L2_FBUF_CAP_EXTERNOVERLAY	0x0001
