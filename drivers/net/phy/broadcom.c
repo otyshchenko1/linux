@@ -183,6 +183,16 @@ MODULE_PARM_DESC(brreach_config, " brreach_config=<master/slave>");
 #define MII_BRCM_FET_SHDW_AUXSTAT2	0x1b	/* Auxiliary status 2 */
 #define MII_BRCM_FET_SHDW_AS2_APDE	0x0020	/* Auto power down enable */
 
+/*****************************************************************************/
+/* BroadR-Reach definitions. */
+/*****************************************************************************/
+
+#define MII_BRCM_LRE_ISREG		0x1a	/* Interrupt status register */
+#define MII_BRCM_LRE_IMREG		0x1b	/* Interrupt mask Register*/
+#define MII_BRCM_LRE_IR_LINK	0x0002	/* Link status change enable */
+#define MII_BRCM_LRE_IR_SPEED	0x0004	/* Link speed change enable */
+#define MII_BRCM_LRE_IR_DUPLEX	0x0008	/* Duplex mode change enable */
+
 
 MODULE_DESCRIPTION("Broadcom PHY driver");
 MODULE_AUTHOR("Maciej W. Rozycki");
@@ -910,6 +920,34 @@ static int brcm_lre_read_status(struct phy_device *phydev)
 	return 0;
 }
 
+static int brcm_lre_ack_interrupt(struct phy_device *phydev)
+{
+	int reg;
+
+	/* Clear pending interrupts.  */
+	reg = phy_read(phydev, MII_BRCM_LRE_ISREG);
+
+	if (reg < 0)
+		return reg;
+
+	return 0;
+}
+
+static int brcm_lre_config_intr(struct phy_device *phydev)
+{
+	int reg;
+
+	if (PHY_INTERRUPT_ENABLED == phydev->interrupts)
+		/* interrupt enable */
+		reg = ~MII_BRCM_LRE_IR_LINK & ~MII_BRCM_LRE_IR_SPEED
+				& ~MII_BRCM_LRE_IR_DUPLEX;
+	else
+		/* interrupt disable */
+		reg = 0xffff;
+
+	return phy_write(phydev, MII_BRCM_LRE_IMREG, reg);
+}
+
 static int brcm_lre_suspend(struct phy_device *phydev)
 {
 	return 0;
@@ -1088,9 +1126,12 @@ static struct phy_driver broadcom_drivers[] = {
 			  SUPPORTED_Autoneg |
 #endif
 			  SUPPORTED_TP | SUPPORTED_MII,
+	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= brcm_lre_config_init,
 	.config_aneg	= brcm_lre_config_aneg,
 	.read_status	= brcm_lre_read_status,
+	.ack_interrupt	= brcm_lre_ack_interrupt,
+	.config_intr	= brcm_lre_config_intr,
 	.suspend	= brcm_lre_suspend,
 	.resume		= brcm_lre_resume,
 	.driver		= { .owner = THIS_MODULE },
