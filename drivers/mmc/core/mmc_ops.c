@@ -98,7 +98,7 @@ int mmc_lock_unlock(struct mmc_card *card, struct key *key, int mode)
 
 	cmd.opcode = MMC_LOCK_UNLOCK;
 	cmd.arg = 0;
-	cmd.flags = MMC_RSP_R1B | MMC_CMD_ADTC;
+	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
 
 	memset(&data, 0, sizeof(struct mmc_data));
 
