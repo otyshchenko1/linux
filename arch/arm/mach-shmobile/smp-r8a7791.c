@@ -27,10 +27,6 @@
 #include "r8a7791.h"
 #include "rcar-gen2.h"
 
-#define RST		0xe6160000
-#define CA15BAR		0x0020
-#define CA15RESCNT	0x0040
-#define RAM		0xe63c0000
 #define APMU		0xe6151000
 #define CA15DBGRCR	0x1180
 
@@ -48,28 +44,12 @@ static struct rcar_apmu_config r8a7791_apmu_config[] = {
 static void __init r8a7791_smp_prepare_cpus(unsigned int max_cpus)
 {
 	void __iomem *p;
-	u32 bar, val;
+	u32 val;
 
 	/* let APMU code install data related to shmobile_boot_vector */
 	shmobile_smp_apmu_prepare_cpus(max_cpus,
 				       r8a7791_apmu_config,
 				       ARRAY_SIZE(r8a7791_apmu_config));
-
-	/* RAM for jump stub, because BAR requires 256KB aligned address */
-	p = ioremap_nocache(RAM, shmobile_boot_size);
-	memcpy_toio(p, shmobile_boot_vector, shmobile_boot_size);
-	iounmap(p);
-
-	/* setup reset vectors */
-	p = ioremap_nocache(RST, 0x63);
-	bar = (RAM >> 8) & 0xfffffc00;
-	writel_relaxed(bar, p + CA15BAR);
-	writel_relaxed(bar | 0x10, p + CA15BAR);
-
-	/* enable clocks to all CPUs */
-	writel_relaxed((readl_relaxed(p + CA15RESCNT) & ~0x0f) | 0xa5a50000,
-		       p + CA15RESCNT);
-	iounmap(p);
 
 	/* setup for debug mode */
 	if (rcar_gen2_read_mode_pins() & MD(21)) {
