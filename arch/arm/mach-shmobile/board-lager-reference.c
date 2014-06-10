@@ -250,6 +250,7 @@ static const struct clk_name clk_names[] __initconst = {
  * This is a really crude hack to work around core platform clock issues
  */
 static const struct clk_name clk_enables[] __initconst = {
+	{ "avb", NULL, "e6800000.ethernet" },
 #if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 	{ "hsusb", NULL, "renesas_usbhs" },
 #else
