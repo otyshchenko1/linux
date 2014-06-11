@@ -331,8 +331,13 @@
 		dma-names = "tx", "rx";
 		clocks = <&mstp3_clks R8A7790_CLK_SDHI0>;
 		cap-sd-highspeed;
+		cap-uhs-sdr104;
+		cap-uhs-sdr50;
 		dma-xmit-sz = <32>;
 		renesas,clk-rate = <195000000>;
+		renesas,mmc-scc-tapnum = <8>;
+		renesas,pfcs = <0xe6060000 0x8c>;
+		renesas,id = <0>;
 		status = "disabled";
 	};
 
@@ -343,8 +348,13 @@
 		interrupts = <0 166 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks R8A7790_CLK_SDHI1>;
 		cap-sd-highspeed;
+		cap-uhs-sdr104;
+		cap-uhs-sdr50;
 		dma-xmit-sz = <32>;
 		renesas,clk-rate = <195000000>;
+		renesas,mmc-scc-tapnum = <8>;
+		renesas,pfcs = <0xe6060000 0x8c>;
+		renesas,id = <1>;
 		status = "disabled";
 	};
 
@@ -355,8 +365,11 @@
 		interrupts = <0 167 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks R8A7790_CLK_SDHI2>;
 		cap-sd-highspeed;
+		cap-uhs-sdr50;
 		dma-xmit-sz = <32>;
 		renesas,clk-rate = <97500000>;
+		renesas,pfcs = <0xe6060000 0x8c>;
+		renesas,id = <2>;
 		status = "disabled";
 	};
 
@@ -367,8 +380,11 @@
 		interrupts = <0 168 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks R8A7790_CLK_SDHI3>;
 		cap-sd-highspeed;
+		cap-uhs-sdr50;
 		dma-xmit-sz = <32>;
 		renesas,clk-rate = <97500000>;
+		renesas,pfcs = <0xe6060000 0x8c>;
+		renesas,id = <3>;
 		status = "disabled";
 	};
 
