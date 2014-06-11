@@ -16,6 +16,7 @@
 #ifndef TMIO_MMC_H
 #define TMIO_MMC_H
 
+#include <linux/completion.h>
 #include <linux/highmem.h>
 #include <linux/mmc/tmio.h>
 #include <linux/mutex.h>
@@ -101,6 +102,8 @@ struct tmio_mmc_host {
 	struct mutex		ios_lock;	/* protect set_ios() context */
 	bool			native_hotplug;
 	bool			resuming;
+	bool			done_tuning;
+	struct completion	completion;
 };
 
 int tmio_mmc_host_probe(struct tmio_mmc_host **host,
