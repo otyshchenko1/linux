@@ -31,6 +31,7 @@
 #include <linux/mfd/tmio.h>
 #include <linux/sh_dma.h>
 #include <linux/delay.h>
+#include <linux/regulator/consumer.h>
 
 #include "tmio_mmc.h"
 
@@ -72,11 +73,18 @@ static unsigned short sh_acc_size[][SH_MOBILE_SDHI_EXT_ACC_MAX] = {
 	{ 0x0001, 0x0000, },	/* SH_MOBILE_SDHI_VER_CB0D */
 };
 
+struct sh_mobile_sdhi_scc {
+	unsigned long clk;	/* clock for SDR104 */
+	u32 tap;		/* sampling clock position for SDR104 */
+};
+
 struct sh_mobile_sdhi_of_data {
 	unsigned long tmio_flags;
 	unsigned long capabilities;
 	unsigned long capabilities2;
 	dma_addr_t dma_rx_offset;
+	struct sh_mobile_sdhi_scc *taps;
+	int taps_num;
 };
 
 static const struct sh_mobile_sdhi_of_data sh_mobile_sdhi_of_cfg[] = {
@@ -90,6 +98,18 @@ static const struct sh_mobile_sdhi_of_data of_rcar_gen1_compatible = {
 	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ,
 };
 
+/* Definitions for sampling clocks */
+static struct sh_mobile_sdhi_scc rcar_gen2_scc_taps[] = {
+	{
+		.clk = 195000000,
+		.tap = 0x00000300,
+	},
+	{
+		.clk = 156000000,
+		.tap = 0x00000703,
+	},
+};
+
 static const struct sh_mobile_sdhi_of_data of_rcar_gen2_compatible = {
 	.tmio_flags	= TMIO_MMC_CLK_ACTUAL | TMIO_MMC_CLK_NO_SLEEP |
 			  TMIO_MMC_HAS_IDLE_WAIT |
@@ -97,6 +117,8 @@ static const struct sh_mobile_sdhi_of_data of_rcar_gen2_compatible = {
 	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ,
 	.capabilities2	= MMC_CAP2_NO_2BLKS_READ,
 	.dma_rx_offset	= 0x2000,
+	.taps = rcar_gen2_scc_taps,
+	.taps_num = ARRAY_SIZE(rcar_gen2_scc_taps),
 };
 
 static const struct of_device_id sh_mobile_sdhi_of_match[] = {
@@ -146,6 +168,292 @@ static void sh_mobile_sdhi_clk_disable(struct platform_device *pdev)
 	struct tmio_mmc_host *host = mmc_priv(mmc);
 	struct sh_mobile_sdhi *priv = container_of(host->pdata, struct sh_mobile_sdhi, mmc_data);
 	clk_disable_unprepare(priv->clk);
+}
+
+#define SH_MOBILE_SDHI_SIGNAL_180V	0
+#define SH_MOBILE_SDHI_SIGNAL_330V	1
+
+static void sh_mobile_sdhi_set_ioctrl(struct tmio_mmc_host *host, int state)
+{
+	struct platform_device *pdev = host->pdev;
+	struct device_node *np = pdev->dev.of_node;
+	void __iomem *pmmr, *ioctrl6;
+	unsigned int ctrl, mask;
+	u32 pfcs[2], id;
+
+	if (!np)
+		return;
+
+	if (of_property_read_u32_array(np, "renesas,pfcs", pfcs, 2)) {
+		pr_err("update_ioctrl6: unknown pfcs\n");
+		return;
+	}
+
+	if (of_property_read_u32(np, "renesas,id", &id)) {
+		pr_err("update_ioctrl6: unknown id\n");
+		return;
+	}
+
+	pmmr = ioremap(pfcs[0], 0x04);
+	ioctrl6 = ioremap(pfcs[0] + pfcs[1], 0x04);
+
+	ctrl = ioread32(ioctrl6);
+	/* Set 1.8V/3.3V */
+	mask = 0xff << (24 - id * 8);
+
+	if (state == SH_MOBILE_SDHI_SIGNAL_330V)
+		ctrl |= mask;
+	else if (state == SH_MOBILE_SDHI_SIGNAL_180V)
+		ctrl &= ~mask;
+	else {
+		pr_err("update_ioctrl6: unknown state\n");
+		goto err;
+	}
+
+	iowrite32(~ctrl, pmmr);
+	iowrite32(ctrl, ioctrl6);
+err:
+	iounmap(pmmr);
+	iounmap(ioctrl6);
+}
+
+static int sh_mobile_sdhi_start_signal_voltage_switch(
+	struct tmio_mmc_host *host, unsigned char signal_voltage)
+{
+	struct mmc_host *mmc = host->mmc;
+	int ret;
+
+	if (signal_voltage == MMC_SIGNAL_VOLTAGE_330) {
+		/* Enable 3.3V Signal */
+		if (mmc->supply.vqmmc) {
+			/* ioctrl */
+			sh_mobile_sdhi_set_ioctrl(host,
+						  SH_MOBILE_SDHI_SIGNAL_330V);
+			ret = regulator_set_voltage(mmc->supply.vqmmc,
+						    3300000, 3300000);
+			if (ret) {
+				dev_warn(&host->pdev->dev,
+					 "3.3V signalling voltage failed\n");
+				return -EIO;
+			}
+		}
+		usleep_range(5000, 10000);
+	} else if (signal_voltage == MMC_SIGNAL_VOLTAGE_180) {
+		/* Enable 1.8V Signal */
+		if (mmc->supply.vqmmc) {
+			ret = regulator_set_voltage(mmc->supply.vqmmc,
+						    1800000, 1800000);
+			if (ret) {
+				dev_warn(&host->pdev->dev,
+					 "1.8V signalling voltage failed\n");
+				return -EIO;
+			}
+			/* ioctrl */
+			sh_mobile_sdhi_set_ioctrl(host,
+						  SH_MOBILE_SDHI_SIGNAL_180V);
+		}
+		/* Wait for 5ms */
+		usleep_range(5000, 10000);
+	} else {
+		/* No signal voltage switch required */
+	}
+
+	return 0;
+}
+
+#define SH_MOBILE_SDHI_DAT0	0x0080
+static int sh_mobile_sdhi_card_busy(struct tmio_mmc_host *host)
+{
+	u16 dat0;
+
+	/* check to see DAT[3:0] */
+	dat0 = sd_ctrl_read16(host, CTL_STATUS2);
+	return !(dat0 & SH_MOBILE_SDHI_DAT0);
+}
+
+static bool sh_mobile_sdhi_inquiry_tuning(struct tmio_mmc_host *host)
+{
+	/* SDHI should be tuning only SDR104 */
+	if (host->mmc->ios.timing == MMC_TIMING_UHS_SDR104)
+		return true;
+	else
+		return false;
+}
+
+/* SCC registers */
+#define SH_MOBILE_SDHI_SCC_DTCNTL	0x300
+#define SH_MOBILE_SDHI_SCC_TAPSET	0x304
+#define SH_MOBILE_SDHI_SCC_DT2FF	0x308
+#define SH_MOBILE_SDHI_SCC_CKSEL	0x30C
+#define SH_MOBILE_SDHI_SCC_RVSCNTL	0x310
+#define SH_MOBILE_SDHI_SCC_RVSREQ	0x314
+
+/* Definitions for values the SH_MOBILE_SDHI_SCC_DTCNTL register */
+#define SH_MOBILE_SDHI_SCC_DTCNTL_TAPEN		(1 << 0)
+/* Definitions for values the SH_MOBILE_SDHI_SCC_CKSEL register */
+#define SH_MOBILE_SDHI_SCC_CKSEL_DTSEL		(1 << 0)
+/* Definitions for values the SH_MOBILE_SDHI_SCC_RVSCNTL register */
+#define SH_MOBILE_SDHI_SCC_RVSCNTL_RVSEN	(1 << 0)
+/* Definitions for values the SH_MOBILE_SDHI_SCC_RVSREQ register */
+#define SH_MOBILE_SDHI_SCC_RVSREQ_RVSERR	(1 << 2)
+
+static void sh_mobile_sdhi_init_tuning(struct tmio_mmc_host *host,
+							unsigned long *num)
+{
+	struct platform_device *pdev = host->pdev;
+	struct device_node *np = pdev->dev.of_node;
+	u32 scc_tapnum;
+	struct mmc_host *mmc = dev_get_drvdata(&host->pdev->dev);
+	const struct of_device_id *of_id =
+		of_match_device(sh_mobile_sdhi_of_match, &pdev->dev);
+	struct sh_mobile_sdhi_scc *taps;
+	int i;
+
+	/* set sampling clock selection range */
+	if (np && !of_property_read_u32(np, "renesas,mmc-scc-tapnum",
+							&scc_tapnum)) {
+		if (scc_tapnum)
+			writel(scc_tapnum << 16,
+				host->ctl + SH_MOBILE_SDHI_SCC_DTCNTL);
+	}
+
+	/* Initialize SCC */
+	sd_ctrl_write32(host, CTL_STATUS, 0x00000000);
+
+	writel(SH_MOBILE_SDHI_SCC_DTCNTL_TAPEN |
+		readl(host->ctl + SH_MOBILE_SDHI_SCC_DTCNTL),
+		host->ctl + SH_MOBILE_SDHI_SCC_DTCNTL);
+
+	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, ~0x0100 &
+		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
+
+	writel(SH_MOBILE_SDHI_SCC_CKSEL_DTSEL |
+		readl(host->ctl + SH_MOBILE_SDHI_SCC_CKSEL),
+		host->ctl + SH_MOBILE_SDHI_SCC_CKSEL);
+
+	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, 0x0100 |
+		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
+
+	writel(~SH_MOBILE_SDHI_SCC_RVSCNTL_RVSEN &
+		readl(host->ctl + SH_MOBILE_SDHI_SCC_RVSCNTL),
+		host->ctl + SH_MOBILE_SDHI_SCC_RVSCNTL);
+
+	if (of_id && of_id->data) {
+		const struct sh_mobile_sdhi_of_data *of_data = of_id->data;
+		for (i = 0, taps = of_data->taps;
+			i < of_data->taps_num; i++, taps++) {
+			if (taps->clk == mmc->f_max) {
+				writel(taps->tap,
+					host->ctl + SH_MOBILE_SDHI_SCC_DT2FF);
+				break;
+			}
+		}
+	}
+	if (taps->clk != mmc->f_max)
+		dev_warn(&host->pdev->dev, "Unknown f_max for SDR104\n");
+
+	/* Read TAPNUM */
+	*num = (readl(host->ctl + SH_MOBILE_SDHI_SCC_DTCNTL) >> 16) & 0xf;
+
+	return;
+}
+
+static int sh_mobile_sdhi_prepare_tuning(struct tmio_mmc_host *host,
+							unsigned long tap)
+{
+	/* Set sampling clock position */
+	writel(tap, host->ctl + SH_MOBILE_SDHI_SCC_TAPSET);
+
+	return 0;
+}
+
+#define SH_MOBILE_SDHI_MAX_TAP	3
+static int sh_mobile_sdhi_select_tuning(struct tmio_mmc_host *host,
+							unsigned long *tap)
+{
+	unsigned long i, tap_num, tap_cnt, tap_set;
+	unsigned long tap_start = 0, tap_end = 0;
+
+	/* Clear SCC_RVSREQ */
+	writel(0x00000000, host->ctl + SH_MOBILE_SDHI_SCC_RVSREQ);
+
+	/* Select SCC */
+	tap_num = (readl(host->ctl + SH_MOBILE_SDHI_SCC_DTCNTL) >> 16) & 0xf;
+
+	tap_cnt = 0;
+	for (i = 0; i < tap_num * 2; i++) {
+		if (tap[i] == 0) {
+			if (tap_cnt == 0)
+				tap_start = i;
+			tap_cnt++;
+			if (tap_cnt == tap_num) {
+				tap_start = 0;
+				tap_end = i;
+				break;
+			}
+		} else {
+			if (tap_cnt >= SH_MOBILE_SDHI_MAX_TAP) {
+				tap_end = i;
+				break;
+			}
+			tap_cnt = 0;
+		}
+	}
+
+	if (tap_cnt >= SH_MOBILE_SDHI_MAX_TAP)
+		tap_set = (tap_start + tap_end) / 2;
+	else
+		return -EIO;
+
+	/* Set SCC */
+	writel(tap_set, host->ctl + SH_MOBILE_SDHI_SCC_TAPSET);
+
+	/* Enable auto re-tuning */
+	writel(SH_MOBILE_SDHI_SCC_RVSCNTL_RVSEN |
+		readl(host->ctl + SH_MOBILE_SDHI_SCC_RVSCNTL),
+		host->ctl + SH_MOBILE_SDHI_SCC_RVSCNTL);
+	return 0;
+}
+
+static bool sh_mobile_sdhi_retuning(struct tmio_mmc_host *host)
+{
+	/* Check SCC error */
+	if (readl(host->ctl + SH_MOBILE_SDHI_SCC_RVSCNTL) &
+	    SH_MOBILE_SDHI_SCC_RVSCNTL_RVSEN &&
+	    readl(host->ctl + SH_MOBILE_SDHI_SCC_RVSREQ) &
+	    SH_MOBILE_SDHI_SCC_RVSREQ_RVSERR) {
+		/* Clear SCC error */
+		writel(0x00000000,
+			host->ctl + SH_MOBILE_SDHI_SCC_RVSREQ);
+		return true;
+	}
+	return false;
+}
+
+static void sh_mobile_sdhi_hw_reset(struct tmio_mmc_host *host)
+{
+	struct tmio_mmc_data *pdata = host->pdata;
+
+	if (pdata->flags & TMIO_MMC_HAS_UHS_SCC) {
+		/* Reset SCC */
+		sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, ~0x0100 &
+			sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
+
+		writel(~SH_MOBILE_SDHI_SCC_CKSEL_DTSEL &
+			readl(host->ctl + SH_MOBILE_SDHI_SCC_CKSEL),
+			host->ctl + SH_MOBILE_SDHI_SCC_CKSEL);
+
+		sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, 0x0100 |
+			sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
+
+		writel(~SH_MOBILE_SDHI_SCC_DTCNTL_TAPEN &
+			readl(host->ctl + SH_MOBILE_SDHI_SCC_DTCNTL),
+			host->ctl + SH_MOBILE_SDHI_SCC_DTCNTL);
+
+		writel(~SH_MOBILE_SDHI_SCC_RVSCNTL_RVSEN &
+			readl(host->ctl + SH_MOBILE_SDHI_SCC_RVSCNTL),
+			host->ctl + SH_MOBILE_SDHI_SCC_RVSCNTL);
+	}
 }
 
 static int sh_mobile_sdhi_wait_idle(struct tmio_mmc_host *host)
@@ -328,6 +636,15 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	mmc_data->write16_hook = sh_mobile_sdhi_write16_hook;
 	mmc_data->disable_auto_cmd12 = sh_mobile_sdhi_disable_auto_cmd12;
 	mmc_data->set_clk_div = sh_mobile_sdhi_set_clk_div;
+	mmc_data->start_signal_voltage_switch =
+			sh_mobile_sdhi_start_signal_voltage_switch;
+	mmc_data->card_busy = sh_mobile_sdhi_card_busy;
+	mmc_data->inquiry_tuning = sh_mobile_sdhi_inquiry_tuning;
+	mmc_data->init_tuning = sh_mobile_sdhi_init_tuning;
+	mmc_data->prepare_tuning = sh_mobile_sdhi_prepare_tuning;
+	mmc_data->select_tuning = sh_mobile_sdhi_select_tuning;
+	mmc_data->retuning = sh_mobile_sdhi_retuning;
+	mmc_data->hw_reset = sh_mobile_sdhi_hw_reset;
 	if (p) {
 		mmc_data->flags = p->tmio_flags;
 		mmc_data->ocr_mask = p->tmio_ocr_mask;
@@ -381,6 +698,16 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		mmc_data->capabilities |= of_data->capabilities;
 		mmc_data->capabilities2 |= of_data->capabilities2;
 		dma_priv->dma_rx_offset = of_data->dma_rx_offset;
+	}
+
+	if (of_find_property(np, "cap-uhs-sdr50", NULL))
+		mmc_data->capabilities |= MMC_CAP_UHS_SDR50;
+	if (of_find_property(np, "cap-uhs-sdr104", NULL))
+		mmc_data->capabilities |= MMC_CAP_UHS_SDR104;
+
+	if (mmc_data->capabilities & MMC_CAP_UHS_SDR104) {
+		mmc_data->capabilities |= MMC_CAP_HW_RESET;
+		mmc_data->flags |= TMIO_MMC_HAS_UHS_SCC;
 	}
 
 	/* SD control register space size is 0x100, 0x200 for bus_shift=1 */
