@@ -270,6 +270,7 @@ static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
 	unsigned long flags;
 	struct tmio_mmc_data *pdata = host->pdata;
 	bool result;
+	struct mmc_command *cmd = host->cmd;
 	int ret = 0;
 
 	spin_lock_irqsave(&host->lock, flags);
@@ -307,6 +308,23 @@ static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
 		if (result || (mrq->cmd->error == -EILSEQ)) {
 			host->done_tuning = false;
 			goto fail;
+		}
+	}
+
+	if (cmd == mrq->sbc) {
+		host->last_req_ts = jiffies;
+		host->mrq = mrq;
+
+		if (mrq->data) {
+			ret = tmio_mmc_start_data(host, mrq->data);
+			if (ret)
+				goto fail;
+		}
+		ret = tmio_mmc_start_command(host, mrq->cmd);
+		if (!ret) {
+			schedule_delayed_work(&host->delayed_reset_work,
+					      msecs_to_jiffies(2000));
+			return;
 		}
 	}
 
@@ -530,8 +548,10 @@ static int tmio_mmc_start_command(struct tmio_mmc_host *host, struct mmc_command
 		if (data->blocks > 1) {
 			sd_ctrl_write16(host, CTL_STOP_INTERNAL_ACTION, 0x100);
 			c |= TRANSFER_MULTI;
-			if (cmd->opcode == SD_IO_RW_EXTENDED) {
-				/* Disable auto CMD12 at IO_RW_EXTENDED
+			if (cmd->opcode == SD_IO_RW_EXTENDED ||
+			    host->mrq->sbc) {
+				/* Disable auto CMD12 at IO_RW_EXTENDED or
+				  SET_BLOCK_COUNT support card
 				  multiple block transfer */
 				if (pdata->disable_auto_cmd12)
 					pdata->disable_auto_cmd12(&c);
@@ -717,8 +737,6 @@ static void tmio_mmc_cmd_irq(struct tmio_mmc_host *host,
 		pr_debug("Spurious CMD irq\n");
 		goto out;
 	}
-
-	host->cmd = NULL;
 
 	/* This controller is sicker than the PXA one. Not only do we need to
 	 * drop the top 8 bits of the first response word, we also need to
@@ -969,13 +987,17 @@ static void tmio_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		}
 	}
 
-	if (mrq->data) {
-		ret = tmio_mmc_start_data(host, mrq->data);
-		if (ret)
-			goto fail;
+	if (mrq->sbc)
+		ret = tmio_mmc_start_command(host, mrq->sbc);
+	else {
+		if (mrq->data) {
+			ret = tmio_mmc_start_data(host, mrq->data);
+			if (ret)
+				goto fail;
+		}
+		ret = tmio_mmc_start_command(host, mrq->cmd);
 	}
 
-	ret = tmio_mmc_start_command(host, mrq->cmd);
 	if (!ret) {
 		schedule_delayed_work(&host->delayed_reset_work,
 				      msecs_to_jiffies(2000));
