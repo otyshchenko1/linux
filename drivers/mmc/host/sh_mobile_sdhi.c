@@ -706,7 +706,8 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		mmc_data->capabilities |= MMC_CAP_UHS_SDR104;
 
 	if (mmc_data->capabilities & MMC_CAP_UHS_SDR104) {
-		mmc_data->capabilities |= MMC_CAP_HW_RESET;
+		mmc_data->capabilities |= MMC_CAP_CMD23 |
+					  MMC_CAP_HW_RESET;
 		mmc_data->flags |= TMIO_MMC_HAS_UHS_SCC;
 	}
 
