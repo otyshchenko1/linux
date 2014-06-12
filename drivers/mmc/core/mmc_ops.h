@@ -2,6 +2,8 @@
  *  linux/drivers/mmc/core/mmc_ops.h
  *
  *  Copyright 2006-2007 Pierre Ossman
+ * MMC password protection (C) 2006 Instituto Nokia de Tecnologia (INdT),
+ * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -11,6 +13,8 @@
 
 #ifndef _MMC_MMC_OPS_H
 #define _MMC_MMC_OPS_H
+
+struct key;
 
 int mmc_select_card(struct mmc_card *card);
 int mmc_deselect_cards(struct mmc_host *host);
@@ -27,6 +31,7 @@ int mmc_spi_set_crc(struct mmc_host *host, int use_crc);
 int mmc_card_sleepawake(struct mmc_host *host, int sleep);
 int mmc_bus_test(struct mmc_card *card, u8 bus_width);
 int mmc_send_hpi_cmd(struct mmc_card *card, u32 *status);
+int mmc_lock_unlock(struct mmc_card *card, struct key *key, int mode);
 
 #endif
 

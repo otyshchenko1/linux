@@ -20,6 +20,7 @@
 
 #include "core.h"
 #include "bus.h"
+#include "lock.h"
 #include "mmc_ops.h"
 #include "sd_ops.h"
 
@@ -653,6 +654,9 @@ static struct attribute *mmc_std_attrs[] = {
 	&dev_attr_enhanced_area_size.attr,
 	&dev_attr_raw_rpmb_size_mult.attr,
 	&dev_attr_rel_sectors.attr,
+#ifdef CONFIG_MMC_PASSWORDS
+	&dev_attr_lockable.attr,
+#endif
 	NULL,
 };
 
@@ -844,6 +848,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	unsigned int max_dtr;
 	u32 rocr;
 	u8 *ext_csd = NULL;
+	u32 status;
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
@@ -917,6 +922,15 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 
 		mmc_set_bus_mode(host, MMC_BUSMODE_PUSHPULL);
 	}
+
+	/*
+	* Check if card is locked.
+	*/
+	err = mmc_send_status(card, &status);
+	if (err)
+		goto free_card;
+	if (status & R1_CARD_IS_LOCKED)
+		mmc_card_set_locked(card);
 
 	if (!oldcard) {
 		/*
@@ -1421,7 +1435,8 @@ static int mmc_suspend(struct mmc_host *host)
 		err = mmc_card_sleep(host);
 	else if (!mmc_host_is_spi(host))
 		err = mmc_deselect_cards(host);
-	host->card->state &= ~(MMC_STATE_HIGHSPEED | MMC_STATE_HIGHSPEED_200);
+	host->card->state &= ~(MMC_STATE_HIGHSPEED | MMC_STATE_HIGHSPEED_200
+						   | MMC_STATE_LOCKED);
 
 out:
 	mmc_release_host(host);

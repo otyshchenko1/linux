@@ -24,6 +24,7 @@
 #include "core.h"
 #include "sdio_cis.h"
 #include "bus.h"
+#include "lock.h"
 
 #define to_mmc_driver(d)	container_of(d, struct mmc_driver, drv)
 
@@ -55,9 +56,20 @@ static struct device_attribute mmc_dev_attrs[] = {
  * This currently matches any MMC driver to any MMC card - drivers
  * themselves make the decision whether to drive this card in their
  * probe method.
+ *
+ * We also fail for all locked cards; drivers expect to be able to do block
+ * I/O still on probe(), which is not possible while the card is locked.
+ * Device probing must be triggered sometime later to make the card available
+ * to the block driver.
  */
 static int mmc_bus_match(struct device *dev, struct device_driver *drv)
 {
+	struct mmc_card *card = dev_to_mmc_card(dev);
+
+	if (mmc_card_locked(card)) {
+		dev_dbg(&card->dev, "card is locked; binding is deferred\n");
+		return 0;
+	}
 	return 1;
 }
 
