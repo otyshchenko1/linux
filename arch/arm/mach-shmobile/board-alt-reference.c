@@ -38,7 +38,6 @@
 #include <linux/spi/spi.h>
 #include <linux/usb/phy.h>
 #include <linux/usb/renesas_usbhs.h>
-#include <mach/clock.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <mach/rcar-gen2.h>
@@ -47,6 +46,7 @@
 #include <asm/mach/arch.h>
 #include <sound/rcar_snd.h>
 #include <sound/simple_card.h>
+#include "clock.h"
 #include "dma-register.h"
 
 /* DU */

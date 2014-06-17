@@ -43,7 +43,6 @@
 #if defined(CONFIG_USB_RENESAS_USBHS_UDC)
 #include <linux/usb/renesas_usbhs.h>
 #endif
-#include <mach/clock.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <mach/rcar-gen2.h>
@@ -52,6 +51,7 @@
 #include <asm/mach/arch.h>
 #include <sound/rcar_snd.h>
 #include <sound/simple_card.h>
+#include "clock.h"
 #include "dma-register.h"
 
 /* DU */
