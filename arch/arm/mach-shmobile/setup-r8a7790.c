@@ -34,6 +34,7 @@
 #include "common.h"
 #include "dma-register.h"
 #include "irqs.h"
+#include "rcar-gen2.h"
 
 /* Audio-DMAC */
 #define AUDIO_DMAC_SLAVE(_id, _addr, toffset, roffset, t, r)	\

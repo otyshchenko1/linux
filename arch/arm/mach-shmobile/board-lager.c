@@ -60,6 +60,7 @@
 #include <sound/simple_card.h>
 #include "common.h"
 #include "irqs.h"
+#include "rcar-gen2.h"
 
 /*
  * SSI-AK4643

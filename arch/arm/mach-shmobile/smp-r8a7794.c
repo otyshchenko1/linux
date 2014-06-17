@@ -21,6 +21,7 @@
 #include <mach/platsmp-apmu.h>
 #include "common.h"
 #include "pm-rcar.h"
+#include "rcar-gen2.h"
 
 #define RST		0xe6160000
 #define CA7BAR		0x0030

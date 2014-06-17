@@ -38,7 +38,6 @@
 #include <linux/spi/spi.h>
 #include <linux/usb/phy.h>
 #include <linux/usb/renesas_usbhs.h>
-#include <mach/rcar-gen2.h>
 #include <mach/r8a7794.h>
 #include <media/soc_camera.h>
 #include <asm/mach/arch.h>
@@ -48,6 +47,7 @@
 #include "common.h"
 #include "dma-register.h"
 #include "irqs.h"
+#include "rcar-gen2.h"
 
 /* DU */
 static struct rcar_du_encoder_data alt_du_encoders[] = {

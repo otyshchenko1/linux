@@ -44,7 +44,6 @@
 #if defined(CONFIG_VIDEO_RENESAS_VSP1)
 #include <linux/platform_data/vsp1.h>
 #endif
-#include <mach/rcar-gen2.h>
 #include <mach/r8a7790.h>
 #include <media/soc_camera.h>
 #include <asm/mach/arch.h>
@@ -54,6 +53,7 @@
 #include "common.h"
 #include "dma-register.h"
 #include "irqs.h"
+#include "rcar-gen2.h"
 
 /* DU */
 static struct rcar_du_encoder_data lager_du_encoders[] = {

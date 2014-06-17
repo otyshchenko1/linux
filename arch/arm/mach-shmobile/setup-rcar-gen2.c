@@ -25,9 +25,9 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/of_fdt.h>
-#include <mach/rcar-gen2.h>
 #include <asm/mach/arch.h>
 #include "common.h"
+#include "rcar-gen2.h"
 
 #define MODEMR 0xe6160060
 

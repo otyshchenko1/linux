@@ -1,8 +1,6 @@
 #ifndef __ASM_R8A7794_H__
 #define __ASM_R8A7794_H__
 
-#include <mach/rcar-gen2.h>
-
 struct platform_device;
 
 /* DMA slave IDs */
