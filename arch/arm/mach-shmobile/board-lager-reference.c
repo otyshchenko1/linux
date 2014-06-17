@@ -44,7 +44,6 @@
 #if defined(CONFIG_VIDEO_RENESAS_VSP1)
 #include <linux/platform_data/vsp1.h>
 #endif
-#include <mach/common.h>
 #include <mach/rcar-gen2.h>
 #include <mach/r8a7790.h>
 #include <media/soc_camera.h>
@@ -52,6 +51,7 @@
 #include <sound/rcar_snd.h>
 #include <sound/simple_card.h>
 #include "clock.h"
+#include "common.h"
 #include "dma-register.h"
 #include "irqs.h"
 

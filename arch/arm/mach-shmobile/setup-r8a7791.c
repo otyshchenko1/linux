@@ -29,10 +29,10 @@
 #include <linux/sh_dma.h>
 #include <linux/sh_timer.h>
 #include <linux/spi/sh_msiof.h>
-#include <mach/common.h>
 #include <mach/r8a7791.h>
 #include <mach/rcar-gen2.h>
 #include <asm/mach/arch.h>
+#include "common.h"
 #include "dma-register.h"
 #include "irqs.h"
 

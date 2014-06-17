@@ -24,9 +24,9 @@
 #include <linux/sh_clk.h>
 #include <linux/clkdev.h>
 #include <linux/sh_timer.h>
-#include <mach/common.h>
 #include <mach/r8a7779.h>
 #include "clock.h"
+#include "common.h"
 
 /*
  *		MD1 = 1			MD1 = 0

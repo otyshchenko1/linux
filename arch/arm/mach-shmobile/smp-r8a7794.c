@@ -17,9 +17,9 @@
 #include <linux/smp.h>
 #include <linux/io.h>
 #include <asm/smp_plat.h>
-#include <mach/common.h>
 #include <mach/r8a7794.h>
 #include <mach/platsmp-apmu.h>
+#include "common.h"
 
 #define RST		0xe6160000
 #define CA7BAR		0x0030

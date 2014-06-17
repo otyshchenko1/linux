@@ -19,10 +19,11 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/mm.h>
-#include <mach/common.h>
+#include <linux/of_platform.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include "common.h"
 
 static struct map_desc emev2_io_desc[] __initdata = {
 #ifdef CONFIG_SMP
