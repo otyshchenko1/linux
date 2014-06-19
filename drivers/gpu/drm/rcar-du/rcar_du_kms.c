@@ -39,7 +39,7 @@ static const struct rcar_du_format_info rcar_du_format_infos[] = {
 		.fourcc = DRM_FORMAT_RGB565,
 		.bpp = 16,
 		.planes = 1,
-		.pnmr = PnMR_SPIM_TP | PnMR_DDDF_16BPP,
+		.pnmr = PnMR_SPIM_ALP | PnMR_DDDF_16BPP,
 		.edf = PnDDCR4_EDF_NONE,
 	}, {
 		.fourcc = DRM_FORMAT_ARGB1555,
@@ -57,7 +57,7 @@ static const struct rcar_du_format_info rcar_du_format_infos[] = {
 		.fourcc = DRM_FORMAT_XRGB8888,
 		.bpp = 32,
 		.planes = 1,
-		.pnmr = PnMR_SPIM_TP | PnMR_DDDF_16BPP,
+		.pnmr = PnMR_SPIM_ALP | PnMR_DDDF_16BPP,
 		.edf = PnDDCR4_EDF_RGB888,
 	}, {
 		.fourcc = DRM_FORMAT_ARGB8888,

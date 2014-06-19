@@ -280,7 +280,7 @@ static void rcar_du_plane_setup_mode(struct rcar_du_plane *plane,
 	 * For XRGB, set the alpha value to the plane-wide alpha value and
 	 * enable alpha-blending regardless of the X bit value.
 	 */
-	if (plane->format->fourcc != DRM_FORMAT_XRGB1555)
+	if (plane->format->fourcc == DRM_FORMAT_ARGB1555)
 		rcar_du_plane_write(rgrp, index, PnALPHAR, PnALPHAR_ABIT_0);
 	else
 		rcar_du_plane_write(rgrp, index, PnALPHAR,
@@ -545,7 +545,12 @@ static void rcar_du_plane_set_alpha(struct rcar_du_plane *plane, u32 alpha)
 		return;
 
 	plane->alpha = alpha;
-	if (!plane->enabled || plane->format->fourcc != DRM_FORMAT_XRGB1555)
+	if ((!plane->enabled) || (plane->format->fourcc == DRM_FORMAT_ARGB8888)
+			      || (plane->format->fourcc == DRM_FORMAT_UYVY)
+			      || (plane->format->fourcc == DRM_FORMAT_YUYV)
+			      || (plane->format->fourcc == DRM_FORMAT_NV12)
+			      || (plane->format->fourcc == DRM_FORMAT_NV21)
+			      || (plane->format->fourcc == DRM_FORMAT_NV16))
 		return;
 
 	rcar_du_plane_setup_mode(plane, plane->hwindex);
