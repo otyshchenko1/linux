@@ -18,11 +18,13 @@
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/io.h>
+
 #include <asm/smp_plat.h>
-#include <mach/r8a7790.h>
 #include <mach/platsmp-apmu.h>
+
 #include "common.h"
 #include "pm-rcar.h"
+#include "r8a7790.h"
 #include "rcar-gen2.h"
 
 #define RST		0xe6160000

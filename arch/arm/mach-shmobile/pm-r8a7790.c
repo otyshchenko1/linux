@@ -14,9 +14,11 @@
 #include <linux/pm.h>
 #include <linux/pm_clock.h>
 #include <linux/pm_domain.h>
+
 #include <asm/io.h>
-#include <mach/r8a7790.h>
+
 #include "pm-rcar.h"
+#include "r8a7790.h"
 
 /* SYSC */
 #define SYSCIER 0x0c
