@@ -22,10 +22,12 @@
 #include <linux/kernel.h>
 #include <linux/of_platform.h>
 #include <linux/sh_timer.h>
-#include <mach/r7s72100.h>
+
 #include <asm/mach/arch.h>
+
 #include "common.h"
 #include "irqs.h"
+#include "r7s72100.h"
 
 static struct sh_timer_config mtu2_0_platform_data __initdata = {
 	.name = "MTU2_0",
