@@ -428,12 +428,14 @@ rcar_du_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 {
 	struct rcar_du_plane *rplane = to_rcar_plane(plane);
 	struct rcar_du_device *rcdu = rplane->group->dev;
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 	const struct rcar_du_format_info *format;
 	enum rcar_du_plane_source source;
 	uint32_t pixel_format;
 	unsigned int nplanes;
 	bool source_changed;
 	int ret;
+	unsigned int value;
 
 	pixel_format = fb ? fb->pixel_format : src->pixel_format;
 
@@ -526,6 +528,17 @@ rcar_du_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	if (rplane->group->planes.need_restart)
 		rcar_du_group_restart(rplane->group);
+
+	if (rplane->group->index == 1)
+		value = DU_CH_2;
+	else {
+		if (rcrtc->dptsr_read & (1 << rplane->hwindex))
+			value = DU_CH_1;
+		else
+			value = DU_CH_0;
+	}
+	drm_object_property_set_value(&plane->base,
+				  rplane->group->planes.channel, value);
 
 	mutex_unlock(&rplane->group->planes.lock);
 
@@ -673,6 +686,12 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 	if (planes->zpos == NULL)
 		return -ENOMEM;
 
+	planes->channel =
+		drm_property_create_range(rcdu->ddev, 0, "channel", 0, 2);
+
+	if (planes->channel == NULL)
+		return -ENOMEM;
+
 	for (i = 0; i < ARRAY_SIZE(planes->planes); ++i) {
 		struct rcar_du_plane *plane = &planes->planes[i];
 
@@ -696,6 +715,7 @@ int rcar_du_planes_register(struct rcar_du_group *rgrp)
 	unsigned int i;
 	int ret;
 	unsigned int plane_num;
+	unsigned int dptsr_ch;
 
 	if (rgrp->index == 1)
 		plane_num = RCAR_DU2_NUM_KMS_PLANES;
@@ -729,6 +749,17 @@ int rcar_du_planes_register(struct rcar_du_group *rgrp)
 					   RCAR_DU_COLORKEY_NONE);
 		drm_object_attach_property(&plane->plane.base,
 					   planes->zpos, 1);
+		if (rgrp->index == 1)
+			dptsr_ch = DU_CH_2;
+		else {
+			if ((0x01 << ((plane_num - 1) - i)) &
+				CONFIG_DRM_RCAR_DU_OVERLAY_CH)
+				dptsr_ch = DU_CH_1;
+			else
+				dptsr_ch = DU_CH_0;
+		}
+		drm_object_attach_property(&plane->plane.base,
+					   planes->channel, dptsr_ch);
 	}
 
 	return 0;

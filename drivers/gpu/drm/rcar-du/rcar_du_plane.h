@@ -56,6 +56,7 @@ struct rcar_du_plane {
 	unsigned int alpha;
 	unsigned int colorkey;
 	unsigned int zpos;
+	unsigned int channel;
 
 	const struct rcar_du_format_info *format;
 
@@ -84,6 +85,7 @@ struct rcar_du_planes {
 	struct drm_property *alpha;
 	struct drm_property *colorkey;
 	struct drm_property *zpos;
+	struct drm_property *channel;
 };
 
 int rcar_du_vsp1_sources_init(struct rcar_du_device *rcdu);

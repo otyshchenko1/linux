@@ -39,6 +39,7 @@ struct rcar_du_crtc {
 	struct rcar_du_plane *plane;
 	int lvds_ch;
 	bool dptsr_init;
+	unsigned int dptsr_read;
 };
 
 #define to_rcar_crtc(c)	container_of(c, struct rcar_du_crtc, crtc)

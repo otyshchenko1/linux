@@ -272,6 +272,8 @@ void rcar_du_crtc_update_planes(struct drm_crtc *crtc)
 					 (value | dptsr));
 			rcar_du_group_restart(rcrtc->group);
 		}
+		rcrtc->dptsr_read = DPTSR_MASK &
+				 rcar_du_group_read(rcrtc->group, DPTSR);
 	}
 
 	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? DS2PR : DS1PR,
