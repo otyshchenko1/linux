@@ -59,6 +59,9 @@ static struct rcar_du_encoder_data lager_du_encoders[] = {
 		.type = RCAR_DU_ENCODER_HDMI,
 		.output = RCAR_DU_OUTPUT_LVDS0,
 	}, {
+		.type = RCAR_DU_ENCODER_VGA,
+		.output = RCAR_DU_OUTPUT_DPAD0,
+	}, {
 		.type = RCAR_DU_ENCODER_NONE,
 		.output = RCAR_DU_OUTPUT_LVDS1,
 		.connector.lvds.panel = {
@@ -77,9 +80,6 @@ static struct rcar_du_encoder_data lager_du_encoders[] = {
 				.flags = 0,
 			},
 		},
-	}, {
-		.type = RCAR_DU_ENCODER_VGA,
-		.output = RCAR_DU_OUTPUT_DPAD0,
 	},
 #else
 	{
