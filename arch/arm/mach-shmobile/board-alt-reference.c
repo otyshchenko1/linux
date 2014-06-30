@@ -87,9 +87,17 @@ static struct rcar_du_encoder_data alt_du_encoders[] = {
 static struct rcar_du_crtc_data alt_du_crtcs[] = {
 	{
 		.exclk = 148500000,
+#if defined(CONFIG_DRM_ADV7511) || defined(CONFIG_DRM_ADV7511_MODULE)
+		.init_conn_type = DRM_MODE_CONNECTOR_HDMIA,
+#elif defined(CONFIG_DRM_RCAR_LVDS)
+		.init_conn_type = DRM_MODE_CONNECTOR_LVDS,
+#else
+		.init_conn_type = DRM_MODE_CONNECTOR_Unknown,
+#endif
 	},
 	{
 		.exclk = 74250000,
+		.init_conn_type = DRM_MODE_CONNECTOR_VGA,
 	},
 };
 
