@@ -647,6 +647,8 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 	char *name;
 	int irq;
 	int ret;
+	const struct rcar_du_crtc_data *pdata =
+			&rgrp->dev->pdata->crtcs[index];
 
 	/* Get the CRTC clock. */
 	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_CRTC_IRQ_CLOCK)) {
@@ -668,6 +670,11 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 	rcrtc->dpms = DRM_MODE_DPMS_OFF;
 	rcrtc->plane = &rgrp->planes.planes[index % 2];
 	rcrtc->lvds_ch = -1;
+
+	if (pdata->init_conn_type)
+		crtc->connector_type = pdata->init_conn_type;
+	else
+		crtc->connector_type = DRM_MODE_CONNECTOR_Unknown;
 
 	rcrtc->plane->crtc = crtc;
 	rcrtc->plane->fb_plane = true;

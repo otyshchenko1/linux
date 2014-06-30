@@ -75,6 +75,7 @@ struct rcar_du_encoder_data {
 
 struct rcar_du_crtc_data {
 	unsigned int exclk;
+	unsigned int init_conn_type;
 };
 
 struct rcar_du_platform_data {
