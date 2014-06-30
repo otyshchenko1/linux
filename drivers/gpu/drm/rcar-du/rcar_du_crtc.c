@@ -251,8 +251,9 @@ void rcar_du_crtc_update_planes(struct drm_crtc *crtc)
 	/* Select display timing and dot clock generator 1 for planes associated
 	 * with superposition controller 1.
 	 */
-	if (rcrtc->index % 2) {
-		u32 value = rcar_du_group_read(rcrtc->group, DPTSR);
+	if (rcrtc->index < DU_CH_2) {
+		u32 value = DPTSR_MASK &
+			 rcar_du_group_read(rcrtc->group, DPTSR);
 
 		/* The DPTSR register is updated when the display controller is
 		 * stopped. We thus need to restart the DU. Once again, sorry
@@ -261,8 +262,14 @@ void rcar_du_crtc_update_planes(struct drm_crtc *crtc)
 		 * split, or through a module parameter). Flicker would then
 		 * occur only if we need to break the pre-association.
 		 */
-		if (value != dptsr) {
-			rcar_du_group_write(rcrtc->group, DPTSR, dptsr);
+		if ((rcrtc->index == DU_CH_0) && ((~value & dptsr) != dptsr)) {
+			rcar_du_group_write(rcrtc->group, DPTSR,
+					 (value & ~dptsr));
+			rcar_du_group_restart(rcrtc->group);
+		}
+		if ((rcrtc->index == DU_CH_1) && ((value & dptsr) != dptsr)) {
+			rcar_du_group_write(rcrtc->group, DPTSR,
+					 (value | dptsr));
 			rcar_du_group_restart(rcrtc->group);
 		}
 	}
