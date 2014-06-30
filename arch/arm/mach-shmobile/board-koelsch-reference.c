@@ -84,9 +84,11 @@ static struct rcar_du_encoder_data koelsch_du_encoders[] = {
 static struct rcar_du_crtc_data koelsch_du_crtcs[] = {
 	{
 		.exclk = 148500000,
+		.init_conn_type = DRM_MODE_CONNECTOR_LVDS,
 	},
 	{
 		.exclk = 74250000,
+		.init_conn_type = DRM_MODE_CONNECTOR_HDMIA,
 	},
 };
 
