@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2013-2014 Renesas Electronics Corporation
  * Copyright © 2006 Keith Packard
  * Copyright © 2007-2008 Dave Airlie
  * Copyright © 2007-2008 Intel Corporation
@@ -447,6 +448,7 @@ struct drm_crtc {
 #if defined(CONFIG_DRM_FBDEV_CRTC)
 	int flip_id;
 #endif
+	uint32_t connector_type;
 };
 
 

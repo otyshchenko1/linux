@@ -524,6 +524,13 @@ int drm_fb_helper_init(struct drm_device *dev,
 	i = 0;
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		fb_helper->crtc_info[i].mode_set.crtc = crtc;
+		if ((crtc->connector_type) &&
+			 (crtc->connector_type > DRM_MODE_CONNECTOR_Unknown))
+			fb_helper->crtc_info[i].init_conn_type
+				 = crtc->connector_type;
+		else
+			fb_helper->crtc_info[i].init_conn_type
+				 = DRM_MODE_CONNECTOR_Unknown;
 		i++;
 	}
 #if defined(CONFIG_DRM_FBDEV_CRTC)
@@ -1674,6 +1681,10 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 		crtc = &fb_helper->crtc_info[c];
 
 		if ((encoder->possible_crtcs & (1 << c)) == 0)
+			continue;
+
+		if ((crtc->init_conn_type > DRM_MODE_CONNECTOR_Unknown) &&
+			 (crtc->init_conn_type != connector->connector_type))
 			continue;
 
 		for (o = 0; o < n; o++)
