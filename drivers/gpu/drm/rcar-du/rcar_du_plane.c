@@ -270,18 +270,35 @@ static void rcar_du_plane_setup_mode(struct rcar_du_plane *plane,
 	struct rcar_du_group *rgrp = plane->group;
 	u32 colorkey;
 	u32 pnmr;
+	u32 alpha_bit;
 
-	/* The PnALPHAR register controls alpha-blending in 16bpp formats
-	 * (ARGB1555 and XRGB1555).
+	/* The PnALPHAR register controls alpha-blending in formats
+	 * (XRGB0565, XRGB1555, ARGB1555 and XRGB8888)
+	 * by setting the alpha value.
 	 *
-	 * For ARGB, set the alpha value to 0, and enable alpha-blending when
-	 * the A bit is 0. This maps A=0 to alpha=0 and A=1 to alpha=255.
+	 * For ARGB1555, set the alpha value from 0 to 255, and enable
+	 * the pixel alpha-blending when the value of A bit is 0 or 1.
+	 * The pixel alpha-blending by the A bit depends on setting the config
+	 * of DRM_RCAR_ALPHA_BIT_ARGB1555
+	 *
+	 * For ARGB8888, set the value of the A bit from 0 to 255, and enable
+	 * the pixel alpha-blending. A=0 is transparent.
+	 * A=128 is semi-transparent. A=255 is non-transparent.
 	 *
 	 * For XRGB, set the alpha value to the plane-wide alpha value and
 	 * enable alpha-blending regardless of the X bit value.
 	 */
-	if (plane->format->fourcc == DRM_FORMAT_ARGB1555)
+	if (CONFIG_DRM_RCAR_ALPHA_BIT_ARGB1555 == 1)
+		alpha_bit = PnALPHAR_ABIT_1;
+	else
+		alpha_bit = PnALPHAR_ABIT_0;
+
+	if ((plane->format->fourcc == DRM_FORMAT_ARGB1555) &&
+		(plane->argb1555_init))
 		rcar_du_plane_write(rgrp, index, PnALPHAR, PnALPHAR_ABIT_0);
+	else if (plane->format->fourcc == DRM_FORMAT_ARGB1555)
+		rcar_du_plane_write(rgrp, index, PnALPHAR,
+				    alpha_bit | plane->alpha);
 	else
 		rcar_du_plane_write(rgrp, index, PnALPHAR,
 				    PnALPHAR_ABIT_X | plane->alpha);
@@ -541,6 +558,8 @@ static int rcar_du_plane_disable(struct drm_plane *plane)
  */
 static void rcar_du_plane_set_alpha(struct rcar_du_plane *plane, u32 alpha)
 {
+	plane->argb1555_init = false;
+
 	if (plane->alpha == alpha)
 		return;
 
@@ -663,6 +682,7 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 		plane->alpha = 255;
 		plane->colorkey = RCAR_DU_COLORKEY_NONE;
 		plane->zpos = 0;
+		plane->argb1555_init = true;
 	}
 
 	return 0;
