@@ -492,6 +492,9 @@
 #define DPTSR			0x11004
 #define DPTSR_PnDK(n)		(1 << ((n) + 16))
 #define DPTSR_PnTS(n)		(1 << (n))
+#define DPTSR_MASK		0x00FF00FF
+#define DPTSR_DK_BIT_SHIFT	(16)
+#define DPTSR_TS_BIT_SHIFT	(0)
 
 #define DAPTSR			0x11008
 #define DAPTSR_APnDK(n)		(1 << ((n) + 16))

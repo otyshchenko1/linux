@@ -275,6 +275,7 @@ static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 {
 	struct drm_crtc *crtc = &rcrtc->crtc;
 	unsigned int i;
+	unsigned int dptsr;
 
 	if (rcrtc->started)
 		return;
@@ -285,6 +286,16 @@ static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 	/* Set display off and background to black */
 	rcar_du_crtc_write(rcrtc, DOOR, DOOR_RGB(0, 0, 0));
 	rcar_du_crtc_write(rcrtc, BPOR, BPOR_RGB(0, 0, 0));
+
+	/* Initialized DPTSR register */
+	if ((rcrtc->dptsr_init) && (rcrtc->index < DU_CH_2)) {
+		dptsr = ((CONFIG_DRM_RCAR_DU_OVERLAY_CH << DPTSR_DK_BIT_SHIFT) |
+			(CONFIG_DRM_RCAR_DU_OVERLAY_CH << DPTSR_TS_BIT_SHIFT));
+		rcar_du_group_write(rcrtc->group, DPTSR, DPTSR_MASK
+		     & (rcar_du_group_read(rcrtc->group, DPTSR) | dptsr));
+		rcar_du_group_restart(rcrtc->group);
+		rcrtc->dptsr_init = false;
+	}
 
 	/* Configure display timings and output routing */
 	rcar_du_crtc_set_display_timing(rcrtc);
@@ -678,6 +689,7 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 
 	rcrtc->plane->crtc = crtc;
 	rcrtc->plane->fb_plane = true;
+	rcrtc->dptsr_init = true;
 
 	ret = drm_crtc_init(rcdu->ddev, crtc, &crtc_funcs);
 	if (ret < 0)

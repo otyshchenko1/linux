@@ -35,3 +35,16 @@ config DRM_RCAR_ALPHA_BIT_ARGB1555
 	  when the value of A is 0.
 	  If you set value to 1, pixel alpha blending is performed
 	  when the value of A is 1.
+
+config DRM_RCAR_DU_OVERLAY_CH
+	hex "R-Car DU initial channel of overlay layers"
+	range 0 0x3f
+	depends on DRM_RCAR_DU
+	help
+	  The value of configuration indicates initial channel of
+	  overlay layers. Bit 0 shows overlay0 layer and it can
+	  set up from overlay0 layer to overlay5 layer.
+	  The initial channel of overlay layer is DU channel 0
+	  when the value of bit is set as "0".
+	  The initial channel of overlay layer is DU channel 1
+	  when the value of bit is set as "1".
