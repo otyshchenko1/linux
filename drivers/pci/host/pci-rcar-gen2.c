@@ -1,6 +1,7 @@
 /*
  *  pci-rcar-gen2: internal PCI bus support
  *
+ * Copyright (C) 2014 Renesas Electronics Corporation
  * Copyright (C) 2013 Renesas Solutions Corp.
  * Copyright (C) 2013 Cogent Embedded, Inc.
  *
@@ -20,6 +21,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
+#include <linux/usb/phy.h>
 
 /* AHB-PCI Bridge PCI communication registers */
 #define RCAR_AHBPCI_PCICOM_OFFSET	0x800
@@ -329,6 +331,7 @@ static int rcar_pci_probe(struct platform_device *pdev)
 	void __iomem *reg;
 	struct hw_pci hw;
 	void *hw_private[1];
+	struct usb_phy *phy;
 
 	cfg_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	reg = devm_ioremap_resource(&pdev->dev, cfg_res);
@@ -365,6 +368,12 @@ static int rcar_pci_probe(struct platform_device *pdev)
 	}
 
 	priv->window_size = SZ_1G;
+
+	phy = usb_get_phy_dev(&pdev->dev, 0);
+	if (IS_ERR(phy))
+		return PTR_ERR(phy);
+
+	usb_phy_init(phy);
 
 	hw_private[0] = priv;
 	memset(&hw, 0, sizeof(hw));
