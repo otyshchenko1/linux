@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2014 Renesas Electronics Corporation
  * (C) Copyright David Brownell 2000-2002
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -189,7 +190,7 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		return -EINVAL;
 
 	if (pci_enable_device(dev) < 0)
-		return -ENODEV;
+		return -EPROBE_DEFER;
 	dev->current_state = PCI_D0;
 
 	/*
