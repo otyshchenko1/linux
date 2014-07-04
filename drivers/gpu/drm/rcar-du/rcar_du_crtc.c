@@ -102,6 +102,7 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 	u32 dclksel_bit = 0, dclkoinv_bit = 0;
 	const struct rcar_du_crtc_data *pdata =
 			&rcrtc->group->dev->pdata->crtcs[rcrtc->index];
+	int vdsr, vder;
 
 	/* Internal dot clock */
 	clk_in = clk_get_rate(rcrtc->clock);
@@ -147,20 +148,28 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 	rcar_du_crtc_write(rcrtc, HCR,  mode->htotal - 1);
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
-		rcar_du_crtc_write(rcrtc, VDSR, (mode->vtotal / 2)
-						 - (mode->vsync_end / 2) - 2);
-		rcar_du_crtc_write(rcrtc, VDER, (mode->vtotal / 2)
-						 - (mode->vsync_end / 2)
-						 + (mode->vdisplay / 2) - 2);
+		vdsr = (mode->vtotal / 2) - (mode->vsync_end / 2) - 2;
+		vder = (mode->vtotal / 2) - (mode->vsync_end / 2) +
+		       (mode->vdisplay / 2) - 2;
+		if (vdsr < 1) {
+			vder = vder - vdsr + 1;
+			vdsr = 1;
+		}
+		rcar_du_crtc_write(rcrtc, VDSR, vdsr);
+		rcar_du_crtc_write(rcrtc, VDER, vder);
 		rcar_du_crtc_write(rcrtc, VSPR, (mode->vtotal / 2)
 						 - (mode->vsync_end / 2)
 						 + (mode->vsync_start / 2) - 1);
 		rcar_du_crtc_write(rcrtc, VCR,  (mode->vtotal / 2) - 1);
 	} else {
-		rcar_du_crtc_write(rcrtc, VDSR, mode->vtotal
-						 - mode->vsync_end - 2);
-		rcar_du_crtc_write(rcrtc, VDER, mode->vtotal - mode->vsync_end
-						 + mode->vdisplay - 2);
+		vdsr = mode->vtotal - mode->vsync_end - 2;
+		vder = mode->vtotal - mode->vsync_end + mode->vdisplay - 2;
+		if (vdsr < 1) {
+			vder = vder - vdsr + 1;
+			vdsr = 1;
+		}
+		rcar_du_crtc_write(rcrtc, VDSR, vdsr);
+		rcar_du_crtc_write(rcrtc, VDER, vder);
 		rcar_du_crtc_write(rcrtc, VSPR, mode->vtotal - mode->vsync_end
 						 + mode->vsync_start - 1);
 		rcar_du_crtc_write(rcrtc, VCR,  mode->vtotal - 1);
