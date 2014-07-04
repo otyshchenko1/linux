@@ -143,6 +143,11 @@
 #define RCAR_GEN2_PHY_CTL5_DC		BIT(1)	/* DC connection */
 #define RCAR_GEN2_PHY_CTL5_TR		BIT(2)	/* Termination Resistor */
 
+/* Product Register */
+#define PRODUCT_REGISTER		0xFF000044
+#define PRODUCT_CUT_MASK		0x00007FF0
+#define PRODUCT_H2_BIT			(0x45 << 8)
+
 enum sata_rcar_type {
 	RCAR_GEN1_SATA,
 	RCAR_GEN2_SATA,
@@ -751,17 +756,29 @@ done:
 	return IRQ_RETVAL(handled);
 }
 
-static void sata_rcar_setup_port(struct ata_host *host)
+static int sata_rcar_setup_port(struct ata_host *host)
 {
 	struct ata_port *ap = host->ports[0];
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 	struct sata_rcar_priv *priv = host->private_data;
 	void __iomem *base = priv->base;
+	void __iomem *product_reg;
 
 	ap->ops		= &sata_rcar_port_ops;
 	ap->pio_mask	= ATA_PIO4;
 	ap->udma_mask	= ATA_UDMA6;
 	ap->flags	|= ATA_FLAG_SATA;
+
+	product_reg = ioremap_nocache(PRODUCT_REGISTER, 0x04);
+	if (!product_reg) {
+		dev_warn(host->dev, "ioremap fail\n");
+		return -ENOMEM;
+	}
+	/* Add the workaround of DIPM mode disabling in R-Car H2 ES1.x.*/
+	if ((readl(product_reg) & PRODUCT_CUT_MASK) == PRODUCT_H2_BIT)
+		ap->flags |= ATA_FLAG_NO_DIPM;
+
+	iounmap(product_reg);
 
 	ioaddr->cmd_addr = base + SDATA_REG;
 	ioaddr->ctl_addr = base + SSDEVCON_REG;
@@ -778,6 +795,8 @@ static void sata_rcar_setup_port(struct ata_host *host)
 	ioaddr->device_addr	= ioaddr->cmd_addr + (ATA_REG_DEVICE << 2);
 	ioaddr->status_addr	= ioaddr->cmd_addr + (ATA_REG_STATUS << 2);
 	ioaddr->command_addr	= ioaddr->cmd_addr + (ATA_REG_CMD << 2);
+
+	return 0;
 }
 
 static void sata_rcar_init_controller(struct ata_host *host)
@@ -902,7 +921,9 @@ static int sata_rcar_probe(struct platform_device *pdev)
 	}
 
 	/* setup port */
-	sata_rcar_setup_port(host);
+	ret = sata_rcar_setup_port(host);
+	if (ret)
+		goto setup_err;
 
 	/* initialize host controller */
 	sata_rcar_init_controller(host);
@@ -914,6 +935,13 @@ static int sata_rcar_probe(struct platform_device *pdev)
 
 cleanup:
 	clk_disable_unprepare(priv->clk);
+
+	return ret;
+
+setup_err:
+	clk_disable_unprepare(priv->clk);
+
+	iounmap(priv->base);
 
 	return ret;
 }
