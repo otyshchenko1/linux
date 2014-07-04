@@ -962,6 +962,8 @@ static int sata_rcar_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(priv->clk);
 
+	iounmap(priv->base);
+
 	return 0;
 }
 
