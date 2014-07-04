@@ -71,7 +71,7 @@ static void __iomem *r8a7790_cpg_base;
 
 #define SDCKCR		0xE6150074
 #define SD2CKCR		0xE6150078
-#define SD3CKCR		0xE615007C
+#define SD3CKCR		0xE615026C
 #define MMC0CKCR	0xE6150240
 #define MMC1CKCR	0xE6150244
 #define SSPCKCR		0xE6150248
