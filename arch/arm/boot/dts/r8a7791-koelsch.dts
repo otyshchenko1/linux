@@ -421,17 +421,17 @@
 
 		partition@0 {
 			label = "loader";
-			reg = <0x00000000 0x00080000>;
+			reg = <0x00000000 0x00040000>;
 			read-only;
 		};
-		partition@80000 {
-			label = "bootenv";
-			reg = <0x00080000 0x00080000>;
+		partition@40000 {
+			label = "user";
+			reg = <0x00040000 0x00400000>;
 			read-only;
 		};
-		partition@100000 {
-			label = "data";
-			reg = <0x00100000 0x03f00000>;
+		partition@440000 {
+			label = "flash";
+			reg = <0x00440000 0x03bc0000>;
 		};
 	};
 };
