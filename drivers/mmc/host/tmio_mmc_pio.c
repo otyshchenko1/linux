@@ -1158,7 +1158,8 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		}
 	}
 
-	if (host->power != TMIO_MMC_OFF_STOP) {
+	if (host->power != TMIO_MMC_OFF_STOP &&
+	    host->power != TMIO_MMC_ON_STOP) {
 		switch (ios->bus_width) {
 		case MMC_BUS_WIDTH_1:
 			sd_ctrl_write16(host, CTL_SD_MEM_CARD_OPT, 0x80e0);
