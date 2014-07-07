@@ -40,7 +40,9 @@
 #include <linux/spi/sh_msiof.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/phy.h>
+#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
 #include <linux/usb/renesas_usbhs.h>
+#endif
 #include <mach/clock.h>
 #include <mach/common.h>
 #include <mach/dma-register.h>
@@ -234,7 +236,11 @@ static const struct clk_name clk_names[] __initconst = {
  * This is a really crude hack to work around core platform clock issues
  */
 static const struct clk_name clk_enables[] __initconst = {
+#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
 	{ "hsusb", NULL, "renesas_usbhs" },
+#else
+	{ "ehci", NULL, "pci-rcar-gen2.0" },
+#endif
 	{ "ehci", NULL, "pci-rcar-gen2.1" },
 	{ "ssi", NULL, "rcar_sound" },
 	{ "scu", NULL, "rcar_sound" },
@@ -438,6 +444,7 @@ PDATA_HSCIF(17, 0xe6cd0000, gic_spi(21), 2); /* HSCIF2 */
 #define AUXDATA_SCIFB(index, baseaddr, irq) SCIF_AD("scifb", index, baseaddr)
 #define AUXDATA_HSCIF(index, baseaddr, irq) SCIF_AD("hscif", index, baseaddr)
 
+#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
 /* USBHS */
 static const struct resource usbhs_resources[] __initconst = {
 	DEFINE_RES_MEM(0xe6590000, 0x100),
@@ -576,6 +583,22 @@ static void __init koelsch_add_usb0_gadget(void)
 					  &usbhs_priv.info,
 					  sizeof(usbhs_priv.info));
 }
+#else
+/* Internal PCI0 */
+static const struct resource pci0_resources[] __initconst = {
+	DEFINE_RES_MEM(0xee090000, 0x10000),	/* CFG */
+	DEFINE_RES_MEM(0xee080000, 0x10000),	/* MEM */
+	DEFINE_RES_IRQ(gic_spi(108)),
+};
+
+static void __init koelsch_add_usb0_host(void)
+{
+	usb_bind_phy("pci-rcar-gen2.0", 0, "usb_phy_rcar_gen2");
+	platform_device_register_simple("pci-rcar-gen2",
+					0, pci0_resources,
+					ARRAY_SIZE(pci0_resources));
+}
+#endif
 
 /* Internal PCI1 */
 static const struct resource pci1_resources[] __initconst = {
@@ -586,6 +609,7 @@ static const struct resource pci1_resources[] __initconst = {
 
 static void __init koelsch_add_usb1_host(void)
 {
+	usb_bind_phy("pci-rcar-gen2.1", 0, "usb_phy_rcar_gen2");
 	platform_device_register_simple("pci-rcar-gen2",
 					1, pci1_resources,
 					ARRAY_SIZE(pci1_resources));
@@ -593,7 +617,11 @@ static void __init koelsch_add_usb1_host(void)
 
 /* USBHS PHY */
 static const struct rcar_gen2_phy_platform_data usbhs_phy_pdata __initconst = {
-	.chan0_pci = 0, /* Channel 0 is USBHS */
+#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+	.chan0_pci = 0,	/* Channel 0 is USBHS */
+#else
+	.chan0_pci = 1,	/* Channel 0 is PCI USB */
+#endif
 	.chan2_pci = 1, /* Channel 2 is PCI USB host */
 };
 
@@ -743,7 +771,11 @@ static void __init koelsch_add_usb_devices(void)
 					  ARRAY_SIZE(usbhs_phy_resources),
 					  &usbhs_phy_pdata,
 					  sizeof(usbhs_phy_pdata));
+#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
 	koelsch_add_usb0_gadget();
+#else
+	koelsch_add_usb0_host();
+#endif
 	koelsch_add_usb1_host();
 }
 
