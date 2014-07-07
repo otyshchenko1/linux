@@ -171,7 +171,8 @@ static void __init cpg_div6_clock_init(struct device_node *np)
 		pr_err("%s: failed to register %s DIV6 clock (%ld)\n",
 		       __func__, np->name, PTR_ERR(clk));
 		goto error;
-	}
+	} else
+		clk_register_clkdev(clk, name, NULL);
 
 	of_clk_add_provider(np, of_clk_src_simple_get, clk);
 
