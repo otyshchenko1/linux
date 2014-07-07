@@ -1,6 +1,7 @@
 /*
  * Renesas R-Car Gen2 PHY driver
  *
+ * Copyright (C) 2014 Renesas Electronics Corporation
  * Copyright (C) 2014 Renesas Solutions Corp.
  * Copyright (C) 2014 Cogent Embedded, Inc.
  *
@@ -55,6 +56,7 @@ struct rcar_gen2_phy_driver {
 	struct clk *clk;
 	spinlock_t lock;
 	struct rcar_gen2_phy phys[NUM_USB_CHANNELS][2];
+	struct platform_device *pdev;
 };
 
 static int rcar_gen2_phy_init(struct phy *p)
@@ -64,6 +66,14 @@ static int rcar_gen2_phy_init(struct phy *p)
 	unsigned long flags;
 	u32 ugctrl2;
 
+	struct platform_device *pdev = drv->pdev;
+	struct resource *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	drv->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(drv->base))
+		return PTR_ERR(drv->base);
+
 	clk_prepare_enable(drv->clk);
 
 	spin_lock_irqsave(&drv->lock, flags);
@@ -71,7 +81,12 @@ static int rcar_gen2_phy_init(struct phy *p)
 	ugctrl2 &= ~phy->select_mask;
 	ugctrl2 |= phy->select_value;
 	writel(ugctrl2, drv->base + USBHS_UGCTRL2);
+
+	devm_release_mem_region(&pdev->dev, res->start, resource_size(res));
+	devm_iounmap(&pdev->dev, drv->base);
+
 	spin_unlock_irqrestore(&drv->lock, flags);
+
 	return 0;
 }
 
@@ -88,7 +103,9 @@ static int rcar_gen2_phy_power_on(struct phy *p)
 {
 	struct rcar_gen2_phy *phy = phy_get_drvdata(p);
 	struct rcar_gen2_phy_driver *drv = phy->drv;
-	void __iomem *base = drv->base;
+	void __iomem *base;
+	struct platform_device *pdev = drv->pdev;
+	struct resource *res;
 	unsigned long flags;
 	u32 value;
 	int err = 0, i;
@@ -98,6 +115,11 @@ static int rcar_gen2_phy_power_on(struct phy *p)
 		return 0;
 
 	spin_lock_irqsave(&drv->lock, flags);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	/* Power on USBHS PHY */
 	value = readl(base + USBHS_UGCTRL);
@@ -123,8 +145,10 @@ static int rcar_gen2_phy_power_on(struct phy *p)
 	err = -ETIMEDOUT;
 
 out:
-	spin_unlock_irqrestore(&drv->lock, flags);
+	devm_release_mem_region(&pdev->dev, res->start, resource_size(res));
+	devm_iounmap(&pdev->dev, base);
 
+	spin_unlock_irqrestore(&drv->lock, flags);
 	return err;
 }
 
@@ -132,7 +156,9 @@ static int rcar_gen2_phy_power_off(struct phy *p)
 {
 	struct rcar_gen2_phy *phy = phy_get_drvdata(p);
 	struct rcar_gen2_phy_driver *drv = phy->drv;
-	void __iomem *base = drv->base;
+	void __iomem *base;
+	struct platform_device *pdev = drv->pdev;
+	struct resource *res;
 	unsigned long flags;
 	u32 value;
 
@@ -141,6 +167,11 @@ static int rcar_gen2_phy_power_off(struct phy *p)
 		return 0;
 
 	spin_lock_irqsave(&drv->lock, flags);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	/* Power off USBHS PHY */
 	value = readl(base + USBHS_UGCTRL);
@@ -155,8 +186,10 @@ static int rcar_gen2_phy_power_off(struct phy *p)
 	value |= USBHS_UGCTRL_PLLRESET;
 	writel(value, base + USBHS_UGCTRL);
 
-	spin_unlock_irqrestore(&drv->lock, flags);
+	devm_release_mem_region(&pdev->dev, res->start, resource_size(res));
+	devm_iounmap(&pdev->dev, base);
 
+	spin_unlock_irqrestore(&drv->lock, flags);
 	return 0;
 }
 
@@ -196,8 +229,6 @@ static int rcar_gen2_phy_probe(struct platform_device *pdev)
 	struct rcar_gen2_phy_driver *drv;
 	struct phy_provider *provider;
 	struct device_node *np;
-	struct resource *res;
-	void __iomem *base;
 	struct clk *clk;
 
 	if (!dev->of_node) {
@@ -212,11 +243,6 @@ static int rcar_gen2_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(clk);
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
-
 	drv = devm_kzalloc(dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv)
 		return -ENOMEM;
@@ -224,7 +250,7 @@ static int rcar_gen2_phy_probe(struct platform_device *pdev)
 	spin_lock_init(&drv->lock);
 
 	drv->clk = clk;
-	drv->base = base;
+	drv->pdev = pdev;
 
 	for_each_child_of_node(dev->of_node, np) {
 		struct rcar_gen2_phy *phy;
