@@ -652,7 +652,11 @@ static const struct rcar_gen2_phy_platform_data usbhs_phy_pdata __initconst = {
 #else
 	.chan0_pci = 1,	/* Channel 0 is PCI USB */
 #endif
+#ifndef CONFIG_USB_XHCI_HCD
 	.chan2_pci = 1,	/* Channel 2 is PCI USB */
+#else
+	.chan2_pci = 0,	/* Channel 2 is USB3.0 */
+#endif
 };
 
 static const struct resource usbhs_phy_resources[] __initconst = {
@@ -697,11 +701,13 @@ static const struct platform_device_info pci2_info __initconst = {
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
+#ifndef CONFIG_USB_XHCI_HCD
 static void __init lager_add_usb2_device(void)
 {
 	usb_bind_phy("pci-rcar-gen2.2", 0, "usb_phy_rcar_gen2");
 	platform_device_register_full(&pci2_info);
 };
+#endif
 
 /* VIN */
 static const struct resource vin_resources[] __initconst = {
@@ -949,7 +955,9 @@ static void __init lager_add_standard_devices(void)
 	lager_add_usb0_device();
 #endif
 	lager_add_usb1_device();
+#ifndef CONFIG_USB_XHCI_HCD
 	lager_add_usb2_device();
+#endif
 	lager_add_rsnd_device();
 	lager_add_camera0_device();
 	lager_add_camera1_device();
