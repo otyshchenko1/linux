@@ -1,6 +1,7 @@
 /*
  * Renesas R-Car Gen2 USB phy driver
  *
+ * Copyright (C) 2014 Renesas Electronics Corporation
  * Copyright (C) 2013 Renesas Solutions Corp.
  * Copyright (C) 2013 Cogent Embedded, Inc.
  *
@@ -25,6 +26,7 @@ struct rcar_gen2_usb_phy_priv {
 	spinlock_t lock;
 	int usecount;
 	u32 ugctrl2;
+	struct platform_device *pdev;
 };
 
 #define usb_phy_to_priv(p) container_of(p, struct rcar_gen2_usb_phy_priv, phy)
@@ -125,11 +127,23 @@ static int rcar_gen2_usb_phy_set_suspend(struct usb_phy *phy, int suspend)
 	struct rcar_gen2_usb_phy_priv *priv = usb_phy_to_priv(phy);
 	unsigned long flags;
 	int retval;
+	struct platform_device *pdev = priv->pdev;
+	struct resource *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	priv->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(priv->base))
+		return PTR_ERR(priv->base);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	retval = suspend ? __rcar_gen2_usbhs_phy_disable(priv->base) :
 			   __rcar_gen2_usbhs_phy_enable(priv->base);
+
+	devm_release_mem_region(&pdev->dev, res->start, resource_size(res));
+	devm_iounmap(&pdev->dev, priv->base);
+
 	spin_unlock_irqrestore(&priv->lock, flags);
+
 	return retval;
 }
 
@@ -143,8 +157,21 @@ static int rcar_gen2_usb_phy_init(struct usb_phy *phy)
 	 * Enable the clock and setup USB channels
 	 * if it's the first user
 	 */
-	if (!priv->usecount++)
+	if (!priv->usecount++) {
+		struct platform_device *pdev = priv->pdev;
+		struct resource *res;
+
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		priv->base = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(priv->base))
+			return PTR_ERR(priv->base);
+
 		__rcar_gen2_usb_phy_init(priv);
+
+		devm_release_mem_region(&pdev->dev, res->start,
+							resource_size(res));
+		devm_iounmap(&pdev->dev, priv->base);
+	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 	return 0;
 }
@@ -161,8 +188,21 @@ static void rcar_gen2_usb_phy_shutdown(struct usb_phy *phy)
 	}
 
 	/* Disable everything if it's the last user */
-	if (!--priv->usecount)
+	if (!--priv->usecount) {
+		struct platform_device *pdev = priv->pdev;
+		struct resource *res;
+
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		priv->base = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(priv->base))
+			dev_err(phy->dev, "ioremap failed\n");
+
 		__rcar_gen2_usb_phy_shutdown(priv);
+
+		devm_release_mem_region(&pdev->dev, res->start,
+							resource_size(res));
+		devm_iounmap(&pdev->dev, priv->base);
+	}
 out:
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
@@ -172,8 +212,6 @@ static int rcar_gen2_usb_phy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rcar_gen2_phy_platform_data *pdata;
 	struct rcar_gen2_usb_phy_priv *priv;
-	struct resource *res;
-	void __iomem *base;
 	struct clk *clk;
 	int retval;
 
@@ -189,11 +227,6 @@ static int rcar_gen2_usb_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(clk);
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
-
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		dev_err(dev, "Memory allocation failed\n");
@@ -202,7 +235,8 @@ static int rcar_gen2_usb_phy_probe(struct platform_device *pdev)
 
 	spin_lock_init(&priv->lock);
 	priv->clk = clk;
-	priv->base = base;
+	priv->pdev = pdev;
+
 	priv->ugctrl2 = pdata->chan0_pci ?
 			USBHS_UGCTRL2_USB0_PCI : USBHS_UGCTRL2_USB0_HS;
 	priv->ugctrl2 |= pdata->chan2_pci ?
