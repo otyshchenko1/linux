@@ -732,7 +732,7 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		priv->type = SH_MOBILE_SDHI_VER_490C;
 	else {
 		dev_err(host->pdata->dev, "Unknown SDHI version\n");
-		goto eprobe;
+		goto eirq;
 	}
 
 	/*
@@ -751,7 +751,7 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 					priv->dma_priv.alignment_shift);
 		if (dma_size < 0) {
 			ret = dma_size;
-			goto eprobe;
+			goto eirq;
 		}
 		sd_ctrl_write16(host, SD_DMACR(priv->type), dma_size);
 	}
