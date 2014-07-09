@@ -725,6 +725,8 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto eprobe;
 
+	pm_runtime_get_sync(&pdev->dev);
+
 	ver = sd_ctrl_read16(host, CTL_VERSION);
 	if (ver == SDHI_VERSION_CB0D)
 		priv->type = SH_MOBILE_SDHI_VER_CB0D;
@@ -817,9 +819,12 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		 (platform_get_resource(pdev, IORESOURCE_MEM, 0)->start),
 		 host->mmc->f_max / 1000000);
 
+	pm_runtime_put(&pdev->dev);
+
 	return ret;
 
 eirq:
+	pm_runtime_put(&pdev->dev);
 	tmio_mmc_host_remove(host);
 eprobe:
 eclkget:
