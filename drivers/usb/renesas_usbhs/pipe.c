@@ -667,6 +667,11 @@ static struct usbhs_pipe *usbhsp_get_pipe(struct usbhs_priv *priv, u32 type)
 	return pipe;
 }
 
+static void usbhsp_put_pipe(struct usbhs_pipe *pipe)
+{
+	usbhsp_flags_init(pipe);
+}
+
 void usbhs_pipe_config_change_bfre(struct usbhs_pipe *pipe, int enable)
 {
 	int sequence;
@@ -775,6 +780,7 @@ struct usbhs_pipe *usbhs_pipe_malloc(struct usbhs_priv *priv,
 void usbhs_pipe_free(struct usbhs_pipe *pipe)
 {
 	usbhsp_flags_clr(pipe, IS_USED);
+	usbhsp_put_pipe(pipe);
 }
 
 void usbhs_pipe_select_fifo(struct usbhs_pipe *pipe, struct usbhs_fifo *fifo)
