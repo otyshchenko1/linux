@@ -1403,7 +1403,7 @@ static void work_fn_rx(struct work_struct *work)
 	desc = s->desc_rx[new];
 
 	if (dma_async_is_tx_complete(s->chan_rx, s->active_rx, NULL, NULL) !=
-	    DMA_COMPLETE) {
+	    DMA_SUCCESS) {
 		/* Handle incomplete DMA receive */
 		struct dma_chan *chan = s->chan_rx;
 		struct shdma_desc *sh_desc = container_of(desc,
@@ -2478,9 +2478,13 @@ sci_parse_dt(struct platform_device *pdev, unsigned int *dev_id)
 
 	info = match->data;
 
-	p = devm_kzalloc(&pdev->dev, sizeof(struct plat_sci_port), GFP_KERNEL);
+	if (pdev->dev.platform_data)
+		p = pdev->dev.platform_data;
+	else
+		p = devm_kzalloc(&pdev->dev, sizeof(struct plat_sci_port),
+				 GFP_KERNEL);
 	if (!p) {
-		dev_err(&pdev->dev, "failed to allocate DT config data\n");
+		dev_err(&pdev->dev, "failed to get DT config data\n");
 		return NULL;
 	}
 
