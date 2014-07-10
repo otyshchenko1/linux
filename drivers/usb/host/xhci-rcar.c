@@ -16,7 +16,7 @@
 #include "xhci.h"
 #include "xhci-rcar.h"
 
-#define FIRMWARE_NAME		"r8a779x_usb3_v1.dlmem"
+#define FIRMWARE_NAME		"UU3DRD1FW_2005L.dlmem"
 MODULE_FIRMWARE(FIRMWARE_NAME);
 
 /*** Register Offset ***/
