@@ -37,6 +37,7 @@
 #include <linux/serial_sci.h>
 #include <linux/sh_dma.h>
 #include <linux/spi/flash.h>
+#include <linux/spi/sh_msiof.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/phy.h>
 #include <linux/usb/renesas_usbhs.h>
@@ -295,6 +296,9 @@ static const struct sh_dmae_slave_config r8a7791_sys_dmac_slaves[] = {
 	SYS_DMAC_SLAVE_TX(HSCIF0, 8, 0xe62c0000, 0xc, 0x14, 0x39, 0x3a),
 	SYS_DMAC_SLAVE_TX(HSCIF1, 8, 0xe62c8000, 0xc, 0x14, 0x4d, 0x4e),
 	SYS_DMAC_SLAVE_TX(HSCIF2, 8, 0xe62d0000, 0xc, 0x14, 0x3b, 0x3c),
+	SYS_DMAC_SLAVE(MSIOF0, 32, 0xe7e20000, 0x50, 0x60, 0x51, 0x52),
+	SYS_DMAC_SLAVE(MSIOF1, 32, 0xe7e10000, 0x50, 0x60, 0x55, 0x56),
+	SYS_DMAC_SLAVE(MSIOF2, 32, 0xe7e00000, 0x50, 0x60, 0x41, 0x42),
 };
 
 static const struct sh_dmae_channel r8a7791_sys_dmac_channels[] = {
@@ -743,6 +747,14 @@ static void __init koelsch_add_usb_devices(void)
 	koelsch_add_usb1_host();
 }
 
+/* MSIOF */
+static struct sh_msiof_spi_info msiof0_info = {
+	.rx_fifo_override       = 256,
+	.num_chipselect         = 1,
+	.dma_tx_id              = SYS_DMAC_SLAVE_MSIOF0_TX,
+	.dma_rx_id              = SYS_DMAC_SLAVE_MSIOF0_RX,
+};
+
 /* MSIOF spidev */
 static const struct spi_board_info spi_bus[] __initconst = {
 	{
@@ -823,6 +835,8 @@ static struct of_dev_auxdata koelsch_auxdata_lookup[] __initdata = {
 	AUXDATA_SCIFA(15, 0xe6c78000, gic_spi(30)), /* SCIFA4 */
 	AUXDATA_SCIFA(16, 0xe6c80000, gic_spi(31)), /* SCIFA5 */
 	AUXDATA_HSCIF(17, 0xe6cd0000, gic_spi(21)), /* HSCIF2 */
+	OF_DEV_AUXDATA("renesas,msiof-r8a7791", 0xe6e20000,
+		       "spi_r8a7791_msiof.0", &msiof0_info),
 	{},
 };
 
