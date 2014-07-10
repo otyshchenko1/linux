@@ -316,6 +316,7 @@ static const struct clk_name clk_enables[] __initconst = {
 	{ "sdhi0", NULL, "ee100000.sd" },
 	{ "sdhi1", NULL, "ee140000.sd" },
 	{ "hsusb", NULL, "renesas_usbhs" },
+	{ "ehci", NULL, "pci-rcar-gen2.0" },
 	{ "ehci", NULL, "pci-rcar-gen2.1" },
 	{ "pvrsrvkm", NULL, "pvrsrvkm" },
 	{ "vcp0", NULL, "vcp1" },
@@ -446,13 +447,35 @@ static struct sh_mobile_sdhi_info sdhi1_info __initdata = {
 
 /* USBHS PHY */
 static const struct rcar_gen2_phy_platform_data usbhs_phy_pdata __initconst = {
-	.chan0_pci = 0,	/* Channel 0 is USBHS */
+	.chan0_pci = 1,	/* Channel 0 is PCI USB */
 	.chan2_pci = 1,	/* Channel 2 is PCI USB */
 };
 
 static const struct resource usbhs_phy_resources[] __initconst = {
 	DEFINE_RES_MEM(0xe6590100, 0x100),
 };
+
+/* Internal PCI0 */
+static const struct resource pci0_resources[] __initconst = {
+	DEFINE_RES_MEM(0xee090000, 0x10000),	/* CFG */
+	DEFINE_RES_MEM(0xee080000, 0x10000),	/* MEM */
+	DEFINE_RES_IRQ(gic_spi(108)),
+};
+
+static const struct platform_device_info pci0_info __initconst = {
+	.parent		= &platform_bus,
+	.name		= "pci-rcar-gen2",
+	.id		= 0,
+	.res		= pci0_resources,
+	.num_res	= ARRAY_SIZE(pci0_resources),
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
+static void __init alt_add_usb0_device(void)
+{
+	usb_bind_phy("pci-rcar-gen2.0", 0, "usb_phy_rcar_gen2");
+	platform_device_register_full(&pci0_info);
+}
 
 /* Internal PCI1 */
 static const struct resource pci1_resources[] __initconst = {
@@ -472,6 +495,7 @@ static const struct platform_device_info pci1_info __initconst = {
 
 static void __init alt_add_usb1_device(void)
 {
+	usb_bind_phy("pci-rcar-gen2.1", 0, "usb_phy_rcar_gen2");
 	platform_device_register_full(&pci1_info);
 }
 
@@ -644,6 +668,7 @@ static void __init alt_add_standard_devices(void)
 					  ARRAY_SIZE(usbhs_phy_resources),
 					  &usbhs_phy_pdata,
 					  sizeof(usbhs_phy_pdata));
+	alt_add_usb0_device();
 	alt_add_usb1_device();
 	alt_add_rsnd_device();
 	alt_add_camera0_device();
