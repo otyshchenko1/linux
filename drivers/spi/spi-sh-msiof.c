@@ -14,8 +14,10 @@
 #include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
+#ifdef CONFIG_SPI_SH_MSIOF_DMA
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
+#endif /* CONFIG_SPI_SH_MSIOF_DMA */
 #include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
@@ -27,7 +29,9 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#ifdef CONFIG_SPI_SH_MSIOF_DMA
 #include <linux/sh_dma.h>
+#endif /* CONFIG_SPI_SH_MSIOF_DMA */
 
 #include <linux/spi/sh_msiof.h>
 #include <linux/spi/spi.h>
@@ -42,7 +46,9 @@ struct sh_msiof_chipdata {
 };
 
 struct sh_msiof_spi_priv {
+#ifdef CONFIG_SPI_SH_MSIOF_DMA
 	struct spi_master *master;
+#endif /* CONFIG_SPI_SH_MSIOF_DMA */
 	void __iomem *mapbase;
 	struct clk *clk;
 	struct platform_device *pdev;
@@ -51,10 +57,12 @@ struct sh_msiof_spi_priv {
 	struct completion done;
 	int tx_fifo_size;
 	int rx_fifo_size;
+#ifdef CONFIG_SPI_SH_MSIOF_DMA
 	void *tx_dma_page;
 	void *rx_dma_page;
 	dma_addr_t tx_dma_addr;
 	dma_addr_t rx_dma_addr;
+#endif /* CONFIG_SPI_SH_MSIOF_DMA */
 };
 
 #define TMDR1	0x00	/* Transmit Mode Register 1 */
@@ -94,7 +102,9 @@ struct sh_msiof_spi_priv {
 #define MDR2_WDLEN1(i)	(((i) - 1) << 16) /* Word Count (1-64/256 (SH, A1))) */
 #define MDR2_GRPMASK1	0x00000001 /* Group Output Mask 1 (SH, A1) */
 
+#ifdef CONFIG_SPI_SH_MSIOF_DMA
 #define MAX_WDLEN	256U
+#endif /* CONFIG_SPI_SH_MSIOF_DMA */
 
 /* TSCR and RSCR */
 #define SCR_BRPS_MASK	    0x1f00 /* Prescaler Setting (1-32) */
@@ -294,6 +304,10 @@ static void sh_msiof_spi_set_pin_regs(struct sh_msiof_spi_priv *p,
 	 *    1    0         11     11    0    0
 	 *    1    1         11     11    1    1
 	 */
+#ifndef CONFIG_SPI_SH_MSIOF_DMA
+	sh_msiof_write(p, FCTR, 0);
+#endif /* CONFIG_SPI_SH_MSIOF_DMA */
+
 	tmp = MDR1_SYNCMD_SPI | 1 << MDR1_FLD_SHIFT | MDR1_XXSTP;
 	tmp |= !cs_high << MDR1_SYNCAC_SHIFT;
 	tmp |= lsb_first << MDR1_BITLSB_SHIFT;
@@ -329,6 +343,10 @@ static void sh_msiof_spi_set_mode_regs(struct sh_msiof_spi_priv *p,
 
 	if (rx_buf)
 		sh_msiof_write(p, RMDR2, dr2);
+
+#ifndef CONFIG_SPI_SH_MSIOF_DMA
+	sh_msiof_write(p, IER, STR_TEOF | STR_REOF);
+#endif /* CONFIG_SPI_SH_MSIOF_DMA */
 }
 
 static void sh_msiof_reset_str(struct sh_msiof_spi_priv *p)
@@ -571,12 +589,16 @@ static int sh_msiof_spi_txrx_once(struct sh_msiof_spi_priv *p,
 	/* the fifo contents need shifting */
 	fifo_shift = 32 - bits;
 
+#ifdef CONFIG_SPI_SH_MSIOF_DMA
 	/* default FIFO watermarks for PIO */
 	sh_msiof_write(p, FCTR, 0);
+#endif /* CONFIG_SPI_SH_MSIOF_DMA */
 
 	/* setup msiof transfer mode registers */
 	sh_msiof_spi_set_mode_regs(p, tx_buf, rx_buf, bits, words);
+#ifdef CONFIG_SPI_SH_MSIOF_DMA
 	sh_msiof_write(p, IER, IER_TEOFE | IER_REOFE);
+#endif /* CONFIG_SPI_SH_MSIOF_DMA */
 
 	/* write tx fifo */
 	if (tx_buf)
@@ -621,6 +643,7 @@ stop_ier:
 	return ret;
 }
 
+#ifdef CONFIG_SPI_SH_MSIOF_DMA
 static void sh_msiof_dma_complete(void *arg)
 {
 	struct sh_msiof_spi_priv *p = arg;
@@ -778,13 +801,16 @@ static void copy_plain32(u32 *dst, const u32 *src, unsigned int words)
 {
 	memcpy(dst, src, words * 4);
 }
+#endif /* CONFIG_SPI_SH_MSIOF_DMA */
 
 static int sh_msiof_transfer_one(struct spi_master *master,
 				 struct spi_device *spi,
 				 struct spi_transfer *t)
 {
 	struct sh_msiof_spi_priv *p = spi_master_get_devdata(master);
+#ifdef CONFIG_SPI_SH_MSIOF_DMA
 	void (*copy32)(u32 *, const u32 *, unsigned int);
+#endif /* CONFIG_SPI_SH_MSIOF_DMA */
 	void (*tx_fifo)(struct sh_msiof_spi_priv *, const void *, int, int);
 	void (*rx_fifo)(struct sh_msiof_spi_priv *, void *, int, int);
 	const void *tx_buf = t->tx_buf;
@@ -795,6 +821,7 @@ static int sh_msiof_transfer_one(struct spi_master *master,
 	unsigned int words;
 	int n;
 	bool swab;
+#ifdef CONFIG_SPI_SH_MSIOF_DMA
 	int ret;
 
 	/* setup clocks (clock already enabled in chipselect()) */
@@ -837,6 +864,7 @@ static int sh_msiof_transfer_one(struct spi_master *master,
 		if (!len)
 			return 0;
 	}
+#endif /* CONFIG_SPI_SH_MSIOF_DMA */
 
 	if (bits <= 8 && len > 15 && !(len & 3)) {
 		bits = 32;
@@ -884,6 +912,11 @@ static int sh_msiof_transfer_one(struct spi_master *master,
 		else
 			rx_fifo = sh_msiof_spi_read_fifo_32;
 	}
+
+#ifndef CONFIG_SPI_SH_MSIOF_DMA
+	/* setup clocks (clock already enabled in chipselect()) */
+	sh_msiof_spi_set_clk_regs(p, clk_get_rate(p->clk), t->speed_hz);
+#endif /* CONFIG_SPI_SH_MSIOF_DMA */
 
 	/* transfer in fifo sized chunks */
 	words = len / bytes_per_word;
@@ -956,6 +989,7 @@ static struct sh_msiof_spi_info *sh_msiof_spi_parse_dt(struct device *dev)
 }
 #endif
 
+#ifdef CONFIG_SPI_SH_MSIOF_DMA
 static struct dma_chan *sh_msiof_request_dma_chan(struct device *dev,
 	enum dma_transfer_direction dir, unsigned int id, dma_addr_t port_addr)
 {
@@ -1072,6 +1106,7 @@ static void sh_msiof_release_dma(struct sh_msiof_spi_priv *p)
 	dma_release_channel(master->dma_rx);
 	dma_release_channel(master->dma_tx);
 }
+#endif /* CONFIG_SPI_SH_MSIOF_DMA */
 
 static int sh_msiof_spi_probe(struct platform_device *pdev)
 {
@@ -1091,7 +1126,9 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	p = spi_master_get_devdata(master);
 
 	platform_set_drvdata(pdev, p);
+#ifdef CONFIG_SPI_SH_MSIOF_DMA
 	p->master = master;
+#endif /* CONFIG_SPI_SH_MSIOF_DMA */
 
 	of_id = of_match_device(sh_msiof_match, &pdev->dev);
 	if (of_id) {
@@ -1162,9 +1199,11 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	master->auto_runtime_pm = true;
 	master->transfer_one = sh_msiof_transfer_one;
 
+#ifdef CONFIG_SPI_SH_MSIOF_DMA
 	ret = sh_msiof_request_dma(p);
 	if (ret < 0)
 		dev_warn(&pdev->dev, "DMA not available, using PIO\n");
+#endif /* CONFIG_SPI_SH_MSIOF_DMA */
 
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret < 0) {
@@ -1175,7 +1214,9 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	return 0;
 
  err2:
+#ifdef CONFIG_SPI_SH_MSIOF_DMA
 	sh_msiof_release_dma(p);
+#endif /* CONFIG_SPI_SH_MSIOF_DMA */
 	pm_runtime_disable(&pdev->dev);
  err1:
 	spi_master_put(master);
@@ -1184,9 +1225,11 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 
 static int sh_msiof_spi_remove(struct platform_device *pdev)
 {
+#ifdef CONFIG_SPI_SH_MSIOF_DMA
 	struct sh_msiof_spi_priv *p = platform_get_drvdata(pdev);
 
 	sh_msiof_release_dma(p);
+#endif /* CONFIG_SPI_SH_MSIOF_DMA */
 	pm_runtime_disable(&pdev->dev);
 	return 0;
 }
