@@ -35,6 +35,7 @@
 #include <linux/serial_sci.h>
 #include <linux/sh_dma.h>
 #include <linux/spi/flash.h>
+#include <linux/spi/sh_msiof.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/phy.h>
 #include <linux/usb/renesas_usbhs.h>
@@ -338,6 +339,10 @@ static const struct sh_dmae_slave_config r8a7790_sys_dmac_slaves[] = {
 	SYS_DMAC_SLAVE_TX(SCIFB2, 8, 0xe6ce0000, 0x40, 0x60, 0x1d, 0x1e),
 	SYS_DMAC_SLAVE_TX(HSCIF0, 8, 0xe62c0000, 0xc, 0x14, 0x39, 0x3a),
 	SYS_DMAC_SLAVE_TX(HSCIF1, 8, 0xe62c8000, 0xc, 0x14, 0x4d, 0x4e),
+	SYS_DMAC_SLAVE(MSIOF0, 32, 0xe7e20000, 0x50, 0x60, 0x51, 0x52),
+	SYS_DMAC_SLAVE(MSIOF1, 32, 0xe7e10000, 0x50, 0x60, 0x55, 0x56),
+	SYS_DMAC_SLAVE(MSIOF2, 32, 0xe7e00000, 0x50, 0x60, 0x41, 0x42),
+	SYS_DMAC_SLAVE(MSIOF3, 32, 0xec900000, 0x50, 0x60, 0x45, 0x46),
 };
 
 static const struct sh_dmae_channel r8a7790_sys_dmac_channels[] = {
@@ -809,6 +814,14 @@ static void __init lager_add_vsp1_devices(void)
 }
 #endif
 
+/* MSIOF */
+static struct sh_msiof_spi_info msiof1_info = {
+	.rx_fifo_override       = 256,
+	.num_chipselect         = 1,
+	.dma_tx_id              = SYS_DMAC_SLAVE_MSIOF1_TX,
+	.dma_rx_id              = SYS_DMAC_SLAVE_MSIOF1_RX,
+};
+
 /* MSIOF spidev */
 static const struct spi_board_info spi_bus[] __initconst = {
 	{
@@ -874,6 +887,8 @@ static struct of_dev_auxdata lager_auxdata_lookup[] __initdata = {
 	AUXDATA_SCIF(7,  0xe6e68000, gic_spi(153)), /* SCIF1 */
 	AUXDATA_HSCIF(8, 0xe62c0000, gic_spi(154)), /* HSCIF0 */
 	AUXDATA_HSCIF(9, 0xe62c8000, gic_spi(155)), /* HSCIF1 */
+	OF_DEV_AUXDATA("renesas,msiof-r8a7790", 0xe6e10000,
+		       "spi_r8a7790_msiof.0", &msiof1_info),
 	{},
 };
 
