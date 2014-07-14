@@ -300,10 +300,39 @@ static int rcar_gen2_phy_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int rcar_gen2_phy_suspend(struct device *dev)
+{
+	struct rcar_gen2_phy_driver *drv = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(drv->clk);
+
+	return 0;
+}
+
+static int rcar_gen2_phy_resume(struct device *dev)
+{
+	struct rcar_gen2_phy_driver *drv = dev_get_drvdata(dev);
+
+	clk_prepare_enable(drv->clk);
+
+	return 0;
+}
+
+static const struct dev_pm_ops rcar_gen2_phy_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(rcar_gen2_phy_suspend, rcar_gen2_phy_resume)
+};
+#define DEV_PM_OPS	(&rcar_gen2_phy_pm_ops)
+#else
+#define DEV_PM_OPS	NULL
+#endif /* CONFIG_PM */
+
+
 static struct platform_driver rcar_gen2_phy_driver = {
 	.driver = {
 		.name		= "phy_rcar_gen2",
 		.of_match_table	= rcar_gen2_phy_match_table,
+		.pm		= DEV_PM_OPS,
 	},
 	.probe	= rcar_gen2_phy_probe,
 };
