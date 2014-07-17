@@ -814,6 +814,11 @@ int drm_fb_helper_set_par(struct fb_info *info)
 
 	drm_modeset_lock_all(dev);
 	for (i = 0; i < fb_helper->crtc_count; i++) {
+#if defined(CONFIG_DRM_FBDEV_CRTC)
+		if (((info->flags & FBINFO_MISC_USEREVENT) ==
+		    FBINFO_MISC_USEREVENT) && (i != dev->fbdev_crtc))
+			continue;
+#endif
 		ret = drm_mode_set_config_internal(&fb_helper->crtc_info[i].mode_set);
 		if (ret) {
 			drm_modeset_unlock_all(dev);
@@ -979,6 +984,8 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 			modeset->y = var->yoffset;
 
 			if (modeset->num_connectors) {
+				modeset->mode->private_flags
+						 = DRM_FB_PANDISPLAY;
 				ret = drm_mode_set_config_internal(modeset);
 				if (!ret) {
 					info->var.xoffset = var->xoffset;

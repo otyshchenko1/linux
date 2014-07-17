@@ -683,6 +683,11 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	case DRM_MODE_CHANGED:
 		mode_changed = true;
 		break;
+	case DRM_FB_PANDISPLAY:
+		mode_changed = false;
+		fb_changed = true;
+		set->mode->private_flags = false;
+		goto fbdev_access;
 	default:
 		break;
 	}
@@ -773,6 +778,9 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	if (fb_changed && !crtc_funcs->mode_set_base)
 		mode_changed = true;
 
+#if defined(CONFIG_DRM_FBDEV_CRTC)
+fbdev_access:
+#endif
 	if (mode_changed) {
 		set->crtc->enabled = drm_helper_crtc_in_use(set->crtc);
 		if (set->crtc->enabled) {

@@ -38,6 +38,7 @@ struct drm_fb_helper;
 #if defined(CONFIG_DRM_FBDEV_CRTC)
 #define DRM_FB_CHANGED		1
 #define DRM_MODE_CHANGED	2
+#define DRM_FB_PANDISPLAY	3
 #endif
 
 struct drm_fb_helper_crtc {
