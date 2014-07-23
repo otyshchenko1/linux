@@ -29,6 +29,7 @@ struct rcar_du_lvdsenc;
 
 #define R8A7790_ES1_DU_LVDS_LANE_MISCONNECTION_WORKAROUND
 #define R8A779X_ES2_DU_LVDS_CH_DATA_GAP_WORKAROUND
+#define R8A7790_ES1_DU_ALIGN_128B_WORKAROUND
 
 #define RCAR_DU_FEATURE_CRTC_IRQ_CLOCK	(1 << 0)	/* Per-CRTC IRQ and clock */
 #define RCAR_DU_FEATURE_DEFR8		(1 << 1)	/* Has DEFR8 register */
@@ -87,7 +88,8 @@ struct rcar_du_device {
 	struct device *dev;
 	const struct rcar_du_platform_data *pdata;
 #if defined(R8A7790_ES1_DU_LVDS_LANE_MISCONNECTION_WORKAROUND) || \
-	defined(R8A779X_ES2_DU_LVDS_CH_DATA_GAP_WORKAROUND)
+	defined(R8A779X_ES2_DU_LVDS_CH_DATA_GAP_WORKAROUND) || \
+	defined(R8A7790_ES1_DU_ALIGN_128B_WORKAROUND)
 	struct rcar_du_device_info *info;
 #else
 	const struct rcar_du_device_info *info;
