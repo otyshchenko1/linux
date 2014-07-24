@@ -482,6 +482,7 @@ struct rcar_vin_priv {
 	bool				request_to_stop;
 	struct completion		capture_stop;
 	enum chip_id			chip;
+	bool				error_flag;
 };
 
 #define is_continuous_transfer(priv)	(priv->vb_count > MAX_BUFFER_NUM)
@@ -635,7 +636,7 @@ static int rcar_vin_setup(struct rcar_vin_priv *priv)
 	/* output format */
 	switch (icd->current_fmt->host_fmt->fourcc) {
 	case V4L2_PIX_FMT_NV16:
-		iowrite32(ALIGN(cam->width * cam->height, 0x80),
+		iowrite32(ALIGN(ALIGN(cam->width, 0x20) * cam->height, 0x80),
 			  priv->base + VNUVAOF_REG);
 		dmr = VNDMR_DTMD_YCSEP;
 		output_is_yuv = true;
@@ -966,6 +967,8 @@ static int rcar_vin_add_device(struct soc_camera_device *icd)
 	dev_dbg(icd->parent, "R-Car VIN driver attached to camera %d\n",
 		icd->devnum);
 
+	priv->error_flag = false;
+
 	return 0;
 }
 
@@ -983,6 +986,7 @@ static void rcar_vin_remove_device(struct soc_camera_device *icd)
 
 	priv->state = STOPPED;
 	priv->request_to_stop = false;
+	priv->error_flag = false;
 
 	/* make sure active buffer is cancelled */
 	spin_lock_irq(&priv->lock);
@@ -1079,6 +1083,7 @@ static int rcar_vin_set_rect(struct soc_camera_device *icd)
 	unsigned char dsize = 0;
 	struct v4l2_rect *cam_subrect = &cam->subrect;
 	unsigned long value;
+	unsigned long imgstr;
 
 	dev_dbg(icd->parent, "Crop %ux%u@%u:%u\n",
 		icd->user_width, icd->user_height, cam->vin_left, cam->vin_top);
@@ -1156,7 +1161,11 @@ static int rcar_vin_set_rect(struct soc_camera_device *icd)
 		break;
 	}
 
-	iowrite32(ALIGN(cam->out_width, 0x10), priv->base + VNIS_REG);
+	if (icd->current_fmt->host_fmt->fourcc == V4L2_PIX_FMT_NV16)
+		imgstr = ALIGN(cam->out_width, 0x20);
+	else
+		imgstr = ALIGN(cam->out_width, 0x10);
+	iowrite32(imgstr, priv->base + VNIS_REG);
 
 	return 0;
 }
@@ -1596,6 +1605,17 @@ static int rcar_vin_set_fmt(struct soc_camera_device *icd,
 
 	dev_dbg(dev, "S_FMT(pix=0x%x, %ux%u)\n",
 		pixfmt, pix->width, pix->height);
+
+	/* At the time of NV16 capture format, the user has to specify the
+	   width of the multiple of 32 for H/W specification. */
+	if (priv->error_flag == false)
+		priv->error_flag = true;
+	else {
+		if ((pixfmt == V4L2_PIX_FMT_NV16) && (pix->width & 0x1F)) {
+			dev_err(icd->parent, "Specified width error in NV16 format.\n");
+			return -EINVAL;
+		}
+	}
 
 	switch (pix->field) {
 	default:
