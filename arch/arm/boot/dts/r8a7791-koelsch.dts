@@ -295,6 +295,12 @@
 		renesas,function = "msiof0";
 	};
 
+	msiof1_pins: spi2 {
+		renesas,groups = "msiof1_clk_c", "msiof1_sync_c", "msiof1_rx_c",
+				 "msiof1_tx_c";
+		renesas,function = "msiof1";
+	};
+
 	usb0_pins: usb0 {
 		renesas,groups = "usb0";
 		renesas,function = "usb0";
@@ -459,6 +465,13 @@
 		spi-cpol;
 		spi-cpha;
 	};
+};
+
+&msiof1 {
+	pinctrl-0 = <&msiof1_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
 };
 
 &i2c2 {
