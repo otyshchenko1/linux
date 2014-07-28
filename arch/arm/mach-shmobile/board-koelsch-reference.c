@@ -788,6 +788,13 @@ static struct sh_msiof_spi_info msiof0_info = {
 	.dma_rx_id              = SYS_DMAC_SLAVE_MSIOF0_RX,
 };
 
+static struct sh_msiof_spi_info msiof1_info = {
+	.rx_fifo_override       = 256,
+	.num_chipselect         = 1,
+	.dma_tx_id              = SYS_DMAC_SLAVE_MSIOF1_TX,
+	.dma_rx_id              = SYS_DMAC_SLAVE_MSIOF1_RX,
+};
+
 /* MSIOF spidev */
 static const struct spi_board_info spi_bus[] __initconst = {
 	{
@@ -870,6 +877,8 @@ static struct of_dev_auxdata koelsch_auxdata_lookup[] __initdata = {
 	AUXDATA_HSCIF(17, 0xe6cd0000, gic_spi(21)), /* HSCIF2 */
 	OF_DEV_AUXDATA("renesas,msiof-r8a7791", 0xe6e20000,
 		       "spi_r8a7791_msiof.0", &msiof0_info),
+	OF_DEV_AUXDATA("renesas,msiof-r8a7791", 0xe6e10000,
+		       "spi_r8a7791_msiof.1", &msiof1_info),
 	{},
 };
 
