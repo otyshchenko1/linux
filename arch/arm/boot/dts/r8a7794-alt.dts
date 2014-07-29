@@ -30,6 +30,10 @@
 	model = "Alt";
 	compatible = "renesas,alt", "renesas,r8a7794";
 
+	aliases {
+		serial10 = &scif2;
+	};
+
 	chosen {
 		bootargs = "console=ttySC10,38400 ignore_loglevel rw root=/dev/nfs ip=dhcp";
 	};
@@ -275,6 +279,13 @@
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 		micrel,led-mode = <1>;
 	};
+};
+
+&scif2 {
+	pinctrl-0 = <&scif2_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
 };
 
 &qspi {
