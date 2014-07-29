@@ -339,7 +339,14 @@ void __init r8a7794_add_dt_devices(void)
 {
 	r8a7794_pm_init();
 	r8a7794_init_pm_domains();
+	r8a7794_register_cmt(00);
+	r8a7794_register_pvrsrvkm();
+	r8a7794_register_audio_dmac(0);
+	r8a7794_register_audmapp();
+}
 
+void __init r8a7794_add_standard_devices(void)
+{
 	r8a7794_register_scif(0);
 	r8a7794_register_scif(1);
 	r8a7794_register_scif(2);
@@ -351,14 +358,6 @@ void __init r8a7794_add_dt_devices(void)
 	r8a7794_register_scif(8);
 	r8a7794_register_scif(9);
 	r8a7794_register_scif(10);
-	r8a7794_register_cmt(00);
-	r8a7794_register_pvrsrvkm();
-	r8a7794_register_audio_dmac(0);
-	r8a7794_register_audmapp();
-}
-
-void __init r8a7794_add_standard_devices(void)
-{
 	r8a7794_add_dt_devices();
 	r8a7794_register_irqc(0);
 }
