@@ -427,8 +427,8 @@
 		dma-xmit-sz = <32>;
 		renesas,clk-rate = <195000000>;
 		renesas,mmc-scc-tapnum = <8>;
-		renesas,pfcs = <0xe6060000 0x8c>;
-		renesas,id = <0>;
+		renesas,pfcs = <0xe6060000 0x6c>;
+		renesas,id = <1>;
 		status = "disabled";
 	};
 
@@ -442,8 +442,8 @@
 		cap-uhs-sdr50;
 		dma-xmit-sz = <32>;
 		renesas,clk-rate = <97500000>;
-		renesas,pfcs = <0xe6060000 0x8c>;
-		renesas,id = <1>;
+		renesas,pfcs = <0xe6060000 0x6c>;
+		renesas,id = <2>;
 		status = "disabled";
 	};
 
@@ -457,8 +457,6 @@
 		cap-uhs-sdr50;
 		dma-xmit-sz = <32>;
 		renesas,clk-rate = <97500000>;
-		renesas,pfcs = <0xe6060000 0x8c>;
-		renesas,id = <2>;
 		status = "disabled";
 	};
 
