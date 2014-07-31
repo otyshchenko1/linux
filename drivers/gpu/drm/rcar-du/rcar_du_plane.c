@@ -652,6 +652,15 @@ static const uint32_t plane_formats[] = {
 	DRM_FORMAT_NV16,
 };
 
+static const struct drm_prop_enum_list rcar_du0_du1_info_enum_list[] = {
+	{ DU_CH_0, "channel0" },
+	{ DU_CH_1, "channel1" },
+};
+
+static const struct drm_prop_enum_list rcar_du2_info_enum_list[] = {
+	{ DU_CH_2, "channel2" },
+};
+
 int rcar_du_planes_init(struct rcar_du_group *rgrp)
 {
 	struct rcar_du_planes *planes = &rgrp->planes;
@@ -681,8 +690,18 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 	if (planes->zpos == NULL)
 		return -ENOMEM;
 
-	planes->channel =
-		drm_property_create_range(rcdu->ddev, 0, "channel", 0, 2);
+	if (rgrp->index == 1)
+		planes->channel = drm_property_create_enum(
+				 rcdu->ddev, DRM_MODE_PROP_IMMUTABLE,
+				 "channel",
+				 rcar_du2_info_enum_list,
+				 ARRAY_SIZE(rcar_du2_info_enum_list));
+	else
+		planes->channel = drm_property_create_enum(
+				 rcdu->ddev, DRM_MODE_PROP_IMMUTABLE,
+				 "channel",
+				 rcar_du0_du1_info_enum_list,
+				 ARRAY_SIZE(rcar_du0_du1_info_enum_list));
 
 	if (planes->channel == NULL)
 		return -ENOMEM;
