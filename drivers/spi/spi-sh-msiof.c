@@ -964,6 +964,7 @@ static const struct of_device_id sh_msiof_match[] = {
 	{ .compatible = "renesas,sh-mobile-msiof", .data = &sh_data },
 	{ .compatible = "renesas,msiof-r8a7790",   .data = &r8a779x_data },
 	{ .compatible = "renesas,msiof-r8a7791",   .data = &r8a779x_data },
+	{ .compatible = "renesas,msiof-r8a7794",   .data = &r8a779x_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, sh_msiof_match);
@@ -1254,6 +1255,7 @@ static struct platform_device_id spi_driver_ids[] = {
 	{ "spi_sh_msiof",	(kernel_ulong_t)&sh_data },
 	{ "spi_r8a7790_msiof",	(kernel_ulong_t)&r8a779x_data },
 	{ "spi_r8a7791_msiof",	(kernel_ulong_t)&r8a779x_data },
+	{ "spi_r8a7794_msiof",	(kernel_ulong_t)&r8a779x_data },
 	{},
 };
 MODULE_DEVICE_TABLE(platform, spi_driver_ids);
