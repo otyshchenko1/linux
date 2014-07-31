@@ -36,6 +36,7 @@
 #include <linux/serial_sci.h>
 #include <linux/sh_dma.h>
 #include <linux/spi/flash.h>
+#include <linux/spi/sh_msiof.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/phy.h>
 #include <linux/usb/renesas_usbhs.h>
@@ -379,6 +380,9 @@ static const struct sh_dmae_slave_config r8a7794_sys_dmac_slaves[] = {
 	SYS_DMAC_SLAVE_TX(HSCIF0, 8, 0xe62c0000, 0xc, 0x14, 0x39, 0x3a),
 	SYS_DMAC_SLAVE_TX(HSCIF1, 8, 0xe62c8000, 0xc, 0x14, 0x4d, 0x4e),
 	SYS_DMAC_SLAVE_TX(HSCIF2, 8, 0xe62d0000, 0xc, 0x14, 0x3b, 0x3c),
+	SYS_DMAC_SLAVE(MSIOF0, 32, 0xe7e20000, 0x50, 0x60, 0x51, 0x52),
+	SYS_DMAC_SLAVE(MSIOF1, 32, 0xe7e10000, 0x50, 0x60, 0x55, 0x56),
+	SYS_DMAC_SLAVE(MSIOF2, 32, 0xe7e00000, 0x50, 0x60, 0x41, 0x42),
 };
 
 static const struct sh_dmae_channel r8a7794_sys_dmac_channels[] = {
@@ -714,6 +718,41 @@ static void __init alt_add_vsp1_devices(void)
 }
 #endif
 
+/* MSIOF */
+static struct sh_msiof_spi_info msiof0_info = {
+	.rx_fifo_override       = 256,
+	.num_chipselect         = 1,
+	.dma_tx_id              = SYS_DMAC_SLAVE_MSIOF0_TX,
+	.dma_rx_id              = SYS_DMAC_SLAVE_MSIOF0_RX,
+};
+
+static struct sh_msiof_spi_info msiof1_info = {
+	.rx_fifo_override       = 256,
+	.num_chipselect         = 1,
+	.dma_tx_id              = SYS_DMAC_SLAVE_MSIOF1_TX,
+	.dma_rx_id              = SYS_DMAC_SLAVE_MSIOF1_RX,
+};
+
+/* MSIOF spidev */
+static const struct spi_board_info spi_bus[] __initconst = {
+	{
+		.modalias	= "spidev",
+		.max_speed_hz	= 6000000,
+		.mode		= SPI_MODE_3,
+		.bus_num	= 1,
+		.chip_select	= 0,
+	},
+	{
+		.modalias	= "spidev",
+		.max_speed_hz	= 6000000,
+		.mode		= SPI_MODE_3,
+		.bus_num	= 2,
+		.chip_select	= 0,
+	},
+};
+
+#define alt_add_msiof_device spi_register_board_info
+
 static struct of_dev_auxdata alt_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("renesas,mmcif-r8a7794", 0xee200000, "sh_mmcif",
 			&mmcif0_pdata),
@@ -739,6 +778,10 @@ static struct of_dev_auxdata alt_auxdata_lookup[] __initdata = {
 	AUXDATA_SCIFA(15, 0xe6c78000, gic_spi(30)), /* SCIFA4 */
 	AUXDATA_SCIFA(16, 0xe6c80000, gic_spi(31)), /* SCIFA5 */
 	AUXDATA_HSCIF(17, 0xe6cd0000, gic_spi(21)), /* HSCIF2 */
+	OF_DEV_AUXDATA("renesas,msiof-r8a7794", 0xe6e20000,
+		       "spi_r8a7794_msiof.0", &msiof0_info),
+	OF_DEV_AUXDATA("renesas,msiof-r8a7794", 0xe6e10000,
+		       "spi_r8a7794_msiof.1", &msiof1_info),
 	{},
 };
 
@@ -764,6 +807,7 @@ static void __init alt_add_standard_devices(void)
 #if defined(CONFIG_VIDEO_RENESAS_VSP1)
 	alt_add_vsp1_devices();
 #endif
+	alt_add_msiof_device(spi_bus, ARRAY_SIZE(spi_bus));
 }
 
 static const char * const alt_boards_compat_dt[] __initconst = {
