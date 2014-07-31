@@ -143,11 +143,18 @@ static int sh_dma_size[][SH_MOBILE_SDHI_DMA_XMIT_SZ_MAX] = {
 	{ -EINVAL, 0x0000, 0x0000, -EINVAL, 0x0001, 0x0004, },	/* VER_CB0D */
 };
 
+struct sh_mobile_sdhi_vlt {
+	u32 base;		/* base address for IO voltage */
+	u32 offset;		/* offset value for IO voltage */
+	u32 mask;		/* bit mask position for IO voltage */
+};
+
 struct sh_mobile_sdhi {
 	struct clk *clk;
 	struct tmio_mmc_data mmc_data;
 	struct tmio_mmc_dma dma_priv;
 	unsigned int type;
+	struct sh_mobile_sdhi_vlt vlt;
 };
 
 static int sh_mobile_sdhi_clk_enable(struct platform_device *pdev, unsigned int *f)
@@ -177,45 +184,35 @@ static void sh_mobile_sdhi_clk_disable(struct platform_device *pdev)
 static void sh_mobile_sdhi_set_ioctrl(struct tmio_mmc_host *host, int state)
 {
 	struct platform_device *pdev = host->pdev;
-	struct device_node *np = pdev->dev.of_node;
-	void __iomem *pmmr, *ioctrl6;
+	void __iomem *pmmr, *ioctrl;
 	unsigned int ctrl, mask;
-	u32 pfcs[2], id;
+	struct sh_mobile_sdhi *priv = container_of(host->pdata, struct sh_mobile_sdhi, mmc_data);
+	struct sh_mobile_sdhi_vlt *vlt = &priv->vlt;
 
-	if (!np)
+	if (!vlt)
 		return;
 
-	if (of_property_read_u32_array(np, "renesas,pfcs", pfcs, 2)) {
-		pr_err("update_ioctrl6: unknown pfcs\n");
-		return;
-	}
+	pmmr = ioremap(vlt->base, 0x04);
+	ioctrl = ioremap(vlt->base + vlt->offset, 0x04);
 
-	if (of_property_read_u32(np, "renesas,id", &id)) {
-		pr_err("update_ioctrl6: unknown id\n");
-		return;
-	}
-
-	pmmr = ioremap(pfcs[0], 0x04);
-	ioctrl6 = ioremap(pfcs[0] + pfcs[1], 0x04);
-
-	ctrl = ioread32(ioctrl6);
+	ctrl = ioread32(ioctrl);
 	/* Set 1.8V/3.3V */
-	mask = 0xff << (24 - id * 8);
+	mask = 0xff << (24 - vlt->mask * 8);
 
 	if (state == SH_MOBILE_SDHI_SIGNAL_330V)
 		ctrl |= mask;
 	else if (state == SH_MOBILE_SDHI_SIGNAL_180V)
 		ctrl &= ~mask;
 	else {
-		pr_err("update_ioctrl6: unknown state\n");
+		dev_err(&pdev->dev, "update_ioctrl: unknown state\n");
 		goto err;
 	}
 
 	iowrite32(~ctrl, pmmr);
-	iowrite32(ctrl, ioctrl6);
+	iowrite32(ctrl, ioctrl);
 err:
 	iounmap(pmmr);
-	iounmap(ioctrl6);
+	iounmap(ioctrl);
 }
 
 static int sh_mobile_sdhi_start_signal_voltage_switch(
@@ -586,6 +583,8 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 #ifdef R8A7790_ES1_SDHI_WORKAROUND
 	void __iomem *product_reg;
 #endif
+	struct sh_mobile_sdhi_vlt *vlt;
+	u32 pfcs[2], mask;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -599,6 +598,7 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 
 	mmc_data = &priv->mmc_data;
 	dma_priv = &priv->dma_priv;
+	vlt = &priv->vlt;
 
 	if (p) {
 		if (p->init) {
@@ -637,6 +637,17 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 					"cannot set clock rate: %d\n", ret);
 		}
 	}
+
+	if (np && !of_property_read_u32_array(np, "renesas,pfcs", pfcs, 2)) {
+		if (pfcs[0]) {
+			vlt->base = pfcs[0];
+			vlt->offset = pfcs[1];
+		}
+	}
+
+	if (np && !of_property_read_u32(np, "renesas,id", &mask))
+		vlt->mask = mask;
+
 	mmc_data->clk_enable = sh_mobile_sdhi_clk_enable;
 	mmc_data->clk_disable = sh_mobile_sdhi_clk_disable;
 	mmc_data->capabilities = MMC_CAP_MMC_HIGHSPEED;
