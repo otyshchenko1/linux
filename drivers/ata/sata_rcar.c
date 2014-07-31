@@ -923,7 +923,7 @@ static int sata_rcar_probe(struct platform_device *pdev)
 	/* setup port */
 	ret = sata_rcar_setup_port(host);
 	if (ret)
-		goto setup_err;
+		goto cleanup;
 
 	/* initialize host controller */
 	sata_rcar_init_controller(host);
@@ -935,13 +935,6 @@ static int sata_rcar_probe(struct platform_device *pdev)
 
 cleanup:
 	clk_disable_unprepare(priv->clk);
-
-	return ret;
-
-setup_err:
-	clk_disable_unprepare(priv->clk);
-
-	iounmap(priv->base);
 
 	return ret;
 }
