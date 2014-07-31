@@ -73,7 +73,6 @@ struct rcar_du_plane {
 
 	bool fb_plane;
 	bool interlace_flag;
-	bool argb1555_init;
 };
 
 struct rcar_du_planes {

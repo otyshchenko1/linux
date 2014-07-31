@@ -26,7 +26,7 @@ config DRM_RCAR_DESKTOP_TURN_OFF
 	  If you want to turn on desktop layer, you select n.
 
 config DRM_RCAR_ALPHA_BIT_ARGB1555
-	int "R-Car DU alpla bit function of ARGB1555"
+	int "R-Car DU alpha bit function of ARGB1555"
 	depends on DRM_RCAR_DU
 	range 0 1
 	help

@@ -293,10 +293,7 @@ static void rcar_du_plane_setup_mode(struct rcar_du_plane *plane,
 	else
 		alpha_bit = PnALPHAR_ABIT_0;
 
-	if ((plane->format->fourcc == DRM_FORMAT_ARGB1555) &&
-		(plane->argb1555_init))
-		rcar_du_plane_write(rgrp, index, PnALPHAR, PnALPHAR_ABIT_0);
-	else if (plane->format->fourcc == DRM_FORMAT_ARGB1555)
+	if (plane->format->fourcc == DRM_FORMAT_ARGB1555)
 		rcar_du_plane_write(rgrp, index, PnALPHAR,
 				    alpha_bit | plane->alpha);
 	else
@@ -571,8 +568,6 @@ static int rcar_du_plane_disable(struct drm_plane *plane)
  */
 static void rcar_du_plane_set_alpha(struct rcar_du_plane *plane, u32 alpha)
 {
-	plane->argb1555_init = false;
-
 	if (plane->alpha == alpha)
 		return;
 
@@ -701,7 +696,6 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 		plane->alpha = 255;
 		plane->colorkey = RCAR_DU_COLORKEY_NONE;
 		plane->zpos = 0;
-		plane->argb1555_init = true;
 	}
 
 	return 0;
