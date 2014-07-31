@@ -144,8 +144,8 @@ int rcar_du_lvdsenc_start(struct rcar_du_lvdsenc *lvds,
 
 		usleep_range(100, 150);
 
-		/* 1 loop is four CPU instruction */
-		wait_loop = wait_loop / 4;
+		/* 1 loop is three CPU instruction and CPU 3way superscalar */
+		wait_loop = wait_loop / 3 * 3;
 
 		lvdcr0 |= LVDCR0_LVRES;
 
