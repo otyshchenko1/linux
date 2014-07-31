@@ -739,7 +739,7 @@ static void __init lager_add_vin_device(unsigned idx,
 	platform_device_register_full(&vin_info);
 }
 
-#define KOELSCH_CAMERA(idx, name, addr, pdata, flag)			\
+#define LAGER_CAMERA(idx, name, addr, pdata, flag)			\
 static struct i2c_board_info i2c_cam##idx##_device = {			\
 	I2C_BOARD_INFO(name, addr),					\
 };									\
@@ -756,8 +756,8 @@ static struct soc_camera_link cam##idx##_link = {			\
 	.priv = pdata,							\
 }
 
-KOELSCH_CAMERA(0, "adv7612", 0x4c, NULL, RCAR_VIN_BT709);
-KOELSCH_CAMERA(1, "adv7180", 0x20, NULL, RCAR_VIN_BT656);
+LAGER_CAMERA(0, "adv7612", 0x4c, NULL, RCAR_VIN_BT709);
+LAGER_CAMERA(1, "adv7180", 0x20, NULL, RCAR_VIN_BT656);
 
 static void __init lager_add_camera0_device(void)
 {
