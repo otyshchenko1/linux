@@ -8,6 +8,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/cpuidle.h>
 #include <linux/cpu_pm.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -19,6 +20,7 @@
 #include <linux/threads.h>
 #include <asm/cacheflush.h>
 #include <asm/cp15.h>
+#include <asm/cpuidle.h>
 #include <asm/proc-fns.h>
 #include <asm/smp_plat.h>
 #include <asm/suspend.h>
@@ -152,7 +154,8 @@ int __cpuinit shmobile_smp_apmu_boot_secondary(unsigned int cpu,
 }
 #endif
 
-#if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_SUSPEND)
+#if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_SUSPEND) || \
+defined(CONFIG_CPU_IDLE)
 /* nicked from arch/arm/mach-exynos/hotplug.c */
 static inline void cpu_enter_lowpower_a15(void)
 {
@@ -228,14 +231,16 @@ int shmobile_smp_apmu_cpu_kill(unsigned int cpu)
 }
 #endif
 
-#if defined(CONFIG_SUSPEND)
+#if defined(CONFIG_SUSPEND) || defined(CONFIG_CPU_IDLE)
 static int shmobile_smp_apmu_do_suspend(unsigned long cpu)
 {
 	shmobile_smp_apmu_cpu_shutdown(cpu);
 	cpu_do_idle(); /* WFI selects Core Standby */
 	return 1;
 }
+#endif
 
+#if defined(CONFIG_SUSPEND)
 static int shmobile_smp_apmu_enter_suspend(suspend_state_t state)
 {
 	shmobile_smp_hook(smp_processor_id(), virt_to_phys(cpu_resume), 0);
@@ -247,5 +252,15 @@ static int shmobile_smp_apmu_enter_suspend(suspend_state_t state)
 void __init shmobile_smp_apmu_suspend_init(void)
 {
 	shmobile_suspend_ops.enter = shmobile_smp_apmu_enter_suspend;
+}
+#endif
+
+#if defined(CONFIG_CPU_IDLE)
+void shmobile_smp_apmu_enter_cpuidle(void)
+{
+	cpu_pm_enter();
+	cpu_suspend(smp_processor_id(), shmobile_smp_apmu_do_suspend);
+	cpu_leave_lowpower();
+	cpu_pm_exit();
 }
 #endif

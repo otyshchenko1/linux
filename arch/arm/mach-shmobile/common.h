@@ -27,6 +27,7 @@ extern void shmobile_handle_irq_intc(struct pt_regs *);
 extern struct platform_suspend_ops shmobile_suspend_ops;
 struct cpuidle_driver;
 extern void shmobile_cpuidle_set_driver(struct cpuidle_driver *drv);
+extern void shmobile_smp_apmu_enter_cpuidle(void);
 
 #ifdef CONFIG_SUSPEND
 int shmobile_suspend_init(void);
