@@ -20,6 +20,27 @@
 #include <asm/io.h>
 #include "common.h"
 
+static int shmobile_cpuidle_notifier_call(struct notifier_block *nfb,
+					  unsigned long action, void *hcpu)
+{
+	unsigned int cpu = (long)hcpu;
+
+	switch (action) {
+	case CPU_ONLINE:
+	case CPU_STARTING:
+	case CPU_STARTING_FROZEN:
+		/* For this particular CPU register CPUIdle boot vector */
+		shmobile_smp_hook(cpu, virt_to_phys(cpu_resume), 0);
+		break;
+	};
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block shmobile_cpuidle_notifier = {
+	.notifier_call = shmobile_cpuidle_notifier_call,
+};
+
 static struct cpuidle_driver shmobile_cpuidle_default_driver = {
 	.name			= "shmobile_cpuidle",
 	.owner			= THIS_MODULE,
@@ -51,6 +72,9 @@ int __init shmobile_cpuidle_init(void)
 	}
 
 #ifdef CONFIG_ARCH_SHMOBILE_MULTI
+	/* Use CPU notifier for reset vector control */
+	register_cpu_notifier(&shmobile_cpuidle_notifier);
+
 	platform_device_register(&shmobile_cpuidle);
 	return 0;
 #else
