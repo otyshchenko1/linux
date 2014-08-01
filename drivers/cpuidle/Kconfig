@@ -45,4 +45,9 @@ config CPU_IDLE_ZYNQ
 	help
 	  Select this to enable cpuidle on Xilinx Zynq processors.
 
+config ARM_SHMOBILE_CPUIDLE
+	bool "Cpu Idle Driver for the shmobile SoCs"
+	depends on ARCH_SHMOBILE_MULTI
+	help
+	  Select this to enable cpuidle for shmobile SoCs
 endif
