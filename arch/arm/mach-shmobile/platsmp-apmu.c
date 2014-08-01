@@ -231,7 +231,6 @@ int shmobile_smp_apmu_cpu_kill(unsigned int cpu)
 #if defined(CONFIG_SUSPEND)
 static int shmobile_smp_apmu_do_suspend(unsigned long cpu)
 {
-	shmobile_smp_hook(cpu, virt_to_phys(cpu_resume), 0);
 	shmobile_smp_apmu_cpu_shutdown(cpu);
 	cpu_do_idle(); /* WFI selects Core Standby */
 	return 1;
@@ -239,6 +238,7 @@ static int shmobile_smp_apmu_do_suspend(unsigned long cpu)
 
 static int shmobile_smp_apmu_enter_suspend(suspend_state_t state)
 {
+	shmobile_smp_hook(smp_processor_id(), virt_to_phys(cpu_resume), 0);
 	cpu_suspend(smp_processor_id(), shmobile_smp_apmu_do_suspend);
 	cpu_leave_lowpower();
 	return 0;
