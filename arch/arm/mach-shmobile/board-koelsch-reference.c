@@ -45,7 +45,6 @@
 #endif
 #include <mach/clock.h>
 #include <mach/common.h>
-#include <mach/dma-register.h>
 #include <mach/irqs.h>
 #include <mach/rcar-gen2.h>
 #include <mach/r8a7791.h>
@@ -53,6 +52,7 @@
 #include <asm/mach/arch.h>
 #include <sound/rcar_snd.h>
 #include <sound/simple_card.h>
+#include "dma-register.h"
 
 /* DU */
 static struct rcar_du_encoder_data koelsch_du_encoders[] = {
