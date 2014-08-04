@@ -56,7 +56,7 @@
 		#size-cells = <1>;
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 
 		button@1 {
