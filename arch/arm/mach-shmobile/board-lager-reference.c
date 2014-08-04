@@ -45,7 +45,6 @@
 #include <linux/platform_data/vsp1.h>
 #endif
 #include <mach/common.h>
-#include <mach/irqs.h>
 #include <mach/rcar-gen2.h>
 #include <mach/r8a7790.h>
 #include <media/soc_camera.h>
@@ -54,6 +53,7 @@
 #include <sound/simple_card.h>
 #include "clock.h"
 #include "dma-register.h"
+#include "irqs.h"
 
 /* DU */
 static struct rcar_du_encoder_data lager_du_encoders[] = {

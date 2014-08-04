@@ -30,10 +30,10 @@
 #include <linux/sh_timer.h>
 #include <linux/spi/sh_msiof.h>
 #include <mach/common.h>
-#include <mach/irqs.h>
 #include <mach/r8a7790.h>
 #include <asm/mach/arch.h>
 #include "dma-register.h"
+#include "irqs.h"
 
 /* Audio-DMAC */
 #define AUDIO_DMAC_SLAVE(_id, _addr, toffset, roffset, t, r)	\

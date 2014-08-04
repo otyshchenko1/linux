@@ -23,9 +23,9 @@
 #include <linux/of_platform.h>
 #include <linux/sh_timer.h>
 #include <mach/common.h>
-#include <mach/irqs.h>
 #include <mach/r7s72100.h>
 #include <asm/mach/arch.h>
+#include "irqs.h"
 
 static struct sh_timer_config mtu2_0_platform_data __initdata = {
 	.name = "MTU2_0",

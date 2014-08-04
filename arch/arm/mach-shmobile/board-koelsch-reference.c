@@ -44,7 +44,6 @@
 #include <linux/usb/renesas_usbhs.h>
 #endif
 #include <mach/common.h>
-#include <mach/irqs.h>
 #include <mach/rcar-gen2.h>
 #include <mach/r8a7791.h>
 #include <media/soc_camera.h>
@@ -53,6 +52,7 @@
 #include <sound/simple_card.h>
 #include "clock.h"
 #include "dma-register.h"
+#include "irqs.h"
 
 /* DU */
 static struct rcar_du_encoder_data koelsch_du_encoders[] = {
