@@ -39,7 +39,9 @@
 #include <linux/spi/sh_msiof.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/phy.h>
+#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
 #include <linux/usb/renesas_usbhs.h>
+#endif
 #include <media/soc_camera.h>
 #include <asm/mach/arch.h>
 #include <sound/rcar_snd.h>
@@ -318,8 +320,11 @@ static const struct clk_name clk_enables[] __initconst = {
 	{ "mmcif0", NULL, "ee200000.mmc" },
 	{ "sdhi0", NULL, "ee100000.sd" },
 	{ "sdhi1", NULL, "ee140000.sd" },
+#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
 	{ "hsusb", NULL, "renesas_usbhs" },
+#else
 	{ "ehci", NULL, "pci-rcar-gen2.0" },
+#endif
 	{ "ehci", NULL, "pci-rcar-gen2.1" },
 	{ "pvrsrvkm", NULL, "pvrsrvkm" },
 	{ "vcp0", NULL, "vcp1" },
@@ -520,16 +525,139 @@ PDATA_HSCIF(17, 0xe6cd0000, gic_spi(21), 2); /* HSCIF2 */
 #define AUXDATA_SCIFB(index, baseaddr, irq) SCIF_AD("scifb", index, baseaddr)
 #define AUXDATA_HSCIF(index, baseaddr, irq) SCIF_AD("hscif", index, baseaddr)
 
-/* USBHS PHY */
-static const struct rcar_gen2_phy_platform_data usbhs_phy_pdata __initconst = {
-	.chan0_pci = 1,	/* Channel 0 is PCI USB */
-	.chan2_pci = 1,	/* Channel 2 is PCI USB */
+#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+/* USBHS */
+static const struct resource usbhs_resources[] __initconst = {
+	DEFINE_RES_MEM(0xe6590000, 0x100),
+	DEFINE_RES_IRQ(gic_spi(107)),
 };
 
-static const struct resource usbhs_phy_resources[] __initconst = {
-	DEFINE_RES_MEM(0xe6590100, 0x100),
+struct usbhs_private {
+	struct renesas_usbhs_platform_info info;
+	struct usb_phy *phy;
+	int pwen_gpio;
 };
 
+#define usbhs_get_priv(pdev) \
+	container_of(renesas_usbhs_get_info(pdev), struct usbhs_private, info)
+
+static int usbhs_power_ctrl(struct platform_device *pdev,
+				void __iomem *base, int enable)
+{
+	struct usbhs_private *priv = usbhs_get_priv(pdev);
+
+	if (!priv->phy)
+		return -ENODEV;
+
+	if (enable) {
+		int retval = usb_phy_init(priv->phy);
+
+		if (!retval)
+			retval = usb_phy_set_suspend(priv->phy, 0);
+		return retval;
+	}
+
+	usb_phy_set_suspend(priv->phy, 1);
+	usb_phy_shutdown(priv->phy);
+	return 0;
+}
+
+static int usbhs_hardware_init(struct platform_device *pdev)
+{
+	struct usbhs_private *priv = usbhs_get_priv(pdev);
+	struct usb_phy *phy;
+	int ret;
+	struct device_node *np;
+
+	np = of_find_node_by_path("/gpio@e6055000");
+	if (np) {
+		priv->pwen_gpio = of_get_gpio(np, 24);
+		of_node_put(np);
+	} else {
+		pr_warn("Error: Unable to get PWEN GPIO line\n");
+		ret = -ENOTSUPP;
+		goto error2;
+	}
+
+	phy = usb_get_phy_dev(&pdev->dev, 0);
+	if (IS_ERR(phy)) {
+		ret = PTR_ERR(phy);
+		goto error;
+	}
+
+	priv->phy = phy;
+	return 0;
+ error:
+	gpio_free(priv->pwen_gpio);
+ error2:
+	return ret;
+}
+
+static int usbhs_hardware_exit(struct platform_device *pdev)
+{
+	struct usbhs_private *priv = usbhs_get_priv(pdev);
+
+	if (!priv->phy)
+		return 0;
+
+	usb_put_phy(priv->phy);
+	priv->phy = NULL;
+	gpio_free(priv->pwen_gpio);
+	return 0;
+}
+
+static int usbhs_get_id(struct platform_device *pdev)
+{
+	return USBHS_GADGET;
+}
+
+static u32 lager_usbhs_pipe_type[] = {
+	USB_ENDPOINT_XFER_CONTROL,
+	USB_ENDPOINT_XFER_ISOC,
+	USB_ENDPOINT_XFER_ISOC,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_INT,
+	USB_ENDPOINT_XFER_INT,
+	USB_ENDPOINT_XFER_INT,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_BULK,
+};
+
+static struct usbhs_private usbhs_priv __initdata = {
+	.info = {
+		.platform_callback = {
+			.power_ctrl	= usbhs_power_ctrl,
+			.hardware_init	= usbhs_hardware_init,
+			.hardware_exit	= usbhs_hardware_exit,
+			.get_id		= usbhs_get_id,
+		},
+		.driver_param = {
+			.buswait_bwait	= 4,
+			.pipe_type = lager_usbhs_pipe_type,
+			.pipe_size = ARRAY_SIZE(lager_usbhs_pipe_type),
+		},
+	}
+};
+
+static void __init alt_register_usbhs(void)
+{
+	usb_bind_phy("renesas_usbhs", 0, "usb_phy_rcar_gen2");
+	platform_device_register_resndata(&platform_bus,
+					  "renesas_usbhs", -1,
+					  usbhs_resources,
+					  ARRAY_SIZE(usbhs_resources),
+					  &usbhs_priv.info,
+					  sizeof(usbhs_priv.info));
+}
+
+#else
 /* Internal PCI0 */
 static const struct resource pci0_resources[] __initconst = {
 	DEFINE_RES_MEM(0xee090000, 0x10000),	/* CFG */
@@ -551,6 +679,20 @@ static void __init alt_add_usb0_device(void)
 	usb_bind_phy("pci-rcar-gen2.0", 0, "usb_phy_rcar_gen2");
 	platform_device_register_full(&pci0_info);
 }
+#endif
+/* USBHS PHY */
+static const struct rcar_gen2_phy_platform_data usbhs_phy_pdata __initconst = {
+#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+	.chan0_pci = 0,	/* Channel 0 is USBHS */
+#else
+	.chan0_pci = 1,	/* Channel 0 is PCI USB */
+#endif
+	.chan2_pci = 1,	/* Channel 2 is PCI USB */
+};
+
+static const struct resource usbhs_phy_resources[] __initconst = {
+	DEFINE_RES_MEM(0xe6590100, 0x100),
+};
 
 /* Internal PCI1 */
 static const struct resource pci1_resources[] __initconst = {
@@ -800,7 +942,11 @@ static void __init alt_add_standard_devices(void)
 					  ARRAY_SIZE(usbhs_phy_resources),
 					  &usbhs_phy_pdata,
 					  sizeof(usbhs_phy_pdata));
+#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+	alt_register_usbhs();
+#else
 	alt_add_usb0_device();
+#endif
 	alt_add_usb1_device();
 	alt_add_rsnd_device();
 	alt_add_camera0_device();
