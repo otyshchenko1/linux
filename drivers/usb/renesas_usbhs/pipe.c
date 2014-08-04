@@ -499,11 +499,13 @@ static u16 usbhsp_setup_pipebuff(struct usbhs_pipe *pipe)
 	 * ISOC: 512 byte
 	 */
 	if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_CONTROL))
-		buff_size = 256;
+		buff_size = 64;
 	else if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_INT))
 		buff_size = 64;
-	else
+	else if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_BULK))
 		buff_size = 512;
+	else
+		buff_size = 1024;
 
 	/* change buff_size to register value */
 	bufnmb_cnt = (buff_size / 64) - 1;
