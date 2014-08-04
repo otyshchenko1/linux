@@ -31,7 +31,7 @@ struct usbhsg_request {
 	struct usbhs_pkt	pkt;
 };
 
-#define EP_NAME_SIZE 8
+#define EP_NAME_SIZE 16
 struct usbhsg_gpriv;
 struct usbhsg_uep {
 	struct usb_ep		 ep;
@@ -927,6 +927,7 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 	int pipe_size = usbhs_get_dparam(priv, pipe_size);
 	int i;
 	int ret;
+	u32 pipe_type;
 
 	gpriv = kzalloc(sizeof(struct usbhsg_gpriv), GFP_KERNEL);
 	if (!gpriv) {
@@ -978,21 +979,37 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 	usbhsg_for_each_uep_with_dcp(uep, gpriv, i) {
 		uep->gpriv	= gpriv;
 		uep->pipe	= NULL;
-		snprintf(uep->ep_name, EP_NAME_SIZE, "ep%d", i);
-
 		uep->ep.name		= uep->ep_name;
 		uep->ep.ops		= &usbhsg_ep_ops;
 		INIT_LIST_HEAD(&uep->ep.ep_list);
+		pipe_type = usbhs_get_dparam(priv, pipe_type[i]);
 
-		/* init DCP */
-		if (usbhsg_is_dcp(uep)) {
+		switch (pipe_type) {
+		case USB_ENDPOINT_XFER_CONTROL:
+			/* init DCP */
+			snprintf(uep->ep_name, sizeof(uep->ep_name),
+				"ep0");
 			gpriv->gadget.ep0 = &uep->ep;
 			uep->ep.maxpacket = 64;
-		}
-		/* init normal pipe */
-		else {
+			break;
+		case USB_ENDPOINT_XFER_BULK:
+			snprintf(uep->ep_name, sizeof(uep->ep_name),
+				"ep%d-bulk", i);
 			uep->ep.maxpacket = 512;
 			list_add_tail(&uep->ep.ep_list, &gpriv->gadget.ep_list);
+			break;
+		case USB_ENDPOINT_XFER_INT:
+			snprintf(uep->ep_name, sizeof(uep->ep_name),
+				"ep%d-int", i);
+			uep->ep.maxpacket = 64;
+			list_add_tail(&uep->ep.ep_list, &gpriv->gadget.ep_list);
+			break;
+		case USB_ENDPOINT_XFER_ISOC:
+			snprintf(uep->ep_name, sizeof(uep->ep_name),
+				"ep%d-iso", i);
+			uep->ep.maxpacket = 1024;
+			list_add_tail(&uep->ep.ep_list, &gpriv->gadget.ep_list);
+			break;
 		}
 	}
 
