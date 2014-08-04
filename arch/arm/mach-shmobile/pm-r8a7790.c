@@ -13,13 +13,24 @@
 #include <linux/kernel.h>
 #include <linux/pm.h>
 #include <linux/pm_clock.h>
+#include <linux/pm_domain.h>
 #include <asm/io.h>
-#include <mach/pm-rcar.h>
 #include <mach/r8a7790.h>
+#include "pm-rcar.h"
 
 /* SYSC */
 #define SYSCIER 0x0c
 #define SYSCIMR 0x10
+
+struct r8a7790_pm_domain {
+	struct generic_pm_domain genpd;
+	struct rcar_sysc_ch ch;
+};
+
+static inline struct rcar_sysc_ch *to_r8a7790_ch(struct generic_pm_domain *d)
+{
+	return &container_of(d, struct r8a7790_pm_domain, genpd)->ch;
+}
 
 #if defined(CONFIG_PM) || defined(CONFIG_SMP)
 

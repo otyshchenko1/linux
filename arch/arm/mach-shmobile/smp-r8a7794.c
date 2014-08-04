@@ -20,6 +20,7 @@
 #include <mach/r8a7794.h>
 #include <mach/platsmp-apmu.h>
 #include "common.h"
+#include "pm-rcar.h"
 
 #define RST		0xe6160000
 #define CA7BAR		0x0030
