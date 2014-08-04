@@ -660,7 +660,9 @@ static int usbhsg_ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 	struct usbhsg_request *ureq = usbhsg_req_to_ureq(req);
 	struct usbhs_pipe *pipe = usbhsg_uep_to_pipe(uep);
 
-	usbhs_pkt_pop(pipe, usbhsg_ureq_to_pkt(ureq));
+	if (pipe != NULL)
+		usbhs_pkt_pop(pipe, usbhsg_ureq_to_pkt(ureq));
+
 	usbhsg_queue_pop(uep, ureq, -ECONNRESET);
 
 	return 0;
