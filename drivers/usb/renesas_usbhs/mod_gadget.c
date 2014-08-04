@@ -602,6 +602,7 @@ static int usbhsg_ep_disable(struct usb_ep *ep)
 	struct usbhsg_uep *uep = usbhsg_ep_to_uep(ep);
 
 	usbhsg_pipe_disable(uep);
+	usbhs_pipe_free(uep->pipe);
 
 	uep->pipe->mod_private	= NULL;
 	uep->pipe		= NULL;

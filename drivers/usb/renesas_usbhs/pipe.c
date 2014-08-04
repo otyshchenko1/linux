@@ -728,6 +728,11 @@ struct usbhs_pipe *usbhs_pipe_malloc(struct usbhs_priv *priv,
 	return pipe;
 }
 
+void usbhs_pipe_free(struct usbhs_pipe *pipe)
+{
+	usbhsp_flags_clr(pipe, IS_USED);
+}
+
 void usbhs_pipe_select_fifo(struct usbhs_pipe *pipe, struct usbhs_fifo *fifo)
 {
 	if (pipe->fifo)
