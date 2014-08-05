@@ -1,6 +1,8 @@
 /*
  *  drivers/i2c/busses/i2c-rcar.c
  *
+ * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ *
  * Copyright (C) 2012 Renesas Solutions Corp.
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  *
@@ -101,6 +103,7 @@ enum {
 #define ID_DONE		(1 << 2)
 #define ID_ARBLOST	(1 << 3)
 #define ID_NACK		(1 << 4)
+#define ID_FIRST_MSG	(1 << 5)
 
 enum rcar_i2c_type {
 	I2C_RCAR_GEN1,
@@ -127,6 +130,7 @@ struct rcar_i2c_priv {
 #define rcar_i2c_is_recv(p)		((p)->msg->flags & I2C_M_RD)
 
 #define rcar_i2c_flags_set(p, f)	((p)->flags |= (f))
+#define rcar_i2c_flags_clr(p, f)	((p)->flags &= ~(f))
 #define rcar_i2c_flags_has(p, f)	((p)->flags & (f))
 
 #define LOOP_TIMEOUT	1024
@@ -340,6 +344,15 @@ static int rcar_i2c_recv(struct rcar_i2c_priv *priv)
 	rcar_i2c_set_addr(priv, 1);
 	rcar_i2c_status_clear(priv);
 	rcar_i2c_bus_phase(priv, RCAR_BUS_PHASE_ADDR);
+
+	if (rcar_i2c_flags_has(priv, ID_FIRST_MSG)) {	/* start */
+		/* get ESG bit clear timing */
+		rcar_i2c_read(priv, ICMCR);
+		rcar_i2c_flags_clr(priv, ID_FIRST_MSG);
+		/* clear ESG bit for avoiding auto restart by H/W */
+		rcar_i2c_bus_phase(priv, RCAR_BUS_PHASE_DATA);
+	}
+
 	rcar_i2c_irq_mask(priv, RCAR_IRQ_OPEN_FOR_RECV);
 
 	return 0;
@@ -359,6 +372,15 @@ static int rcar_i2c_send(struct rcar_i2c_priv *priv)
 	rcar_i2c_set_addr(priv, 0);
 	rcar_i2c_status_clear(priv);
 	rcar_i2c_bus_phase(priv, RCAR_BUS_PHASE_ADDR);
+
+	if (rcar_i2c_flags_has(priv, ID_FIRST_MSG)) {	/* start */
+		/* get ESG bit clear timing */
+		rcar_i2c_read(priv, ICMCR);
+		rcar_i2c_flags_clr(priv, ID_FIRST_MSG);
+		/* clear ESG bit for avoiding auto restart by H/W */
+		rcar_i2c_bus_phase(priv, RCAR_BUS_PHASE_DATA);
+	}
+
 	rcar_i2c_irq_mask(priv, RCAR_IRQ_OPEN_FOR_SEND);
 
 	return 0;
@@ -571,6 +593,8 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 		priv->msg	= &msgs[i];
 		priv->pos	= 0;
 		priv->flags	= 0;
+		if (i == 0)
+			rcar_i2c_flags_set(priv, ID_FIRST_MSG);
 		if (priv->msg == &msgs[num - 1])
 			rcar_i2c_flags_set(priv, ID_LAST_MSG);
 
