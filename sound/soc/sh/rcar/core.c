@@ -269,6 +269,7 @@ static void rsnd_dma_of_name(struct rsnd_dma *dma,
 	for (i = 1; i < MOD_MAX; i++) {
 		if (!src) {
 			mod[i] = ssi;
+			break;
 		} else if (!dvc) {
 			mod[i] = src;
 			src = NULL;
@@ -279,9 +280,6 @@ static void rsnd_dma_of_name(struct rsnd_dma *dma,
 
 		if (mod[i] == this)
 			index = i;
-
-		if (mod[i] == ssi)
-			break;
 	}
 
 	if (is_play) {
