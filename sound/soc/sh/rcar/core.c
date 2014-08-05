@@ -956,7 +956,7 @@ static int rsnd_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	priv->pdev	= pdev;
+	priv->dev	= dev;
 	priv->info	= info;
 	spin_lock_init(&priv->lock);
 
