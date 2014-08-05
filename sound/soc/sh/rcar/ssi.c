@@ -57,8 +57,6 @@
  */
 #define CONT		(1 << 8)	/* WS Continue Function */
 
-#define SSI_NAME "ssi"
-
 struct rsnd_ssi {
 	struct clk *clk;
 	struct rsnd_ssi_platform_info *info; /* rcar_snd.h */
@@ -375,8 +373,6 @@ static int rsnd_ssi_pio_probe(struct rsnd_mod *mod,
 	if (ret)
 		dev_err(dev, "SSI request interrupt failed\n");
 
-	dev_dbg(dev, "%s (PIO) is probed\n", rsnd_mod_name(mod));
-
 	return ret;
 }
 
@@ -409,7 +405,7 @@ static int rsnd_ssi_pio_stop(struct rsnd_mod *mod,
 }
 
 static struct rsnd_mod_ops rsnd_ssi_pio_ops = {
-	.name	= SSI_NAME,
+	.name	= "ssi (pio)",
 	.probe	= rsnd_ssi_pio_probe,
 	.init	= rsnd_ssi_init,
 	.quit	= rsnd_ssi_quit,
@@ -433,8 +429,6 @@ static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
 
 	if (ret < 0)
 		dev_err(dev, "SSI DMA failed\n");
-
-	dev_dbg(dev, "%s (DMA) is probed\n", rsnd_mod_name(mod));
 
 	return ret;
 }
@@ -486,7 +480,7 @@ static int rsnd_ssi_dma_stop(struct rsnd_mod *mod,
 }
 
 static struct rsnd_mod_ops rsnd_ssi_dma_ops = {
-	.name	= SSI_NAME,
+	.name	= "ssi (dma)",
 	.probe	= rsnd_ssi_dma_probe,
 	.remove	= rsnd_ssi_dma_remove,
 	.init	= rsnd_ssi_init,
@@ -499,7 +493,7 @@ static struct rsnd_mod_ops rsnd_ssi_dma_ops = {
  *		Non SSI
  */
 static struct rsnd_mod_ops rsnd_ssi_non_ops = {
-	.name	= SSI_NAME,
+	.name	= "ssi (non)",
 };
 
 /*
@@ -626,8 +620,7 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 	for_each_rsnd_ssi(ssi, priv, i) {
 		pinfo = &info->ssi_info[i];
 
-		snprintf(name, RSND_SSI_NAME_SIZE, "%s.%d",
-			 SSI_NAME, i);
+		snprintf(name, RSND_SSI_NAME_SIZE, "ssi.%d", i);
 
 		clk = devm_clk_get(dev, name);
 		if (IS_ERR(clk))
