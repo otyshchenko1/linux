@@ -13,11 +13,17 @@
 #include <linux/pm.h>
 #include <linux/pm_clock.h>
 #include <linux/pm_domain.h>
-
+#include <linux/smp.h>
 #include <asm/io.h>
-
+#include "common.h"
 #include "pm-rcar.h"
 #include "r8a7794.h"
+
+#define RST		0xe6160000
+#define CA7BAR		0x0030
+#define CA15RESCNT	0x0040
+#define CA7RESCNT	0x0044
+#define RAM		0xe63c0000
 
 /* SYSC */
 #define SYSCIER 0x0c
@@ -206,8 +212,28 @@ void __init r8a7794_init_pm_domains(void)
 
 void __init r8a7794_pm_init(void)
 {
+	void __iomem *p;
+	u32 bar;
 	static int once;
 
-	if (!once++)
-		r8a7794_sysc_init();
+	if (once++)
+		return;
+
+	/* RAM for jump stub, because BAR requires 256KB aligned address */
+	p = ioremap_nocache(RAM, shmobile_boot_size);
+	memcpy_toio(p, shmobile_boot_vector, shmobile_boot_size);
+	iounmap(p);
+
+	/* setup reset vectors */
+	p = ioremap_nocache(RST, 0x63);
+	bar = (RAM >> 8) & 0xfffffc00;
+	writel_relaxed(bar, p + CA7BAR);
+	writel_relaxed(bar | 0x10, p + CA7BAR);
+
+	/* enable clocks to all CPUs */
+	writel_relaxed((readl_relaxed(p + CA7RESCNT) & ~0x0f) | 0x5a5a0000,
+		       p + CA7RESCNT);
+	iounmap(p);
+
+	r8a7794_sysc_init();
 }
