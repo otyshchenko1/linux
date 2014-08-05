@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
+#include <linux/irqchip/arm-gic.h>
 #include <linux/of_address.h>
 #include <linux/smp.h>
 #include <linux/suspend.h>
@@ -245,6 +246,13 @@ static int __cpuinit shmobile_smp_apmu_do_suspend(unsigned long cpu)
 #if defined(CONFIG_SUSPEND)
 static int __cpuinit shmobile_smp_apmu_enter_suspend(suspend_state_t state)
 {
+	/*
+	 * Disable the CPU interface when a CPU core is entering L2
+	 * shutdown mode, that will help us to prevent spurious CPU
+	 * wakeup to happen upon WFI execution.
+	 */
+	gic_cpu_if_down();
+
 	shmobile_smp_hook(smp_processor_id(), virt_to_phys(cpu_resume), 0);
 	cpu_suspend(smp_processor_id(), shmobile_smp_apmu_do_suspend);
 	cpu_leave_lowpower();
