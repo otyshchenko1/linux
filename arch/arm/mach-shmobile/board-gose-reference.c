@@ -135,15 +135,15 @@ static struct rsnd_ssi_platform_info rsnd_ssi[] = {
 
 static struct rsnd_src_platform_info rsnd_src[2] = {
 	RSND_SRC(0, AUDIO_DMAC_SLAVE_SCU0_TX),
-	RSND_SRC(0, AUDIO_DMAC_SLAVE_SCU1_RX),
+	RSND_SRC(0, AUDIO_DMAC_SLAVE_CMD1_TO_MEM),
 };
 
-static struct rsnd_dvc_platform_info rsnd_dvc = {
+static struct rsnd_dvc_platform_info rsnd_dvc[2] = {
 };
 
 static struct rsnd_dai_platform_info rsnd_dai = {
-	.playback = { .ssi = &rsnd_ssi[0], .src = &rsnd_src[0], .dvc = &rsnd_dvc, },
-	.capture  = { .ssi = &rsnd_ssi[1], .src = &rsnd_src[1], },
+	.playback = { .ssi = &rsnd_ssi[0], .src = &rsnd_src[0], .dvc = &rsnd_dvc[0], },
+	.capture  = { .ssi = &rsnd_ssi[1], .src = &rsnd_src[1], .dvc = &rsnd_dvc[1], },
 };
 
 static struct rcar_snd_info rsnd_info = {
@@ -152,8 +152,8 @@ static struct rcar_snd_info rsnd_info = {
 	.ssi_info_nr	= ARRAY_SIZE(rsnd_ssi),
 	.src_info	= rsnd_src,
 	.src_info_nr	= ARRAY_SIZE(rsnd_src),
-	.dvc_info	= &rsnd_dvc,
-	.dvc_info_nr	= 1,
+	.dvc_info	= rsnd_dvc,
+	.dvc_info_nr	= ARRAY_SIZE(rsnd_dvc),
 	.dai_info	= &rsnd_dai,
 	.dai_info_nr	= 1,
 };
@@ -214,6 +214,7 @@ static const struct clk_name clk_names[] __initconst = {
 	{ "src0", "src.0", "rcar_sound" },
 	{ "src1", "src.1", "rcar_sound" },
 	{ "dvc0", "dvc.0", "rcar_sound" },
+	{ "dvc1", "dvc.1", "rcar_sound" },
 	{ "vin0", NULL, "r8a7793-vin.0" },
 	{ "vin1", NULL, "r8a7793-vin.1" },
 	{ "vsps", NULL, NULL },
