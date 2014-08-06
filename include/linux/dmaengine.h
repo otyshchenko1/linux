@@ -182,6 +182,7 @@ struct dma_interleaved_template {
  *  operation it continues the calculation with new sources
  * @DMA_PREP_FENCE - tell the driver that subsequent operations depend
  *  on the result of this operation
+ * @DMA_PREP_ACTUAL_COUNT - tell a driver about actual xfer count for callback
  */
 enum dma_ctrl_flags {
 	DMA_PREP_INTERRUPT = (1 << 0),
@@ -194,6 +195,7 @@ enum dma_ctrl_flags {
 	DMA_PREP_PQ_DISABLE_Q = (1 << 7),
 	DMA_PREP_CONTINUE = (1 << 8),
 	DMA_PREP_FENCE = (1 << 9),
+	DMA_PREP_ACTUAL_COUNT = (1 << 10),
 };
 
 /**
@@ -404,6 +406,7 @@ typedef void (*dma_async_tx_callback)(void *dma_async_param);
  * @tx_submit: set the prepared descriptor(s) to be executed by the engine
  * @callback: routine to call after this operation is complete
  * @callback_param: general parameter to pass to the callback routine
+ * @actual_count: set actual count if DMA_PREP_ACTUAL_COUNT
  * ---async_tx api specific fields---
  * @next: at completion submit this descriptor
  * @parent: pointer to the next level up in the dependency chain
@@ -417,6 +420,7 @@ struct dma_async_tx_descriptor {
 	dma_cookie_t (*tx_submit)(struct dma_async_tx_descriptor *tx);
 	dma_async_tx_callback callback;
 	void *callback_param;
+	size_t actual_count;
 #ifdef CONFIG_ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	struct dma_async_tx_descriptor *next;
 	struct dma_async_tx_descriptor *parent;
