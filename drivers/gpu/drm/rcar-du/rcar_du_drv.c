@@ -445,6 +445,41 @@ static const struct rcar_du_device_info rcar_du_r8a7791_info = {
 	.vspd_crtc = BIT(0) | BIT(1),
 };
 
+#if defined(R8A7790_ES1_DU_LVDS_LANE_MISCONNECTION_WORKAROUND) || \
+	defined(R8A779X_ES2_DU_LVDS_CH_DATA_GAP_WORKAROUND)
+static struct rcar_du_device_info rcar_du_r8a7793_info = {
+#else
+static const struct rcar_du_device_info rcar_du_r8a7793_info = {
+#endif
+	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK | RCAR_DU_FEATURE_DEFR8 |
+		    RCAR_DU_FEATURE_NO_LVDS_INTERFACE |
+		    RCAR_DU_FEATURE_VSP1_SOURCE,
+	.num_crtcs = 2,
+	.routes = {
+		/* R8A7793 has one RGB output, one LVDS output and one
+		 * (currently unsupported) TCON output.
+		 */
+		[RCAR_DU_OUTPUT_LVDS0] = {
+			.possible_crtcs = BIT(0),
+			.possible_clones = 0,
+			.encoder_type = DRM_MODE_ENCODER_LVDS,
+		},
+		[RCAR_DU_OUTPUT_DPAD0] = {
+			.possible_crtcs = BIT(1),
+			.possible_clones = 0,
+			.encoder_type = DRM_MODE_ENCODER_NONE,
+		},
+	},
+	.num_lvds = 1,
+	.drgbs_bit = 1,
+	.max_xres = 1920,
+	.max_yres = 1080,
+	.interlace = true,
+	.lvds0_crtc = BIT(0),
+	.lvds1_crtc = 0,
+	.vspd_crtc = BIT(0) | BIT(1),
+};
+
 #ifdef R8A7790_ES1_DU_LVDS_LANE_MISCONNECTION_WORKAROUND
 static struct rcar_du_device_info rcar_du_r8a7794_info = {
 #else
@@ -488,6 +523,7 @@ static const struct platform_device_id rcar_du_id_table[] = {
 	{ "rcar-du-r8a7779", (kernel_ulong_t)&rcar_du_r8a7779_info },
 	{ "rcar-du-r8a7790", (kernel_ulong_t)&rcar_du_r8a7790_info },
 	{ "rcar-du-r8a7791", (kernel_ulong_t)&rcar_du_r8a7791_info },
+	{ "rcar-du-r8a7793", (kernel_ulong_t)&rcar_du_r8a7793_info },
 	{ "rcar-du-r8a7794", (kernel_ulong_t)&rcar_du_r8a7794_info },
 	{ }
 };
