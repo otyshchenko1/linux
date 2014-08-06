@@ -341,6 +341,11 @@ static dma_async_tx_callback __ld_cleanup(struct shdma_chan *schan, bool all)
 			desc->mark = DESC_WAITING;
 			callback = tx->callback;
 			param = tx->callback_param;
+			if (callback && tx->flags & DMA_PREP_ACTUAL_COUNT) {
+				const struct shdma_ops *ops =
+				    to_shdma_dev(schan->dma_chan.device)->ops;
+				tx->actual_count = ops->get_partial(schan, desc);
+			}
 			dev_dbg(schan->dev, "descriptor #%d@%p on %d callback\n",
 				tx->cookie, tx, schan->id);
 			BUG_ON(desc->chunks != 1);
