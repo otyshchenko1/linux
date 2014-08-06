@@ -198,21 +198,22 @@ static void __init alt_add_du_device(void)
 
 /* Sound */
 static struct rsnd_ssi_platform_info rsnd_ssi[] = {
-	RSND_SSI(AUDIO_DMAC_SLAVE_SSIU0_TX, gic_spi(370), 0),
-	RSND_SSI(AUDIO_DMAC_SLAVE_SSIU1_RX, gic_spi(371), RSND_SSI_CLK_PIN_SHARE),
+	RSND_SSI(AUDIOPP_DMAC_SLAVE_CMD0_TO_SSI0, gic_spi(370), 0),
+	RSND_SSI(AUDIOPP_DMAC_SLAVE_SSI1_TO_SCU2, gic_spi(371), RSND_SSI_CLK_PIN_SHARE),
 };
 
-static struct rsnd_src_platform_info rsnd_src[2] = {
+static struct rsnd_src_platform_info rsnd_src[3] = {
 	RSND_SRC_UNUSED,
-	RSND_SRC_UNUSED,
+	RSND_SRC(0, AUDIO_DMAC_SLAVE_SCU1_TX),
+	RSND_SRC(0, AUDIO_DMAC_SLAVE_CMD1_TO_MEM),
 };
 
-static struct rsnd_dvc_platform_info rsnd_dvc = {
+static struct rsnd_dvc_platform_info rsnd_dvc[2] = {
 };
 
 static struct rsnd_dai_platform_info rsnd_dai = {
-	.playback = { .ssi = &rsnd_ssi[0], },
-	.capture  = { .ssi = &rsnd_ssi[1], },
+	.playback = { .ssi = &rsnd_ssi[0], .src = &rsnd_src[1], .dvc = &rsnd_dvc[0], },
+	.capture  = { .ssi = &rsnd_ssi[1], .src = &rsnd_src[2], .dvc = &rsnd_dvc[1], },
 };
 
 static struct rcar_snd_info rsnd_info = {
@@ -221,8 +222,8 @@ static struct rcar_snd_info rsnd_info = {
 	.ssi_info_nr	= ARRAY_SIZE(rsnd_ssi),
 	.src_info	= rsnd_src,
 	.src_info_nr	= ARRAY_SIZE(rsnd_src),
-	.dvc_info	= &rsnd_dvc,
-	.dvc_info_nr	= 1,
+	.dvc_info	= rsnd_dvc,
+	.dvc_info_nr	= ARRAY_SIZE(rsnd_dvc),
 	.dai_info	= &rsnd_dai,
 	.dai_info_nr	= 1,
 };
@@ -295,6 +296,12 @@ static const struct clk_name clk_names[] __initconst = {
 	{ "du0", "du.0", "rcar-du-r8a7794" },
 	{ "du1", "du.1", "rcar-du-r8a7794" },
 	{ "hsusb", NULL, "usb_phy_rcar_gen2" },
+	{ "ssi0", "ssi.0", "rcar_sound" },
+	{ "ssi1", "ssi.1", "rcar_sound" },
+	{ "src1", "src.1", "rcar_sound" },
+	{ "src2", "src.2", "rcar_sound" },
+	{ "dvc0", "dvc.0", "rcar_sound" },
+	{ "dvc1", "dvc.1", "rcar_sound" },
 	{ "vin0", NULL, "r8a7794-vin.0" },
 	{ "vsps", NULL, NULL },
 #if defined(CONFIG_VIDEO_RENESAS_VSP1)
@@ -305,10 +312,6 @@ static const struct clk_name clk_names[] __initconst = {
 	{ "vpc0", NULL, "vpc1" },
 	{ "2ddmac", NULL, "tddmac" },
 	{ "fdp0", NULL, "fdp0" },
-	{ "ssi0", "ssi.0", "rcar_sound" },
-	{ "ssi1", "ssi.1", "rcar_sound" },
-	{ "src1", "src.1", "rcar_sound" },
-	{ "dvc0", "dvc.0", "rcar_sound" },
 };
 
 /*
