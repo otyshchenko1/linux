@@ -1471,9 +1471,7 @@ int tmio_mmc_host_resume(struct device *dev)
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct tmio_mmc_host *host = mmc_priv(mmc);
 
-	pm_runtime_get_sync(dev);
 	tmio_mmc_enable_dma(host, true);
-	pm_runtime_put(dev);
 
 	/* The MMC core will perform the complete set up */
 	host->resuming = true;
@@ -1494,9 +1492,7 @@ int tmio_mmc_host_runtime_resume(struct device *dev)
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct tmio_mmc_host *host = mmc_priv(mmc);
 
-	pm_runtime_get_sync(dev);
 	tmio_mmc_enable_dma(host, true);
-	pm_runtime_put(dev);
 
 	return 0;
 }
