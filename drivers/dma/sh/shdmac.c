@@ -48,6 +48,12 @@
 
 #define TEND	0x18 /* USB-DMAC */
 
+/* USB-DMAC CHCR */
+#define CHCR_FTE	BIT(24)
+#define CHCR_NULLE	BIT(16)
+#define CHCR_NULL	BIT(12)
+#define CHCR_SP		BIT(2)
+
 #define SH_DMAE_DRV_NAME "sh-dma-engine"
 
 /* Default MEMCPY transfer size = 2^2 = 4 bytes */
@@ -187,6 +193,18 @@ static bool dmae_is_busy(struct sh_dmae_chan *sh_chan)
 	return false; /* waiting */
 }
 
+static int dmae_needs_tend_set(struct sh_dmae_chan *sh_chan)
+{
+	struct sh_dmae_device *shdev = to_sh_dev(sh_chan);
+
+	return !!shdev->pdata->needs_tend_set;
+}
+
+static u32 dmae_calc_tend(size_t len, int ts_size)
+{
+	return 0xffffffff << (32 - (len % ts_size ? : ts_size));
+}
+
 static unsigned int calc_xmit_shift(struct sh_dmae_chan *sh_chan, u32 chcr)
 {
 	struct sh_dmae_device *shdev = to_sh_dev(sh_chan);
@@ -220,6 +238,7 @@ static u32 log2size_to_chcr(struct sh_dmae_chan *sh_chan, int l2size)
 static void dmae_set_reg(struct sh_dmae_chan *sh_chan, struct sh_dmae_regs *hw)
 {
 	struct sh_dmae_device *shdev = to_sh_dev(sh_chan);
+	u32 tcr = hw->tcr >> sh_chan->xmit_shift;
 
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 	if (shdev->pdata->fourty_bits_addr) {
@@ -229,7 +248,14 @@ static void dmae_set_reg(struct sh_dmae_chan *sh_chan, struct sh_dmae_regs *hw)
 #endif
 	sh_dmae_writel(sh_chan, hw->sar & 0xffffffff, SAR);
 	sh_dmae_writel(sh_chan, hw->dar & 0xffffffff, DAR);
-	sh_dmae_writel(sh_chan, hw->tcr >> sh_chan->xmit_shift, TCR);
+
+	if (dmae_needs_tend_set(sh_chan)) {
+		int ts_size = 1 << sh_chan->xmit_shift;
+
+		sh_dmae_writel(sh_chan, dmae_calc_tend(hw->tcr, ts_size), TEND);
+		tcr = DIV_ROUND_UP(hw->tcr, ts_size);
+	}
+	sh_dmae_writel(sh_chan, tcr, TCR);
 }
 
 static void dmae_start(struct sh_dmae_chan *sh_chan)
@@ -237,10 +263,9 @@ static void dmae_start(struct sh_dmae_chan *sh_chan)
 	struct sh_dmae_device *shdev = to_sh_dev(sh_chan);
 	u32 chcr = chcr_read(sh_chan);
 
-	if (shdev->pdata->needs_tend_set)
-		sh_dmae_writel(sh_chan, 0xFFFFFFFF, TEND);
-
 	chcr |= CHCR_DE | shdev->chcr_ie_bit;
+	if (dmae_needs_tend_set(sh_chan))
+		chcr |= CHCR_NULLE;
 	chcr_write(sh_chan, chcr & ~CHCR_TE);
 }
 
@@ -385,6 +410,11 @@ static void dmae_halt(struct sh_dmae_chan *sh_chan)
 	u32 chcr = chcr_read(sh_chan);
 
 	chcr &= ~(CHCR_DE | CHCR_TE | shdev->chcr_ie_bit);
+	if (dmae_needs_tend_set(sh_chan)) {
+		chcr &= ~CHCR_SP;
+		if (chcr & CHCR_NULL)
+			chcr = (chcr & ~CHCR_NULL) | CHCR_FTE;
+	}
 	chcr_write(sh_chan, chcr);
 }
 
@@ -432,9 +462,17 @@ static bool sh_dmae_chan_irq(struct shdma_chan *schan, int irq)
 {
 	struct sh_dmae_chan *sh_chan = container_of(schan, struct sh_dmae_chan,
 						    shdma_chan);
+	u32 chcr = chcr_read(sh_chan);
+	u32 chcr_mask = CHCR_TE;
 
-	if (!(chcr_read(sh_chan) & CHCR_TE))
+	if (dmae_needs_tend_set(sh_chan))
+		chcr_mask |= CHCR_SP | CHCR_NULL;
+
+	if (!(chcr & chcr_mask))
 		return false;
+
+	if (dmae_needs_tend_set(sh_chan))
+		sh_chan->last_chcr = chcr;
 
 	/* DMA stop */
 	dmae_halt(sh_chan);
@@ -497,6 +535,11 @@ static bool sh_dmae_desc_completed(struct shdma_chan *schan,
 		dar_buf |= (dma_addr_t)sh_dmae_readl(sh_chan, FIXDAR) << 32;
 	}
 #endif
+
+	/* Because the values of tcr and sar_buf may be not the same */
+	if (dmae_needs_tend_set(sh_chan) &&
+	    sh_chan->last_chcr & (CHCR_NULL | CHCR_SP | CHCR_TE))
+			return true;
 
 	return	(sdesc->direction == DMA_DEV_TO_MEM &&
 		 (sh_desc->hw.dar + sh_desc->hw.tcr) == dar_buf) ||
