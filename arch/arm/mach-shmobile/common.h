@@ -50,6 +50,8 @@ static inline int shmobile_cpufreq_init(void) { return 0; }
 #endif
 
 extern void __iomem *shmobile_scu_base;
+extern phys_addr_t cpu_resume_phys_addr;
+extern void rcar_cpu_resume(void);
 
 static inline void __init shmobile_init_late(void)
 {

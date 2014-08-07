@@ -50,6 +50,16 @@ ENTRY(shmobile_invalidate_start)
 ENDPROC(shmobile_invalidate_start)
 #endif
 
+ENTRY(rcar_cpu_resume)
+	bl	v7_invalidate_l1
+	ldr     r0, 1f
+	bx	r0
+ENDPROC(rcar_cpu_resume)
+
+	.globl	cpu_resume_phys_addr
+cpu_resume_phys_addr:
+1:	.space	4
+
 /*
  * Reset vector for secondary CPUs.
  * This will be mapped at address 0 by SBAR register.

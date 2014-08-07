@@ -50,6 +50,9 @@ static struct {
 #define WUPCR_OFFS 0x10
 #define PSTR_OFFS 0x40
 #define CPUNCR_OFFS(n) (0x100 + (0x10 * (n)))
+#define CPUCMCR 0xe6154184
+
+void __iomem *cpucmcr;
 
 static int __maybe_unused apmu_power_on(void __iomem *p, int bit)
 {
@@ -137,6 +140,9 @@ void __init shmobile_smp_apmu_prepare_cpus(unsigned int max_cpus,
 					   struct rcar_apmu_config *apmu_config,
 					   int num)
 {
+	/* pass physical address of cpu_resume() to assembly resume code */
+	cpu_resume_phys_addr = virt_to_phys(cpu_resume);
+
 	/* install boot code shared by all CPUs */
 	shmobile_boot_fn = virt_to_phys(shmobile_smp_boot);
 	shmobile_boot_arg = MPIDR_HWID_BITMASK;
@@ -238,7 +244,7 @@ int shmobile_smp_apmu_cpu_kill(unsigned int cpu)
 static int __cpuinit shmobile_smp_apmu_do_suspend(unsigned long cpu)
 {
 	shmobile_smp_apmu_cpu_shutdown(cpu);
-	cpu_do_idle(); /* WFI selects Core Standby */
+	cpu_do_idle();
 	return 1;
 }
 #endif
@@ -253,14 +259,20 @@ static int __cpuinit shmobile_smp_apmu_enter_suspend(suspend_state_t state)
 	 */
 	gic_cpu_if_down();
 
-	shmobile_smp_hook(smp_processor_id(), virt_to_phys(cpu_resume), 0);
+	writel_relaxed(0x2, cpucmcr);
+
+	shmobile_smp_hook(smp_processor_id(), virt_to_phys(rcar_cpu_resume), 0);
 	cpu_suspend(smp_processor_id(), shmobile_smp_apmu_do_suspend);
 	cpu_leave_lowpower();
+
+	writel_relaxed(0x0, cpucmcr);
+
 	return 0;
 }
 
 void __init shmobile_smp_apmu_suspend_init(void)
 {
+	cpucmcr = ioremap_nocache(CPUCMCR, 0x4);
 	shmobile_suspend_ops.enter = shmobile_smp_apmu_enter_suspend;
 }
 #endif
