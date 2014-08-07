@@ -552,6 +552,8 @@ static int soc_camera_open(struct file *file)
 	struct soc_camera_device *icd;
 	struct soc_camera_host *ici;
 	int ret;
+	struct v4l2_subdev *sd;
+	v4l2_std_id std;
 
 	/*
 	 * Don't mess with the host during probe: wait until the loop in
@@ -642,6 +644,12 @@ static int soc_camera_open(struct file *file)
 				goto einitvb;
 		}
 		v4l2_ctrl_handler_setup(&icd->ctrl_handler);
+
+		/* Try to get TV norms */
+		sd = soc_camera_to_subdev(icd);
+		if (!v4l2_subdev_call(sd, video, querystd, &std))
+			icd->vdev->tvnorms = std;
+
 	}
 	mutex_unlock(&ici->host_lock);
 
@@ -1189,7 +1197,6 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 	struct v4l2_subdev *sd;
 	struct v4l2_mbus_framefmt mf;
 	int ret;
-	v4l2_std_id std;
 
 	dev_info(icd->pdev, "Probing %s\n", dev_name(icd->pdev));
 
@@ -1281,10 +1288,6 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 		icd->colorspace		= mf.colorspace;
 		icd->field		= mf.field;
 	}
-
-	/* Try to get TV norms */
-	if (!v4l2_subdev_call(sd, video, querystd, &std))
-		icd->vdev->tvnorms = std;
 
 	soc_camera_remove_device(icd);
 
