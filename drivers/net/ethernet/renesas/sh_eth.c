@@ -1142,6 +1142,11 @@ static void sh_eth_ring_format(struct net_device *ndev)
 		dma_map_single(&ndev->dev, skb->data, rxdesc->buffer_length,
 			       DMA_FROM_DEVICE);
 		rxdesc->addr = virt_to_phys(skb->data);
+		if (dma_mapping_error(&ndev->dev, rxdesc->addr)) {
+			dev_kfree_skb(mdp->rx_skbuff[i]);
+			mdp->rx_skbuff[i] = NULL;
+			break;
+		}
 		rxdesc->status = cpu_to_edmac(mdp, RD_RACT | RD_RFP);
 
 		/* Rx descriptor address set */
@@ -1370,7 +1375,7 @@ static int sh_eth_txfree(struct net_device *ndev)
 		if (mdp->tx_skbuff[entry]) {
 			dma_unmap_single(&ndev->dev, txdesc->addr,
 					 txdesc->buffer_length, DMA_TO_DEVICE);
-			dev_kfree_skb_irq(mdp->tx_skbuff[entry]);
+			dev_kfree_skb_any(mdp->tx_skbuff[entry]);
 			mdp->tx_skbuff[entry] = NULL;
 			free_num++;
 		}
@@ -1472,11 +1477,19 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 			if (skb == NULL)
 				break;	/* Better luck next round. */
 			sh_eth_set_receive_align(skb);
+			dma_unmap_single(&ndev->dev, rxdesc->addr,
+					 rxdesc->buffer_length,
+					 DMA_FROM_DEVICE);
 			dma_map_single(&ndev->dev, skb->data,
 				       rxdesc->buffer_length, DMA_FROM_DEVICE);
 
 			skb_checksum_none_assert(skb);
 			rxdesc->addr = virt_to_phys(skb->data);
+			if (dma_mapping_error(&ndev->dev, rxdesc->addr)) {
+				dev_kfree_skb_any(mdp->rx_skbuff[entry]);
+				mdp->rx_skbuff[entry] = NULL;
+				break;
+			}
 		}
 		if (entry >= mdp->num_rx_ring - 1)
 			rxdesc->status |=
@@ -2112,12 +2125,18 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	if (!mdp->cd->hw_swap)
 		sh_eth_soft_swap(phys_to_virt(ALIGN(txdesc->addr, 4)),
 				 skb->len + 2);
-	txdesc->addr = dma_map_single(&ndev->dev, skb->data, skb->len,
-				      DMA_TO_DEVICE);
 	if (skb->len < ETH_ZLEN)
 		txdesc->buffer_length = ETH_ZLEN;
 	else
 		txdesc->buffer_length = skb->len;
+	txdesc->addr = dma_map_single(&ndev->dev, skb->data,
+				      txdesc->buffer_length,
+				      DMA_TO_DEVICE);
+	if (dma_mapping_error(&ndev->dev, txdesc->addr)) {
+		dev_kfree_skb_any(mdp->tx_skbuff[entry]);
+		mdp->tx_skbuff[entry] = NULL;
+		goto out;
+	}
 
 	if (entry >= mdp->num_tx_ring - 1)
 		txdesc->status |= cpu_to_edmac(mdp, TD_TACT | TD_TDLE);
@@ -2129,6 +2148,7 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	if (!(sh_eth_read(ndev, EDTRR) & sh_eth_get_edtrr_trns(mdp)))
 		sh_eth_write(ndev, sh_eth_get_edtrr_trns(mdp), EDTRR);
 
+out:
 	return NETDEV_TX_OK;
 }
 
