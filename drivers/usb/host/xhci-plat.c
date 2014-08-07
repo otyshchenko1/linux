@@ -11,7 +11,6 @@
  * version 2 as published by the Free Software Foundation.
  */
 
-#include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -89,7 +88,6 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	struct xhci_hcd		*xhci;
 	struct resource         *res;
 	struct usb_hcd		*hcd;
-	struct clk              *clk;
 	int			ret;
 	int			irq;
 
@@ -127,25 +125,13 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		goto release_mem_region;
 	}
 
-	/*
-	 * Not all platforms have a clk so it is not an error if the
-	 * clock does not exists.
-	 */
-	clk = devm_clk_get(&pdev->dev, NULL);
-	if (!IS_ERR(clk)) {
-		ret = clk_prepare_enable(clk);
-		if (ret)
-			goto unmap_registers;
-	}
-
 	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret)
-		goto disable_clk;
+		goto unmap_registers;
 
 	/* USB 2.0 roothub is stored in the platform_device now. */
 	hcd = dev_get_drvdata(&pdev->dev);
 	xhci = hcd_to_xhci(hcd);
-	xhci->clk = clk;
 	xhci->shared_hcd = usb_create_shared_hcd(driver, &pdev->dev,
 			dev_name(&pdev->dev), hcd);
 	if (!xhci->shared_hcd) {
@@ -171,10 +157,6 @@ put_usb3_hcd:
 dealloc_usb2_hcd:
 	usb_remove_hcd(hcd);
 
-disable_clk:
-	if (!IS_ERR(clk))
-		clk_disable_unprepare(clk);
-
 unmap_registers:
 	iounmap(hcd->regs);
 
@@ -191,14 +173,11 @@ static int xhci_plat_remove(struct platform_device *dev)
 {
 	struct usb_hcd	*hcd = platform_get_drvdata(dev);
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
-	struct clk *clk = xhci->clk;
 
 	usb_remove_hcd(xhci->shared_hcd);
 	usb_put_hcd(xhci->shared_hcd);
 
 	usb_remove_hcd(hcd);
-	if (!IS_ERR(clk))
-		clk_disable_unprepare(clk);
 	iounmap(hcd->regs);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
