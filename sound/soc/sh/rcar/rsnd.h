@@ -422,5 +422,9 @@ struct rsnd_mod *rsnd_dvc_mod_get(struct rsnd_priv *priv, int id);
 
 #define rsnd_dvc_nr(priv) ((priv)->dvc_nr)
 
+#define QUICK_HACK
+#ifdef QUICK_HACK
+void rsnd_adg_clk_set_rate(struct rsnd_mod *mod, unsigned int rate);
+#endif
 
 #endif

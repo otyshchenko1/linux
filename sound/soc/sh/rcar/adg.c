@@ -22,6 +22,9 @@ struct rsnd_adg {
 	int rbga_rate_for_441khz_div_6;	/* RBGA */
 	int rbgb_rate_for_48khz_div_6;	/* RBGB */
 	u32 ckr;
+#ifdef QUICK_HACK
+	unsigned int quick_hack_rate;
+#endif
 };
 
 #define for_each_rsnd_clk(pos, adg, i)		\
@@ -140,6 +143,9 @@ int rsnd_adg_set_convert_clk_gen2(struct rsnd_mod *mod,
 		adg->rbga_rate_for_441khz_div_6,/* 0011: RBGA */
 		adg->rbgb_rate_for_48khz_div_6,	/* 0100: RBGB */
 	};
+#ifdef QUICK_HACK
+	sel_rate[0] = adg->quick_hack_rate;
+#endif
 
 	min = ~0;
 	val = 0;
@@ -321,7 +327,11 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *mod, unsigned int rate)
 	 */
 	data = 0;
 	for_each_rsnd_clk(clk, adg, i) {
+#ifndef QUICK_HACK
 		if (rate == clk_get_rate(clk)) {
+#else
+		if (rate == adg->quick_hack_rate) {
+#endif
 			data = sel_table[i];
 			goto found_clock;
 		}
@@ -361,6 +371,16 @@ found_clock:
 	return 0;
 }
 
+#ifdef QUICK_HACK
+void rsnd_adg_clk_set_rate(struct rsnd_mod *mod, unsigned int rate)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
+
+	adg->quick_hack_rate = rate / 1 * 32 * 2 * 4;
+}
+#endif
+
 static void rsnd_adg_ssi_clk_init(struct rsnd_priv *priv, struct rsnd_adg *adg)
 {
 	struct clk *clk;
@@ -388,7 +408,11 @@ static void rsnd_adg_ssi_clk_init(struct rsnd_priv *priv, struct rsnd_adg *adg)
 	adg->rbga_rate_for_441khz_div_6 = 0;
 	adg->rbgb_rate_for_48khz_div_6  = 0;
 	for_each_rsnd_clk(clk, adg, i) {
+#ifndef QUICK_HACK
 		rate = clk_get_rate(clk);
+#else
+		rate = adg->quick_hack_rate;
+#endif
 
 		if (0 == rate) /* not used */
 			continue;

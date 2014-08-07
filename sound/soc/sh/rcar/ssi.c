@@ -139,6 +139,10 @@ static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
 	unsigned int main_rate;
 	unsigned int rate = rsnd_src_get_ssi_rate(priv, io, runtime);
 
+#ifdef QUICK_HACK
+	dev_dbg(dev, "src_get_ssi_rate = %d\n", rate);
+	rsnd_adg_clk_set_rate(&ssi->mod, rate);
+#endif
 	/*
 	 * Find best clock, and try to start ADG
 	 */
