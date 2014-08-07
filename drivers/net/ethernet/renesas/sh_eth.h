@@ -163,8 +163,10 @@ enum {
 /* Driver's parameters */
 #if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARCH_SHMOBILE)
 #define SH4_SKB_RX_ALIGN	32
+#define SH_ETH_RX_ALIGN		(SH4_SKB_RX_ALIGN)
 #else
 #define SH2_SH3_SKB_RX_ALIGN	2
+#define SH_ETH_RX_ALIGN		(SH2_SH3_SKB_RX_ALIGN)
 #endif
 
 /* Register's bits
