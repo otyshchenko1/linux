@@ -1397,11 +1397,14 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 
 	int entry = mdp->cur_rx % mdp->num_rx_ring;
 	int boguscnt = (mdp->dirty_rx + mdp->num_rx_ring) - mdp->cur_rx;
+	int limit = boguscnt;
 	struct sk_buff *skb;
 	u16 pkt_len = 0;
 	u32 desc_status;
 	int skbuff_size = mdp->rx_buf_sz + SH_ETH_RX_ALIGN - 1;
 
+	if (quota)
+		limit = boguscnt = min(boguscnt, *quota);
 	rxdesc = &mdp->rx_ring[entry];
 	while (!(rxdesc->status & cpu_to_edmac(mdp, RD_RACT))) {
 		desc_status = edmac_to_cpu(mdp, rxdesc->status);
@@ -1409,11 +1412,6 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 
 		if (--boguscnt < 0)
 			break;
-
-		if (*quota <= 0)
-			break;
-
-		(*quota)--;
 
 		if (!(desc_status & RDFEND))
 			ndev->stats.rx_length_errors++;
@@ -1513,7 +1511,10 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 		sh_eth_write(ndev, EDRRR_R, EDRRR);
 	}
 
-	return *quota <= 0;
+	if (quota)
+		*quota -= limit - (++boguscnt);
+
+	return (boguscnt <= 0);
 }
 
 static void sh_eth_rcv_snd_disable(struct net_device *ndev)
