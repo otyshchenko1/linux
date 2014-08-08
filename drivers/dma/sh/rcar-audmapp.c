@@ -117,8 +117,8 @@ static void audmapp_start_xfer(struct shdma_chan *schan,
 	audmapp_write(auchan, chcr,	PDMACHCR);
 }
 
-static void audmapp_get_config(struct audmapp_chan *auchan, int slave_id,
-			      u32 *chcr, dma_addr_t *dst)
+static bool audmapp_get_config(struct audmapp_chan *auchan, int slave_id,
+				u32 *chcr, dma_addr_t *dst)
 {
 	struct audmapp_device *audev = to_dev(auchan);
 	struct audmapp_pdata *pdata = audev->pdata;
@@ -131,20 +131,22 @@ static void audmapp_get_config(struct audmapp_chan *auchan, int slave_id,
 	if (!pdata) { /* DT */
 		*chcr = ((u32)slave_id) << 16;
 		auchan->shdma_chan.slave_id = (slave_id) >> 8;
-		return;
+		return true;
 	}
 
 	/* non-DT */
 
 	if (slave_id >= AUDMAPP_SLAVE_NUMBER)
-		return;
+		return false;
 
 	for (i = 0, cfg = pdata->slave; i < pdata->slave_num; i++, cfg++)
 		if (cfg->slave_id == slave_id) {
 			*chcr	= cfg->chcr;
 			*dst	= cfg->dst;
-			break;
+			return true;
 		}
+
+	return false;
 }
 
 static int audmapp_set_slave(struct shdma_chan *schan, int slave_id,
@@ -154,7 +156,10 @@ static int audmapp_set_slave(struct shdma_chan *schan, int slave_id,
 	u32 chcr;
 	dma_addr_t dst;
 
-	audmapp_get_config(auchan, slave_id, &chcr, &dst);
+	bool ret = audmapp_get_config(auchan, slave_id, &chcr, &dst);
+
+	if (!ret)
+		return -ENXIO;
 
 	if (try)
 		return 0;
