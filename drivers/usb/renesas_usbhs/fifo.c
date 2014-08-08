@@ -881,7 +881,19 @@ struct usbhs_pkt_handle usbhs_fifo_dma_push_handler = {
 /*
  *		DMA pop handler
  */
-static int usbhsf_dma_try_pop(struct usbhs_pkt *pkt, int *is_done)
+
+static int usbhsf_dma_prepare_pop_with_rx_irq(struct usbhs_pkt *pkt,
+					      int *is_done)
+{
+	return usbhsf_prepare_pop(pkt, is_done);
+}
+
+static int usbhsf_dma_prepare_pop(struct usbhs_pkt *pkt, int *is_done)
+{
+	return usbhsf_dma_prepare_pop_with_rx_irq(pkt, is_done);
+}
+
+static int usbhsf_dma_try_pop_with_rx_irq(struct usbhs_pkt *pkt, int *is_done)
 {
 	struct usbhs_pipe *pipe = pkt->pipe;
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
@@ -950,7 +962,12 @@ usbhsf_pio_prepare_pop:
 	return pkt->handler->try_run(pkt, is_done);
 }
 
-static int usbhsf_dma_pop_done(struct usbhs_pkt *pkt, int *is_done)
+static int usbhsf_dma_try_pop(struct usbhs_pkt *pkt, int *is_done)
+{
+	return usbhsf_dma_try_pop_with_rx_irq(pkt, is_done);
+}
+
+static int usbhsf_dma_pop_done_with_rx_irq(struct usbhs_pkt *pkt, int *is_done)
 {
 	struct usbhs_pipe *pipe = pkt->pipe;
 	int maxp = usbhs_pipe_get_maxpacket(pipe);
@@ -972,8 +989,13 @@ static int usbhsf_dma_pop_done(struct usbhs_pkt *pkt, int *is_done)
 	return 0;
 }
 
+static int usbhsf_dma_pop_done(struct usbhs_pkt *pkt, int *is_done)
+{
+	return usbhsf_dma_pop_done_with_rx_irq(pkt, is_done);
+}
+
 struct usbhs_pkt_handle usbhs_fifo_dma_pop_handler = {
-	.prepare	= usbhsf_prepare_pop,
+	.prepare	= usbhsf_dma_prepare_pop,
 	.try_run	= usbhsf_dma_try_pop,
 	.dma_done	= usbhsf_dma_pop_done
 };
