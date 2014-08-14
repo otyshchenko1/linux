@@ -356,11 +356,6 @@
 		renesas,function = "audio_clk";
 	};
 
-	i2c6_pins: i2c6 {
-		renesas,groups = "i2c6";
-		renesas,function = "i2c6";
-	};
-
 	vin0_pins: vin0 {
 		renesas,groups = "vin0_data24", "vin0_sync", "vin0_field",
 				 "vin0_clkenb", "vin0_clk";
@@ -533,8 +528,6 @@
 };
 
 &i2c6 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c6_pins>;
 	status = "okay";
 	clock-frequency = <100000>;
 
