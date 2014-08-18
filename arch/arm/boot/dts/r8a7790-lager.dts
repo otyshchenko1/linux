@@ -425,6 +425,22 @@
 		compatible = "asahi-kasei,ak4643";
 		reg = <0x12>;
 	};
+
+	hdmi_transmitter: adv7511 {
+		compatible = "adi,adv7511";
+		gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
+
+		adi,input-style = <0x02>;
+		adi,input-id = <0x00>;
+		adi,input-color-depth = <0x03>;
+		adi,sync-pulse = <0x03>;
+		adi,bit-justification = <0x01>;
+		adi,up-conversion = <0x00>;
+		adi,timing-generation-sequence = <0x00>;
+		adi,vsync-polarity = <0x02>;
+		adi,hsync-polarity = <0x02>;
+		adi,clock-delay = <0x03>;
+	};
 };
 
 &i2c3 {
