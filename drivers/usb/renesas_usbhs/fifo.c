@@ -839,6 +839,8 @@ static int usbhsf_dma_prepare_push(struct usbhs_pkt *pkt, int *is_done)
 	struct usbhs_fifo *fifo;
 	int len = pkt->length - pkt->actual;
 	int ret;
+	int usb_dmac_xfer_size = usbhs_get_dparam(priv, usb_dmac_xfer_size);
+	uintptr_t align_mask;
 
 	if (usbhs_pipe_is_busy(pipe))
 		return 0;
@@ -848,10 +850,12 @@ static int usbhsf_dma_prepare_push(struct usbhs_pkt *pkt, int *is_done)
 	    usbhs_pipe_is_dcp(pipe))
 		goto usbhsf_pio_prepare_push;
 
-	if (len & 0x7) /* 8byte alignment */
+	if (!usb_dmac_xfer_size && len & 0x7) /* 8byte alignment */
 		goto usbhsf_pio_prepare_push;
 
-	if ((uintptr_t)(pkt->buf + pkt->actual) & 0x7) /* 8byte alignment */
+	/* default: 8byte alignment */
+	align_mask = usb_dmac_xfer_size ? usb_dmac_xfer_size - 1 : 0x7;
+	if ((uintptr_t)(pkt->buf + pkt->actual) & align_mask)
 		goto usbhsf_pio_prepare_push;
 
 	/* get enable DMA fifo */
