@@ -234,6 +234,8 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 		{},
 	};
 
+	info->of_node = of_find_node_by_name(NULL, "adv7511");
+
 	renc = devm_kzalloc(rcdu->dev, sizeof(*renc), GFP_KERNEL);
 	if (renc == NULL)
 		return -ENOMEM;
