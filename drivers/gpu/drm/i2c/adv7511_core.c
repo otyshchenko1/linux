@@ -220,7 +220,6 @@ static void adv7511_set_config(struct drm_encoder *encoder, void *c)
 	adv7511_packet_enable(adv7511, ADV7511_PACKET_ENABLE_AVI_INFOFRAME);
 }
 
-#if !defined(CONFIG_DRM_RCAR_DU) && !defined(CONFIG_DRM_RCAR_DU_MODULE)
 static void adv7511_set_link_config(struct adv7511 *adv7511,
 	const struct adv7511_link_config *config)
 {
@@ -264,7 +263,6 @@ static void adv7511_set_link_config(struct adv7511 *adv7511,
 	adv7511->hsync_polarity = config->hsync_polarity;
 	adv7511->vsync_polarity = config->vsync_polarity;
 }
-#endif
 int adv7511_packet_enable(struct adv7511 *adv7511, unsigned int packet)
 {
 	if (packet & 0xff) {
@@ -358,7 +356,7 @@ static irqreturn_t adv7511_irq_handler(int irq, void *devid)
 {
 	struct adv7511 *adv7511 = devid;
 
-	if (adv7511_hpd(adv7511))
+	if (adv7511_hpd(adv7511) && adv7511->encoder)
 		drm_helper_hpd_irq_event(adv7511->encoder->dev);
 
 	wake_up_all(&adv7511->wq);
@@ -761,7 +759,6 @@ static const struct regmap_config adv7511_regmap_config = {
 */
 
 
-#if !defined(CONFIG_DRM_RCAR_DU) && !defined(CONFIG_DRM_RCAR_DU_MODULE)
 static int adv7511_parse_dt(struct device_node *np, struct adv7511_link_config *config)
 {
 	int ret;
@@ -830,7 +827,6 @@ static int adv7511_parse_dt(struct device_node *np, struct adv7511_link_config *
 
 	return 0;
 }
-#endif
 static const int edid_i2c_addr = 0x7e;
 static const int packet_i2c_addr = 0x70;
 static const int cec_i2c_addr = 0x78;
@@ -838,9 +834,7 @@ static const int cec_i2c_addr = 0x78;
 static int adv7511_probe(struct i2c_client *i2c,
 	const struct i2c_device_id *id)
 {
-#if !defined(CONFIG_DRM_RCAR_DU) && !defined(CONFIG_DRM_RCAR_DU_MODULE)
 	struct adv7511_link_config link_config;
-#endif
 	struct adv7511 *adv7511;
 	unsigned int val;
 	int ret;
@@ -858,13 +852,22 @@ static int adv7511_probe(struct i2c_client *i2c,
 			return -EINVAL;
 		link_config = *(struct adv7511_link_config *)i2c->dev.platform_data;
 	}
+#else
+	link_config.adi_dt_flag = false;
+	if (i2c->dev.of_node) {
+		ret = adv7511_parse_dt(i2c->dev.of_node, &link_config);
+		if (ret)
+			return ret;
+		link_config.adi_dt_flag = true;
+	} else {
+		link_config.gpio_pd = -ENOENT;
+	}
 #endif
 
 	adv7511 = devm_kzalloc(&i2c->dev, sizeof(*adv7511), GFP_KERNEL);
 	if (!adv7511)
 		return -ENOMEM;
 
-#if !defined(CONFIG_DRM_RCAR_DU) && !defined(CONFIG_DRM_RCAR_DU_MODULE)
 	adv7511->gpio_pd = link_config.gpio_pd;
 
 	if (gpio_is_valid(adv7511->gpio_pd)) {
@@ -875,7 +878,6 @@ static int adv7511_probe(struct i2c_client *i2c,
 		mdelay(5);
 		gpio_set_value_cansleep(adv7511->gpio_pd, 0);
 	}
-#endif
 
 	adv7511->regmap = devm_regmap_init_i2c(i2c, &adv7511_regmap_config);
 	if (IS_ERR(adv7511->regmap))
@@ -902,9 +904,25 @@ static int adv7511_probe(struct i2c_client *i2c,
 	if (!adv7511->i2c_edid)
 		return -ENOMEM;
 
+#if defined(CONFIG_DRM_RCAR_DU) || defined(CONFIG_DRM_RCAR_DU_MODULE)
+	/* HPD interrupt enable only */
+	regmap_write(adv7511->regmap, ADV7511_REG_INT_ENABLE(0),
+				      ADV7511_INT0_HDP);
+
+	if (adv7511->gpio_pd < 0)
+		i2c->irq = 0;
+	else
+		i2c->irq = gpio_to_irq(adv7511->gpio_pd);
+	dev_dbg(&i2c->dev, "gpio:%d, irq:%d\n", adv7511->gpio_pd, i2c->irq);
+#endif
 	if (i2c->irq) {
 		ret = request_threaded_irq(i2c->irq, NULL, adv7511_irq_handler,
+#if defined(CONFIG_DRM_RCAR_DU) || defined(CONFIG_DRM_RCAR_DU_MODULE)
+				IRQF_ONESHOT | IRQF_TRIGGER_LOW,
+				dev_name(&i2c->dev), adv7511);
+#else
 				IRQF_ONESHOT, dev_name(&i2c->dev), adv7511);
+#endif
 		if (ret)
 			goto err_i2c_unregister_device;
 
@@ -938,6 +956,9 @@ static int adv7511_probe(struct i2c_client *i2c,
 
 #if !defined(CONFIG_DRM_RCAR_DU) && !defined(CONFIG_DRM_RCAR_DU_MODULE)
 	adv7511_set_link_config(adv7511, &link_config);
+#else
+	if (link_config.adi_dt_flag)
+		adv7511_set_link_config(adv7511, &link_config);
 #endif
 	return 0;
 

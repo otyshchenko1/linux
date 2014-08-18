@@ -370,6 +370,9 @@ struct adv7511_link_config {
 	enum adv7511_sync_polarity hsync_polarity;
 
 	int gpio_pd;
+#if defined(CONFIG_DRM_RCAR_DU) || defined(CONFIG_DRM_RCAR_DU_MODULE)
+	bool adi_dt_flag;
+#endif
 };
 
 /**
