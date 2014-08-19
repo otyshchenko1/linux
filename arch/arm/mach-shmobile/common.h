@@ -52,6 +52,8 @@ static inline int shmobile_cpufreq_init(void) { return 0; }
 extern void __iomem *shmobile_scu_base;
 extern phys_addr_t cpu_resume_phys_addr;
 extern void rcar_cpu_resume(void);
+extern unsigned int is_a15_l2shutdown;
+extern unsigned int l2ctlr_value;
 
 static inline void __init shmobile_init_late(void)
 {

@@ -52,13 +52,32 @@ ENDPROC(shmobile_invalidate_start)
 
 ENTRY(rcar_cpu_resume)
 	bl	v7_invalidate_l1
+	bl	rcar_l2_restore
 	ldr     r0, 1f
 	bx	r0
 ENDPROC(rcar_cpu_resume)
 
+ENTRY(rcar_l2_restore)
+	ldr	r1, 2f
+	tst	r0, #1			@ is CA15
+	bne	_exit_init_l2_a15
+
+	ldr	r1, 3f
+	mcr 	p15, 1, r1, c9 , c0, 2
+_exit_init_l2_a15:
+
+	bx	lr
+ENDPROC(rcar_l2_restore)
+
 	.globl	cpu_resume_phys_addr
 cpu_resume_phys_addr:
 1:	.space	4
+	.globl	is_a15_l2shutdown
+is_a15_l2shutdown:
+2:	.space	4
+	.globl	l2ctlr_value
+l2ctlr_value:
+3:	.space	4
 
 /*
  * Reset vector for secondary CPUs.

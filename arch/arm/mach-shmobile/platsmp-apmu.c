@@ -20,6 +20,7 @@
 #include <linux/suspend.h>
 #include <linux/threads.h>
 #include <asm/cacheflush.h>
+#include <asm/cputype.h>
 #include <asm/cp15.h>
 #include <asm/cpuidle.h>
 #include <asm/proc-fns.h>
@@ -260,12 +261,21 @@ static int __cpuinit shmobile_smp_apmu_enter_suspend(suspend_state_t state)
 	gic_cpu_if_down();
 
 	writel_relaxed(0x2, cpucmcr);
+	if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A15) {
+		is_a15_l2shutdown = 1;
+		asm volatile("mrc p15, 1, %0, c9 , c0, 2"
+			: "=r" (l2ctlr_value));
+		pr_debug("%s: l2ctlr: 0x%08x\n", __func__, l2ctlr_value);
+	} else {
+		is_a15_l2shutdown = 0;
+	}
 
 	shmobile_smp_hook(smp_processor_id(), virt_to_phys(rcar_cpu_resume), 0);
 	cpu_suspend(smp_processor_id(), shmobile_smp_apmu_do_suspend);
 	cpu_leave_lowpower();
 
 	writel_relaxed(0x0, cpucmcr);
+	is_a15_l2shutdown = 0;
 
 	return 0;
 }
