@@ -188,8 +188,32 @@ defined(CONFIG_CPU_IDLE)
 	: : : "r0","r1","r2","r3","r4","r5","r6","r7", \
 	      "r9","r10","lr","memory" )
 
+static void do_l2shutdown_settings(void)
+{
+	unsigned int v;
+
+	/* Disable L2$ prefetches */
+	asm volatile(
+	"       mrc     p15, 1, %0, c15, c0, 3\n"
+	"       orr     %0, %0, %1\n"
+	"       mcr     p15, 1, %0, c15, c0, 3\n"
+		: "=&r" (v)
+		: "Ir" (0x400)
+		: "cc");
+	isb();
+	dsb();
+
+	flush_cache_all();
+
+	/* Set Double lock control bit */
+	__asm__ __volatile__("mcr p14, 0, %0, c1, c3, 4" : : "r" (0x1));
+}
+
 static inline void cpu_enter_lowpower_a15(void)
 {
+	if (is_a15_l2shutdown)
+		do_l2shutdown_settings();
+
 	v7_exit_coherency_flush(louis);
 }
 
