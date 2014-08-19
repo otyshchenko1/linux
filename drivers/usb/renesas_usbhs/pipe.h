@@ -38,6 +38,7 @@ struct usbhs_pipe {
 #define USBHS_PIPE_FLAGS_IS_DIR_HOST		(1 << 2)
 
 	struct usbhs_pkt_handle *handler;
+	struct dma_async_tx_descriptor *desc;
 
 	void *mod_private;
 };
@@ -93,6 +94,7 @@ void usbhs_pipe_set_trans_count_if_bulk(struct usbhs_pipe *pipe, int len);
 void usbhs_pipe_select_fifo(struct usbhs_pipe *pipe, struct usbhs_fifo *fifo);
 void usbhs_pipe_config_update(struct usbhs_pipe *pipe, u16 devsel,
 			      u16 epnum, u16 maxp);
+void usbhs_pipe_config_change_bfre(struct usbhs_pipe *pipe, int enable);
 
 #define usbhs_pipe_sequence_data0(pipe)	usbhs_pipe_data_sequence(pipe, 0)
 #define usbhs_pipe_sequence_data1(pipe)	usbhs_pipe_data_sequence(pipe, 1)

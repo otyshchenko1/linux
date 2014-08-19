@@ -155,6 +155,14 @@ struct renesas_usbhs_driver_param {
 
 	/*
 	 * option:
+	 *
+	 * Transfer size of USB-DMAC.
+	 *  - The driver doesn't use the USB-DMAC if this value is 0
+	 */
+	int usb_dmac_xfer_size;
+
+	/*
+	 * option:
 	 */
 	u32 has_otg:1; /* for controlling PWEN/EXTLP */
 	u32 has_sudmac:1; /* for SUDMAC */
