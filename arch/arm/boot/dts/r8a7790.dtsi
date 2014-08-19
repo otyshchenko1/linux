@@ -875,14 +875,14 @@
 			compatible = "renesas,r8a7790-mstp-clocks", "renesas,cpg-mstp-clocks";
 			reg = <0 0xe6150134 0 4>, <0 0xe6150038 0 4>;
 			clocks = <&zs_clk>, <&zs_clk>, <&zs_clk>, <&zs_clk>,
-				 <&zs_clk>, <&p_clk>, <&zg_clk>, <&zs_clk>,
+				 <&m2_clk>, <&zs_clk>, <&p_clk>, <&zg_clk>, <&zs_clk>,
 				 <&zs_clk>, <&zs_clk>, <&zs_clk>, <&p_clk>,
 				 <&p_clk>, <&rclk_clk>, <&cp_clk>, <&zs_clk>,
 				 <&zs_clk>, <&zs_clk>, <&zs_clk>;
 			#clock-cells = <1>;
 			renesas,clock-indices = <
 				R8A7790_CLK_VCP1 R8A7790_CLK_VCP0 R8A7790_CLK_VPC1
-				R8A7790_CLK_VPC0 R8A7790_CLK_SSP1 R8A7790_CLK_TMU1
+				R8A7790_CLK_VPC0 R8A7790_CLK_JPU R8A7790_CLK_SSP1 R8A7790_CLK_TMU1
 				R8A7790_CLK_PVRSRVKM R8A7790_CLK_2DDMAC R8A7790_CLK_FDP2
 				R8A7790_CLK_FDP1 R8A7790_CLK_FDP0 R8A7790_CLK_TMU3
 				R8A7790_CLK_TMU2 R8A7790_CLK_CMT0 R8A7790_CLK_TMU0
@@ -890,7 +890,7 @@
 				R8A7790_CLK_VSP1_S
 			>;
 			clock-output-names =
-				"vcp1", "vcp0", "vpc1", "vpc0", "ssp_dev",
+				"vcp1", "vcp0", "vpc1", "vpc0", "jpu", "ssp_dev",
 				"tmu1", "pvrsrvkm", "tddmac", "fdp2", "fdp1",
 				"fdp0", "tmu3", "tmu2", "cmt0", "tmu0",
 				"vsp1-du1", "vsp1-du0", "vspr", "vsps";
