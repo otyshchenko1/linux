@@ -279,6 +279,10 @@ REGULATOR
   devm_regulator_bulk_get()
   devm_regulator_register()
 
+MEM
+  devm_kasprintf()
+  devm_kvasprintf()
+
 CLOCK
   devm_clk_get()
   devm_clk_put()

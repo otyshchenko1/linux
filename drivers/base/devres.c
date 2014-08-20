@@ -791,13 +791,13 @@ void * devm_kmalloc(struct device *dev, size_t size, gfp_t gfp)
 EXPORT_SYMBOL_GPL(devm_kmalloc);
 
 /**
- * devm_kvasprintf - Allocate resource managed space
- *			for the formatted string.
+ * devm_kvasprintf - Allocate resource managed space and format a string
+ *		     into that.
  * @dev: Device to allocate memory for
  * @gfp: the GFP mask used in the devm_kmalloc() call when
  *       allocating memory
- * @fmt: the formatted string to duplicate
- * @ap: the list of tokens to be placed in the formatted string
+ * @fmt: The printf()-style format string
+ * @ap: Arguments for the format string
  * RETURNS:
  * Pointer to allocated string on success, NULL on failure.
  */
@@ -823,12 +823,13 @@ char *devm_kvasprintf(struct device *dev, gfp_t gfp, const char *fmt,
 EXPORT_SYMBOL(devm_kvasprintf);
 
 /**
- * devm_kasprintf - Allocate resource managed space
- *		and copy an existing formatted string into that
+ * devm_kasprintf - Allocate resource managed space and format a string
+ *		    into that.
  * @dev: Device to allocate memory for
  * @gfp: the GFP mask used in the devm_kmalloc() call when
  *       allocating memory
- * @fmt: the string to duplicate
+ * @fmt: The printf()-style format string
+ * @...: Arguments for the format string
  * RETURNS:
  * Pointer to allocated string on success, NULL on failure.
  */
