@@ -1312,12 +1312,15 @@ static void usbhsf_dma_complete(void *arg)
 	struct usbhs_pipe *pipe = arg;
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
 	struct device *dev = usbhs_priv_to_dev(priv);
+	unsigned long flags;
 	int ret;
 
+	local_irq_save(flags);
 	ret = usbhsf_pkt_handler(pipe, USBHSF_PKT_DMA_DONE);
 	if (ret < 0)
 		dev_err(dev, "dma_complete run_error %d : %d\n",
 			usbhs_pipe_number(pipe), ret);
+	local_irq_restore(flags);
 }
 
 /*
