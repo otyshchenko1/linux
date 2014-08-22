@@ -637,7 +637,7 @@ static int rcar_vin_setup(struct rcar_vin_priv *priv)
 	/* output format */
 	switch (icd->current_fmt->host_fmt->fourcc) {
 	case V4L2_PIX_FMT_NV16:
-		iowrite32(ALIGN(ALIGN(cam->width, 0x20) * cam->height, 0x80),
+		iowrite32(ALIGN((cam->out_width * cam->out_height), 0x80),
 			  priv->base + VNUVAOF_REG);
 		dmr = VNDMR_DTMD_YCSEP;
 		output_is_yuv = true;
@@ -1612,9 +1612,19 @@ static int rcar_vin_set_fmt(struct soc_camera_device *icd,
 	if (priv->error_flag == false)
 		priv->error_flag = true;
 	else {
-		if ((pixfmt == V4L2_PIX_FMT_NV16) && (pix->width & 0x1F)) {
-			dev_err(icd->parent, "Specified width error in NV16 format.\n");
-			return -EINVAL;
+		if (pixfmt == V4L2_PIX_FMT_NV16) {
+			if (pix->width & 0x1F) {
+				dev_err(icd->parent,
+				"Specified width error in NV16 format. "
+				"Please specify the multiple of 32.\n");
+				return -EINVAL;
+			}
+			if (pix->height != cam->height) {
+				dev_err(icd->parent,
+				"Vertical scaling-up error in NV16 format. "
+				"Please specify input height size.\n");
+				return -EINVAL;
+			}
 		}
 	}
 
@@ -1660,6 +1670,7 @@ static int rcar_vin_set_fmt(struct soc_camera_device *icd,
 	case V4L2_PIX_FMT_YUYV:
 	case V4L2_PIX_FMT_RGB565:
 	case V4L2_PIX_FMT_RGB555X:
+	case V4L2_PIX_FMT_NV16: /* horizontal scaling-up only is supported */
 		can_scale = true;
 		break;
 	default:
