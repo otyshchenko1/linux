@@ -335,6 +335,31 @@ static const struct platform_device_info ether_info __initconst = {
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
+/* Ether AVB */
+static const struct sh_eth_plat_data gether_pdata __initconst = {
+	.phy			= 0x0,
+	.edmac_endian		= EDMAC_LITTLE_ENDIAN,
+	.phy_interface		= PHY_INTERFACE_MODE_GMII,
+	.no_ether_link	= 1,
+};
+
+static const struct resource gether_resources[] __initconst = {
+	DEFINE_RES_MEM(0xe6800000, 0x7c0 - 1),
+	DEFINE_RES_IRQ(gic_spi(163)),
+};
+
+static const struct platform_device_info gether_info __initconst = {
+	.parent		= &platform_bus,
+	.name		= "r8a7790-gether",
+	.id		= -1,
+	.res		= gether_resources,
+	.num_res	= ARRAY_SIZE(gether_resources),
+	.data		= &gether_pdata,
+	.size_data	= sizeof(gether_pdata),
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
+#if defined(CONFIG_SPI_SH_MSOIF)
 /* MSIOF spidev */
 static const struct spi_board_info spi_bus[] __initconst = {
 	{
@@ -347,6 +372,7 @@ static const struct spi_board_info spi_bus[] __initconst = {
 };
 
 #define lager_add_msiof_device spi_register_board_info
+#endif
 
 /* SPI Flash memory (Spansion S25FL512SAGMFIG11 64Mb) */
 static struct mtd_partition spi_flash_part[] = {
@@ -830,6 +856,20 @@ static const struct pinctrl_map lager_pinctrl_map[] = {
 				  "eth_rmii", "eth"),
 	PIN_MAP_MUX_GROUP_DEFAULT("r8a7790-ether", "pfc-r8a7790",
 				  "intc_irq0", "intc"),
+	/* Ether AVB */
+	PIN_MAP_MUX_GROUP_DEFAULT("r8a7790-gether", "pfc-r8a7790",
+				  "avb_mdio", "avb"),
+	PIN_MAP_MUX_GROUP_DEFAULT("r8a7790-gether", "pfc-r8a7790",
+				  "avb_gmii", "avb"),
+	/* Following pins can be enabled if you need */
+	/*
+		PIN_MAP_MUX_GROUP_DEFAULT("r8a779x-gether", "pfc-r8a7790",
+					  "avb_link", "avb"),
+		PIN_MAP_MUX_GROUP_DEFAULT("r8a779x-gether", "pfc-r8a7790",
+					  "avb_magic", "avb"),
+		PIN_MAP_MUX_GROUP_DEFAULT("r8a779x-gether", "pfc-r8a7790",
+					  "avb_phy_int", "avb"),
+	*/
 	/* VIN0 */
 	PIN_MAP_MUX_GROUP_DEFAULT("r8a7790-vin.0", "pfc-r8a7790",
 				  "vin0_data24", "vin0"),
@@ -966,6 +1006,8 @@ static void __init lager_add_standard_devices(void)
 
 	platform_device_register_full(&ether_info);
 
+	platform_device_register_full(&gether_info);
+
 	lager_add_du_device();
 
 	platform_device_register_resndata(&platform_bus, "qspi", 0,
@@ -1006,8 +1048,9 @@ static void __init lager_add_standard_devices(void)
 					  sdhi2_resources, ARRAY_SIZE(sdhi2_resources),
 					  &sdhi2_info, sizeof(struct sh_mobile_sdhi_info));
 
+#if defined(CONFIG_SPI_SH_MSOIF)
 	lager_add_msiof_device(spi_bus, ARRAY_SIZE(spi_bus));
-
+#endif
 	lager_add_vsp1_devices();
 }
 
