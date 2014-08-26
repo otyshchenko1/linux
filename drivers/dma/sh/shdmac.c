@@ -46,6 +46,7 @@
 #define FIXDAR  0x14
 #define DMAOR	0x40
 
+#define SWR	0x08 /* USB-DMAC */
 #define TEND	0x18 /* USB-DMAC */
 
 /* USB-DMAC CHCR */
@@ -114,6 +115,17 @@ static void dmaor_write(struct sh_dmae_device *shdev, u16 data)
 		__raw_writel(data, addr);
 	else
 		__raw_writew(data, addr);
+}
+
+static void swr_reset(struct sh_dmae_device *shdev)
+{
+	void __iomem *swr_addr = shdev->dmars + SWR;
+
+	dmaor_write(shdev, 0);
+	__raw_writel(1, swr_addr);
+	udelay(100);
+	__raw_writel(0, swr_addr);
+	dmaor_write(shdev, 1);
 }
 
 static void chcr_write(struct sh_dmae_chan *sh_dc, u32 data)
@@ -456,6 +468,14 @@ static void sh_dmae_halt(struct shdma_chan *schan)
 	struct sh_dmae_chan *sh_chan = container_of(schan, struct sh_dmae_chan,
 						    shdma_chan);
 	dmae_halt(sh_chan);
+
+	if (dmae_needs_tend_set(sh_chan)) {
+		struct sh_dmae_device *shdev = to_sh_dev(sh_chan);
+
+		if (!dmae_is_busy(shdev->chan[0]) &&
+		    !dmae_is_busy(shdev->chan[1]))
+			swr_reset(shdev);
+	}
 }
 
 static bool sh_dmae_chan_irq(struct shdma_chan *schan, int irq)
