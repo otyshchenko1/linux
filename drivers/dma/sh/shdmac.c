@@ -507,6 +507,10 @@ static size_t sh_dmae_get_partial(struct shdma_chan *schan,
 						    shdma_chan);
 	struct sh_dmae_desc *sh_desc = container_of(sdesc,
 					struct sh_dmae_desc, shdma_desc);
+
+	if (dmae_needs_tend_set(sh_chan))
+		return sh_dmae_readl(sh_chan, DAR) - sh_desc->hw.dar;
+
 	return sh_desc->hw.tcr -
 		(sh_dmae_readl(sh_chan, TCR) << sh_chan->xmit_shift);
 }
