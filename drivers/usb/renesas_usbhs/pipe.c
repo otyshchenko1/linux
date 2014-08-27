@@ -641,8 +641,12 @@ static int usbhs_pipe_get_data_sequence(struct usbhs_pipe *pipe)
 
 void usbhs_pipe_clear(struct usbhs_pipe *pipe)
 {
-	usbhsp_pipectrl_set(pipe, ACLRM, ACLRM);
-	usbhsp_pipectrl_set(pipe, ACLRM, 0);
+	if (usbhs_pipe_is_dcp(pipe)) {
+		usbhs_fifo_clear_dcp(pipe);
+	} else {
+		usbhsp_pipectrl_set(pipe, ACLRM, ACLRM);
+		usbhsp_pipectrl_set(pipe, ACLRM, 0);
+	}
 }
 
 static struct usbhs_pipe *usbhsp_get_pipe(struct usbhs_priv *priv, u32 type)
