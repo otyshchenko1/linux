@@ -52,9 +52,11 @@ static struct {
 #define WUPCR_OFFS 0x10
 #define PSTR_OFFS 0x40
 #define CPUNCR_OFFS(n) (0x100 + (0x10 * (n)))
-#define CPUCMCR 0xe6154184
+#define CPUCMCR_CA7  0xe6151184
+#define CPUCMCR_CA15 0xe6152184
 
-void __iomem *cpucmcr;
+void __iomem *cpucmcr_ca7;
+void __iomem *cpucmcr_ca15;
 
 static int __maybe_unused apmu_power_on(void __iomem *p, int bit)
 {
@@ -285,13 +287,14 @@ static int __cpuinit shmobile_smp_apmu_enter_suspend(suspend_state_t state)
 	 */
 	gic_cpu_if_down();
 
-	writel_relaxed(0x2, cpucmcr);
 	if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A15) {
+		writel_relaxed(0x2, cpucmcr_ca15);
 		is_a15_l2shutdown = 1;
 		asm volatile("mrc p15, 1, %0, c9 , c0, 2"
 			: "=r" (l2ctlr_value));
 		pr_debug("%s: l2ctlr: 0x%08x\n", __func__, l2ctlr_value);
 	} else {
+		writel_relaxed(0x2, cpucmcr_ca7);
 		is_a15_l2shutdown = 0;
 	}
 
@@ -299,8 +302,13 @@ static int __cpuinit shmobile_smp_apmu_enter_suspend(suspend_state_t state)
 	cpu_suspend(smp_processor_id(), shmobile_smp_apmu_do_suspend);
 	cpu_leave_lowpower();
 
-	writel_relaxed(0x0, cpucmcr);
-	is_a15_l2shutdown = 0;
+	if (is_a15_l2shutdown) {
+		writel_relaxed(0x0, cpucmcr_ca15);
+		is_a15_l2shutdown = 0;
+	} else {
+		writel_relaxed(0x0, cpucmcr_ca7);
+	}
+
 	rcar_sysc_clear_event_status();
 
 	return 0;
@@ -308,7 +316,9 @@ static int __cpuinit shmobile_smp_apmu_enter_suspend(suspend_state_t state)
 
 void __init shmobile_smp_apmu_suspend_init(void)
 {
-	cpucmcr = ioremap_nocache(CPUCMCR, 0x4);
+	cpucmcr_ca7  = ioremap_nocache(CPUCMCR_CA7, 0x4);
+	cpucmcr_ca15 = ioremap_nocache(CPUCMCR_CA15, 0x4);
+
 	shmobile_suspend_ops.enter = shmobile_smp_apmu_enter_suspend;
 }
 #endif
