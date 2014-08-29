@@ -161,34 +161,27 @@ int __cpuinit shmobile_smp_apmu_boot_secondary(unsigned int cpu,
 
 #if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_SUSPEND) || \
 defined(CONFIG_CPU_IDLE)
-/* nicked from arch/arm/mach-exynos/hotplug.c */
+#define v7_exit_coherency_flush(level) \
+	asm volatile( \
+	"stmfd	sp!, {fp, ip} \n\t" \
+	"mrc	p15, 0, r0, c1, c0, 0	@ get SCTLR \n\t" \
+	"bic	r0, r0, #"__stringify(CR_C)" \n\t" \
+	"mcr	p15, 0, r0, c1, c0, 0	@ set SCTLR \n\t" \
+	"isb	\n\t" \
+	"bl	v7_flush_dcache_"__stringify(level)" \n\t" \
+	"clrex	\n\t" \
+	"mrc	p15, 0, r0, c1, c0, 1	@ get ACTLR \n\t" \
+	"bic	r0, r0, #(1 << 6)	@ disable local coherency \n\t" \
+	"mcr	p15, 0, r0, c1, c0, 1	@ set ACTLR \n\t" \
+	"isb	\n\t" \
+	"dsb	\n\t" \
+	"ldmfd	sp!, {fp, ip}" \
+	: : : "r0","r1","r2","r3","r4","r5","r6","r7", \
+	      "r9","r10","lr","memory" )
+
 static inline void cpu_enter_lowpower_a15(void)
 {
-	unsigned int v;
-
-	asm volatile(
-	"       mrc     p15, 0, %0, c1, c0, 0\n"
-	"       bic     %0, %0, %1\n"
-	"       mcr     p15, 0, %0, c1, c0, 0\n"
-		: "=&r" (v)
-		: "Ir" (CR_C)
-		: "cc");
-
-	flush_cache_louis();
-
-	asm volatile(
-	/*
-	 * Turn off coherency
-	 */
-	"       mrc     p15, 0, %0, c1, c0, 1\n"
-	"       bic     %0, %0, %1\n"
-	"       mcr     p15, 0, %0, c1, c0, 1\n"
-		: "=&r" (v)
-		: "Ir" (0x40)
-		: "cc");
-
-	isb();
-	dsb();
+	v7_exit_coherency_flush(louis);
 }
 
 void __cpuinit shmobile_smp_apmu_cpu_shutdown(unsigned int cpu)
