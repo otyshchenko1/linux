@@ -307,6 +307,7 @@ static const struct clk_name clk_names[] __initconst = {
  */
 static const struct clk_name clk_enables[] __initconst = {
 	{ "ether", NULL, "ee700000.ethernet" },
+	{ "avb", NULL, "e6800000.ethernet" },
 	{ "i2c1", NULL, "e6518000.i2c" },
 	{ "mmcif0", NULL, "ee200000.mmc" },
 	{ "sdhi0", NULL, "ee100000.sd" },
