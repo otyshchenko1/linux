@@ -3342,6 +3342,10 @@ static const char * const eth_groups[] = {
 	"eth_magic",
 	"eth_mdio",
 	"eth_rmii",
+	"eth_link_b",
+	"eth_magic_b",
+	"eth_mdio_b",
+	"eth_rmii_b",
 };
 
 static const char * const avb_groups[] = {
