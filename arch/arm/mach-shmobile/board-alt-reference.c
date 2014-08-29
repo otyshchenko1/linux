@@ -468,7 +468,6 @@ static struct sh_mobile_sdhi_info sdhi0_info __initdata = {
 static struct sh_mobile_sdhi_info sdhi1_info __initdata = {
 	.dma_slave_tx   = SYS_DMAC_SLAVE_SDHI1_TX,
 	.dma_slave_rx   = SYS_DMAC_SLAVE_SDHI1_RX,
-	.tmio_caps	= MMC_CAP_POWER_OFF_CARD,
 	.dma_rx_offset  = 0x2000,
 
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
