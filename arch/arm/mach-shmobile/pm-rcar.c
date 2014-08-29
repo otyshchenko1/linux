@@ -12,6 +12,7 @@
 #include <linux/err.h>
 #include <linux/mm.h>
 #include <linux/spinlock.h>
+#include <asm/cputype.h>
 #include <asm/io.h>
 #include "pm-rcar.h"
 
@@ -24,6 +25,10 @@
 #define PWROFFCR_OFFS 0x04
 #define PWRONCR_OFFS 0x0c
 #define PWRER_OFFS 0x14
+#define SYSCEERSR_OFFS  0x20
+#define SYSCEERSCR_OFFS 0x24
+#define SYSCEERSR2_OFFS  0x2C
+#define SYSCEERSCR2_OFFS 0x30
 
 #define SYSCSR_RETRIES 100
 #define SYSCSR_DELAY_US 1
@@ -35,6 +40,23 @@
 
 static void __iomem *rcar_sysc_base;
 static DEFINE_SPINLOCK(rcar_sysc_lock); /* SMP CPUs + I/O devices */
+
+void rcar_sysc_clear_event_status(void)
+{
+	if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A15) {
+		/* Clear External event status regiser */
+		iowrite32(0x111, rcar_sysc_base + SYSCEERSCR_OFFS);
+
+		pr_debug("%s: External event status: 0x%08x\n", __func__,
+			ioread32(rcar_sysc_base + SYSCEERSR_OFFS));
+	} else {
+		/* Clear External event status regiser */
+		iowrite32(0x111, rcar_sysc_base + SYSCEERSCR2_OFFS);
+
+		pr_debug("%s: External event status: 0x%08x\n", __func__,
+			ioread32(rcar_sysc_base + SYSCEERSR2_OFFS));
+	}
+}
 
 static int rcar_sysc_pwr_on_off(struct rcar_sysc_ch *sysc_ch,
 				int sr_bit, int reg_offs)

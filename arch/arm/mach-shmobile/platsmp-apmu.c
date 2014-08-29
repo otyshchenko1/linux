@@ -29,6 +29,7 @@
 #include <mach/platsmp-apmu.h>
 #include <mach/platsmp-rst.h>
 #include "common.h"
+#include "pm-rcar.h"
 
 /* only enable the cluster that includes the boot CPU by default */
 static bool enable_multicluster = false;
@@ -276,6 +277,7 @@ static int __cpuinit shmobile_smp_apmu_enter_suspend(suspend_state_t state)
 
 	writel_relaxed(0x0, cpucmcr);
 	is_a15_l2shutdown = 0;
+	rcar_sysc_clear_event_status();
 
 	return 0;
 }
