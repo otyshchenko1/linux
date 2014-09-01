@@ -376,12 +376,14 @@ static const struct rcar_du_device_info rcar_du_r8a7790_info = {
 		 * (currently unsupported) TCON output.
 		 */
 		[RCAR_DU_OUTPUT_DPAD0] = {
-#if defined(CONFIG_DRM_ADV7511) || defined(CONFIG_DRM_ADV7511_MODULE)
 			.possible_crtcs = BIT(2) | BIT(1) | BIT(0),
+#if (defined(CONFIG_DRM_ADV7511) || defined(CONFIG_DRM_ADV7511_MODULE)) \
+	&& defined(CONFIG_DRM_RCAR_LVDS)
 			.possible_clones = BIT(2) | BIT(0),
-#else
-			.possible_crtcs = BIT(2) | BIT(1) | BIT(0),
+#elif defined(CONFIG_DRM_RCAR_LVDS)
 			.possible_clones = BIT(1),
+#else
+			.possible_clones = 0,
 #endif
 			.encoder_type = DRM_MODE_ENCODER_NONE,
 		},
@@ -391,11 +393,10 @@ static const struct rcar_du_device_info rcar_du_r8a7790_info = {
 			.encoder_type = DRM_MODE_ENCODER_LVDS,
 		},
 		[RCAR_DU_OUTPUT_LVDS1] = {
-#if defined(CONFIG_DRM_ADV7511) || defined(CONFIG_DRM_ADV7511_MODULE)
 			.possible_crtcs = BIT(2) | BIT(1),
+#if defined(CONFIG_DRM_ADV7511) || defined(CONFIG_DRM_ADV7511_MODULE)
 			.possible_clones = BIT(1),
 #else
-			.possible_crtcs = BIT(2) | BIT(1),
 			.possible_clones = 0,
 #endif
 			.encoder_type = DRM_MODE_ENCODER_LVDS,
@@ -494,19 +495,24 @@ static const struct rcar_du_device_info rcar_du_r8a7794_info = {
 		    RCAR_DU_FEATURE_VSP1_SOURCE,
 	.num_crtcs = 2,
 	.routes = {
-#if defined(CONFIG_DRM_ADV7511) || defined(CONFIG_DRM_ADV7511_MODULE)
 		[RCAR_DU_OUTPUT_DPAD0] = {
 			.possible_crtcs = BIT(0),
+#ifdef CONFIG_DRM_RCAR_LVDS
+			.possible_clones = BIT(1),
+#else
 			.possible_clones = 0,
+#endif
 			.encoder_type = RCAR_DU_ENCODER_HDMI,
 		},
-#else
 		[RCAR_DU_OUTPUT_LVDS0] = {
 			.possible_crtcs = BIT(0),
+#if defined(CONFIG_DRM_ADV7511) || defined(CONFIG_DRM_ADV7511_MODULE)
+			.possible_clones = BIT(0),
+#else
 			.possible_clones = 0,
+#endif
 			.encoder_type = DRM_MODE_ENCODER_LVDS,
 		},
-#endif
 		[RCAR_DU_OUTPUT_DPAD1] = {
 			.possible_crtcs = BIT(1),
 			.possible_clones = 0,
