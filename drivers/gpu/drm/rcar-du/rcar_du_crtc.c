@@ -705,6 +705,30 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 	else
 		crtc->connector_type = DRM_MODE_CONNECTOR_Unknown;
 
+#if !defined(CONFIG_DRM_ADV7511) && !defined(CONFIG_DRM_ADV7511_MODULE)
+	if ((pdata->init_conn_type) &&
+		(crtc->connector_type == DRM_MODE_CONNECTOR_HDMIA)) {
+		if (rcdu->info->chip == RCAR_H2)
+			crtc->connector_type = DRM_MODE_CONNECTOR_VGA;
+		if ((rcdu->info->chip == RCAR_M2) ||
+			(rcdu->info->chip == RCAR_M2N))
+			crtc->connector_type = DRM_MODE_CONNECTOR_Unknown;
+		if (rcdu->info->chip == RCAR_E2)
+			crtc->connector_type = DRM_MODE_CONNECTOR_LVDS;
+	}
+#endif
+#ifndef CONFIG_DRM_RCAR_LVDS
+	if (pdata->init_conn_type) {
+		if ((crtc->connector_type == DRM_MODE_CONNECTOR_HDMIA) &&
+			(rcdu->info->chip == RCAR_H2))
+			crtc->connector_type = DRM_MODE_CONNECTOR_VGA;
+		if ((crtc->connector_type == DRM_MODE_CONNECTOR_LVDS) &&
+			((rcdu->info->chip == RCAR_M2) ||
+			(rcdu->info->chip == RCAR_M2N) ||
+			(rcdu->info->chip == RCAR_E2)))
+			crtc->connector_type = DRM_MODE_CONNECTOR_Unknown;
+	}
+#endif
 	rcrtc->plane->crtc = crtc;
 	rcrtc->plane->fb_plane = true;
 	rcrtc->dptsr_init = true;
