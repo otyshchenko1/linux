@@ -257,6 +257,15 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 		if (pdata->type == RCAR_DU_ENCODER_UNUSED)
 			continue;
 
+#if !defined(CONFIG_DRM_ADV7511) && !defined(CONFIG_DRM_ADV7511_MODULE)
+		if (pdata->type == RCAR_DU_ENCODER_HDMI)
+			continue;
+#endif
+#ifndef CONFIG_DRM_RCAR_LVDS
+		if ((pdata->output == RCAR_DU_OUTPUT_LVDS0) ||
+		     (pdata->output == RCAR_DU_OUTPUT_LVDS1))
+			continue;
+#endif
 		if (pdata->output >= RCAR_DU_OUTPUT_MAX ||
 		    route->possible_crtcs == 0) {
 			dev_warn(rcdu->dev,
