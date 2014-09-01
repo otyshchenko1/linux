@@ -56,12 +56,10 @@
 
 /* DU */
 static struct rcar_du_encoder_data alt_du_encoders[] = {
-#if defined(CONFIG_DRM_ADV7511) || defined(CONFIG_DRM_ADV7511_MODULE)
 	{
 		.type = RCAR_DU_ENCODER_HDMI,
 		.output = RCAR_DU_OUTPUT_DPAD0,
 	},
-#elif defined(CONFIG_DRM_RCAR_LVDS)
 	{
 		.type = RCAR_DU_ENCODER_NONE,
 		.output = RCAR_DU_OUTPUT_LVDS0,
@@ -82,7 +80,6 @@ static struct rcar_du_encoder_data alt_du_encoders[] = {
 			},
 		},
 	},
-#endif
 	{
 		.type = RCAR_DU_ENCODER_VGA,
 		.output = RCAR_DU_OUTPUT_DPAD1,
@@ -92,13 +89,7 @@ static struct rcar_du_encoder_data alt_du_encoders[] = {
 static struct rcar_du_crtc_data alt_du_crtcs[] = {
 	{
 		.exclk = 148500000,
-#if defined(CONFIG_DRM_ADV7511) || defined(CONFIG_DRM_ADV7511_MODULE)
 		.init_conn_type = DRM_MODE_CONNECTOR_HDMIA,
-#elif defined(CONFIG_DRM_RCAR_LVDS)
-		.init_conn_type = DRM_MODE_CONNECTOR_LVDS,
-#else
-		.init_conn_type = DRM_MODE_CONNECTOR_Unknown,
-#endif
 	},
 	{
 		.exclk = 74250000,
@@ -106,7 +97,6 @@ static struct rcar_du_crtc_data alt_du_crtcs[] = {
 	},
 };
 
-#ifdef CONFIG_DRM_RCAR_LVDS
 static int alt_lvds_backlight_on(void)
 {
 	int ret;
@@ -159,7 +149,7 @@ static int alt_lvds_backlight_off(void)
  error2:
 	return ret;
 }
-#endif
+
 static struct rcar_du_platform_data alt_du_pdata = {
 	.encoders = alt_du_encoders,
 	.num_encoders = ARRAY_SIZE(alt_du_encoders),
@@ -168,10 +158,8 @@ static struct rcar_du_platform_data alt_du_pdata = {
 #ifdef CONFIG_DRM_FBDEV_CRTC
 	.fbdev_crtc = 0,
 #endif
-#ifdef CONFIG_DRM_RCAR_LVDS
 	.backlight_on = alt_lvds_backlight_on,
 	.backlight_off = alt_lvds_backlight_off,
-#endif
 	.i2c_ch = 1,
 };
 
