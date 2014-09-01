@@ -835,6 +835,7 @@ int drm_fb_helper_set_par(struct fb_info *info)
 		if (fb_helper->connector_info[i]) {
 			disp_conn = fb_helper->connector_info[i]->connector;
 			if ((disp_conn->encoder) &&
+				(disp_conn->encoder->crtc) &&
 				(disp_conn->encoder->crtc->base.id
 				 == mode_set->crtc->base.id))
 				break;
