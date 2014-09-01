@@ -358,6 +358,7 @@ static const struct rcar_du_device_info rcar_du_r8a7779_info = {
 		},
 	},
 	.num_lvds = 0,
+	.chip = RCAR_H1,
 };
 
 #if defined(R8A7790_ES1_DU_LVDS_LANE_MISCONNECTION_WORKAROUND) || \
@@ -408,6 +409,7 @@ static const struct rcar_du_device_info rcar_du_r8a7790_info = {
 	.lvds0_crtc = BIT(0),
 	.lvds1_crtc = BIT(1) | BIT(2),
 	.vspd_crtc = BIT(0) | BIT(1),
+	.chip = RCAR_H2,
 };
 
 #if defined(R8A7790_ES1_DU_LVDS_LANE_MISCONNECTION_WORKAROUND) || \
@@ -443,6 +445,7 @@ static const struct rcar_du_device_info rcar_du_r8a7791_info = {
 	.lvds0_crtc = BIT(0),
 	.lvds1_crtc = 0,
 	.vspd_crtc = BIT(0) | BIT(1),
+	.chip = RCAR_M2,
 };
 
 #if defined(R8A7790_ES1_DU_LVDS_LANE_MISCONNECTION_WORKAROUND) || \
@@ -478,6 +481,7 @@ static const struct rcar_du_device_info rcar_du_r8a7793_info = {
 	.lvds0_crtc = BIT(0),
 	.lvds1_crtc = 0,
 	.vspd_crtc = BIT(0) | BIT(1),
+	.chip = RCAR_M2N,
 };
 
 #ifdef R8A7790_ES1_DU_LVDS_LANE_MISCONNECTION_WORKAROUND
@@ -517,6 +521,7 @@ static const struct rcar_du_device_info rcar_du_r8a7794_info = {
 	.lvds0_crtc = 0,
 	.lvds1_crtc = 0,
 	.vspd_crtc = BIT(0),
+	.chip = RCAR_E2,
 };
 
 static const struct platform_device_id rcar_du_id_table[] = {

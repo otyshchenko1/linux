@@ -45,6 +45,14 @@ struct rcar_du_lvdsenc;
 #define RCAR_DU_QUIRK_LVDS_CH_DATA_GAP	(1 << 2)	/* LVDS data gap */
 #endif
 
+enum chip_id {
+	RCAR_H1,
+	RCAR_H2,
+	RCAR_M2,
+	RCAR_M2N,
+	RCAR_E2,
+};
+
 /*
  * struct rcar_du_output_routing - Output routing specification
  * @possible_crtcs: bitmask of possible CRTCs for the output
@@ -82,6 +90,7 @@ struct rcar_du_device_info {
 	unsigned int lvds0_crtc;
 	unsigned int lvds1_crtc;
 	unsigned int vspd_crtc;
+	enum chip_id chip;
 };
 
 struct rcar_du_device {
