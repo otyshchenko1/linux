@@ -129,7 +129,7 @@ pio:
 			host->chan_tx = NULL;
 			dma_release_channel(chan);
 		}
-		dev_warn(&host->pdev->dev,
+		dev_dbg(&host->pdev->dev,
 			 "DMA failed: %d, falling back to PIO\n", ret);
 	}
 
@@ -217,7 +217,7 @@ pio:
 			host->chan_rx = NULL;
 			dma_release_channel(chan);
 		}
-		dev_warn(&host->pdev->dev,
+		dev_dbg(&host->pdev->dev,
 			 "DMA failed: %d, falling back to PIO\n", ret);
 	}
 
