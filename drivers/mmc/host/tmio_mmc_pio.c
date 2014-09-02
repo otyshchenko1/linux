@@ -433,6 +433,8 @@ static int tmio_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 
 		host->mrq = &mrq;
 
+		host->force_pio = true;
+
 		spin_unlock_irqrestore(&host->lock, flags);
 
 		ret = tmio_mmc_start_data(host, mrq.data);

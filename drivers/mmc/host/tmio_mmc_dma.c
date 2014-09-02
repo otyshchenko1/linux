@@ -64,6 +64,11 @@ static void tmio_mmc_start_dma_rx(struct tmio_mmc_host *host)
 	bool aligned = true, multiple = true;
 	unsigned int align = (1 << pdata->dma->alignment_shift) - 1;
 
+	if (host->force_pio) {
+		ret = 0;
+		goto pio;
+	}
+
 	for_each_sg(sg, sg_tmp, host->sg_len, i) {
 		if (sg_tmp->offset & align)
 			aligned = false;
@@ -142,6 +147,11 @@ static void tmio_mmc_start_dma_tx(struct tmio_mmc_host *host)
 	int ret, i;
 	bool aligned = true, multiple = true;
 	unsigned int align = (1 << pdata->dma->alignment_shift) - 1;
+
+	if (host->force_pio) {
+		ret = 0;
+		goto pio;
+	}
 
 	for_each_sg(sg, sg_tmp, host->sg_len, i) {
 		if (sg_tmp->offset & align)
