@@ -989,7 +989,12 @@ static int adv7612_try_mbus_fmt(struct v4l2_subdev *sd,
 
 	mf->width = width;
 	mf->height = height;
-	mf->field = (progressive) ? V4L2_FIELD_NONE : V4L2_FIELD_INTERLACED;
+	if (progressive) {
+		mf->field = V4L2_FIELD_NONE;
+	} else {
+		if (mf->field == V4L2_FIELD_NONE)
+			mf->field = V4L2_FIELD_INTERLACED;
+	}
 
 	return 0;
 }
