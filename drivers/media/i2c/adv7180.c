@@ -438,7 +438,8 @@ static int adv7180_try_fmt(struct v4l2_subdev *sd,
 
 	mf->width = ADV7180_MAX_WIDTH;		/* width is fixed value */
 	mf->height = ADV7180_MAX_HEIGHT;	/* heigth is fixed value */
-	mf->field = V4L2_FIELD_INTERLACED;
+	if (mf->field == V4L2_FIELD_NONE)	/* support only interlaced */
+		mf->field = V4L2_FIELD_INTERLACED;
 
 	for (i = 0; i < ARRAY_SIZE(adv7180_cfmts); i++)
 		if (mf->code == adv7180_cfmts[i].code)
