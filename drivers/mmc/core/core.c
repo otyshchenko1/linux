@@ -571,6 +571,16 @@ void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 {
 	__mmc_start_req(host, mrq);
 	mmc_wait_for_req_done(host, mrq);
+
+	if (mrq->cmd->opcode == MMC_LOCK_UNLOCK) {
+		if (host->card->type == MMC_TYPE_SD)
+			mmc_attach_sd(host);
+		else if (host->card->type == MMC_TYPE_MMC)
+			mmc_attach_mmc(host);
+		else
+			pr_err("%s: attach failed unknown card type\n",
+							mmc_hostname(host));
+	}
 }
 EXPORT_SYMBOL(mmc_wait_for_req);
 

@@ -67,6 +67,7 @@ int mmc_lock_unlock(struct mmc_card *card, struct key *key, int mode)
 
 	mpayload = NULL;
 	data_size = 1;
+	card->host->lock_mode = mode;
 	if (!(mode & MMC_LOCK_MODE_ERASE)) {
 		mpayload = rcu_dereference(key->payload.data);
 		data_size = 2 + mpayload->datalen;
@@ -125,6 +126,7 @@ int mmc_lock_unlock(struct mmc_card *card, struct key *key, int mode)
 		goto out;
 
 	memset(&cmd, 0, sizeof(struct mmc_command));
+	card->host->lock_mode = 0;
 
 	cmd.opcode = MMC_SEND_STATUS;
 	cmd.arg = card->rca << 16;

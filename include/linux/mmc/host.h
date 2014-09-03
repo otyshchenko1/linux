@@ -313,6 +313,7 @@ struct mmc_host {
 
 	struct mmc_ios		ios;		/* current io bus settings */
 	u32			ocr;		/* the current OCR setting */
+	u32			rocr;		/* OCR information */
 
 	/* group bitfields together to minimize padding */
 	unsigned int		use_spi_crc:1;
@@ -364,6 +365,8 @@ struct mmc_host {
 	unsigned int		actual_clock;	/* Actual HC clock rate */
 
 	unsigned int		slotno;	/* used for sdio acpi binding */
+
+	int			lock_mode;	/* lock/unlock modes */
 
 	unsigned long		private[0] ____cacheline_aligned;
 };

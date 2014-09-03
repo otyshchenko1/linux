@@ -921,9 +921,16 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
 
+	if (host->lock_mode & MMC_LOCK_MODE_UNLOCK) {
+		card = host->card;
+		goto check_card;
+	}
+
 	err = mmc_sd_get_cid(host, ocr, cid, &rocr);
 	if (err)
 		return err;
+
+	host->rocr = rocr;
 
 	if (oldcard) {
 		if (memcmp(cid, oldcard->raw_cid, sizeof(cid)) != 0)
@@ -951,6 +958,7 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 			return err;
 	}
 
+check_card:
 	/*
 	* Check if card is locked.
 	*/
@@ -959,6 +967,11 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 		goto free_card;
 	if (status & R1_CARD_IS_LOCKED)
 		mmc_card_set_locked(card);
+	else
+		card->state &= ~MMC_STATE_LOCKED;
+
+	if (host->lock_mode & MMC_LOCK_MODE_UNLOCK)
+		goto setup_card;
 
 	if (!oldcard) {
 		err = mmc_sd_get_csd(host, card);
@@ -977,12 +990,13 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 			return err;
 	}
 
+setup_card:
 	err = mmc_sd_setup_card(host, card, oldcard != NULL);
 	if (err)
 		goto free_card;
 
 	/* Initialization sequence for UHS-I cards */
-	if (rocr & SD_ROCR_S18A) {
+	if (host->rocr & SD_ROCR_S18A) {
 		err = mmc_sd_init_uhs_card(card);
 		if (err)
 			goto free_card;
@@ -1167,6 +1181,9 @@ int mmc_attach_sd(struct mmc_host *host)
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
 
+	if (host->lock_mode & MMC_LOCK_MODE_UNLOCK)
+		goto init_card;
+
 	err = mmc_send_app_op_cond(host, 0, &ocr);
 	if (err)
 		return err;
@@ -1215,6 +1232,7 @@ int mmc_attach_sd(struct mmc_host *host)
 		goto err;
 	}
 
+init_card:
 	/*
 	 * Detect and init the card.
 	 */
@@ -1222,12 +1240,16 @@ int mmc_attach_sd(struct mmc_host *host)
 	if (err)
 		goto err;
 
+	if (host->lock_mode & MMC_LOCK_MODE_UNLOCK)
+		goto end;
+
 	mmc_release_host(host);
 	err = mmc_add_card(host->card);
 	mmc_claim_host(host);
 	if (err)
 		goto remove_card;
 
+end:
 	return 0;
 
 remove_card:
