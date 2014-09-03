@@ -48,19 +48,12 @@ rcar_du_connector_best_encoder(struct drm_connector *connector)
 static void rcar_du_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct rcar_du_encoder *renc = rcar_du_encoder(encoder);
-	unsigned int output;
 
 	if (renc->lvds)
 		rcar_du_lvdsenc_dpms(renc->lvds, encoder->crtc, mode);
 
-	if (rcar_du_has(renc->dev, RCAR_DU_FEATURE_NO_LVDS_INTERFACE))
-		output = RCAR_DU_OUTPUT_DPAD0;
-	else
-		output = RCAR_DU_OUTPUT_LVDS0;
-
-	if ((renc->output == output) &&
-		(get_rcar_slave_funcs(encoder)) &&
-			(get_rcar_slave_funcs(encoder)->dpms))
+	if (get_rcar_slave_funcs(encoder) &&
+		get_rcar_slave_funcs(encoder)->dpms)
 		get_rcar_slave_funcs(encoder)->dpms(encoder, mode);
 }
 
@@ -120,40 +113,26 @@ static bool rcar_du_encoder_mode_fixup(struct drm_encoder *encoder,
 static void rcar_du_encoder_mode_prepare(struct drm_encoder *encoder)
 {
 	struct rcar_du_encoder *renc = rcar_du_encoder(encoder);
-	unsigned int output;
 
 	if (renc->lvds)
 		rcar_du_lvdsenc_dpms(renc->lvds, encoder->crtc,
 				     DRM_MODE_DPMS_OFF);
 
-	if (rcar_du_has(renc->dev, RCAR_DU_FEATURE_NO_LVDS_INTERFACE))
-		output = RCAR_DU_OUTPUT_DPAD0;
-	else
-		output = RCAR_DU_OUTPUT_LVDS0;
-
-	if ((renc->output == output) &&
-		(get_rcar_slave_funcs(encoder)) &&
-		(get_rcar_slave_funcs(encoder)->dpms))
+	if (get_rcar_slave_funcs(encoder) &&
+		get_rcar_slave_funcs(encoder)->dpms)
 		get_rcar_slave_funcs(encoder)->dpms(encoder, DRM_MODE_DPMS_OFF);
 }
 
 static void rcar_du_encoder_mode_commit(struct drm_encoder *encoder)
 {
 	struct rcar_du_encoder *renc = rcar_du_encoder(encoder);
-	unsigned int output;
 
 	if (renc->lvds)
 		rcar_du_lvdsenc_dpms(renc->lvds, encoder->crtc,
 				     DRM_MODE_DPMS_ON);
 
-	if (rcar_du_has(renc->dev, RCAR_DU_FEATURE_NO_LVDS_INTERFACE))
-		output = RCAR_DU_OUTPUT_DPAD0;
-	else
-		output = RCAR_DU_OUTPUT_LVDS0;
-
-	if ((renc->output == output) &&
-		(get_rcar_slave_funcs(encoder)) &&
-		(get_rcar_slave_funcs(encoder)->dpms))
+	if (get_rcar_slave_funcs(encoder) &&
+		get_rcar_slave_funcs(encoder)->dpms)
 		get_rcar_slave_funcs(encoder)->dpms(encoder, DRM_MODE_DPMS_ON);
 }
 
@@ -162,18 +141,11 @@ static void rcar_du_encoder_mode_set(struct drm_encoder *encoder,
 				     struct drm_display_mode *adjusted_mode)
 {
 	struct rcar_du_encoder *renc = rcar_du_encoder(encoder);
-	unsigned int output;
 
 	rcar_du_crtc_route_output(encoder->crtc, renc->output);
 
-	if (rcar_du_has(renc->dev, RCAR_DU_FEATURE_NO_LVDS_INTERFACE))
-		output = RCAR_DU_OUTPUT_DPAD0;
-	else
-		output = RCAR_DU_OUTPUT_LVDS0;
-
-	if ((renc->output == output) &&
-		(get_rcar_slave_funcs(encoder)) &&
-		(get_rcar_slave_funcs(encoder)->mode_set))
+	if (get_rcar_slave_funcs(encoder) &&
+		get_rcar_slave_funcs(encoder)->mode_set)
 		get_rcar_slave_funcs(encoder)->mode_set(encoder,
 						 mode, adjusted_mode);
 }

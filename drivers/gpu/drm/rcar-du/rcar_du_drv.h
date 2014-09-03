@@ -33,7 +33,6 @@ struct rcar_du_lvdsenc;
 
 #define RCAR_DU_FEATURE_CRTC_IRQ_CLOCK	(1 << 0)	/* Per-CRTC IRQ and clock */
 #define RCAR_DU_FEATURE_DEFR8		(1 << 1)	/* Has DEFR8 register */
-#define RCAR_DU_FEATURE_NO_LVDS_INTERFACE	(1 << 2)
 #define RCAR_DU_FEATURE_INTERLACE	(1 << 4)
 #define RCAR_DU_FEATURE_VSP1_SOURCE	(1 << 5)	/* Has inputs from VSP1 */
 
