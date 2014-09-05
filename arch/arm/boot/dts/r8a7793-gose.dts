@@ -416,6 +416,8 @@
 		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;
 		m25p,fast-read;
+		spi-cpol;
+		spi-cpha;
 
 		partition@0 {
 			label = "loader";
