@@ -1002,6 +1002,7 @@ usbhsf_pio_prepare_pop:
 	 * change handler to PIO
 	 */
 	pkt->handler = &usbhs_fifo_pio_pop_handler;
+	usbhs_pipe_config_change_bfre(pipe, 0);
 
 	return pkt->handler->prepare(pkt, is_done);
 }
