@@ -274,7 +274,6 @@ static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
 	struct tmio_mmc_data *pdata = host->pdata;
 	bool result;
 	struct mmc_command *cmd = host->cmd;
-	int ret = 0;
 
 	spin_lock_irqsave(&host->lock, flags);
 
@@ -289,7 +288,7 @@ static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
 	host->force_pio = false;
 
 	if (!(pdata->inquiry_tuning && pdata->inquiry_tuning(host) &&
-	      !host->done_tuning))
+	      !host->done_tuning) || cmd != mrq->sbc)
 		cancel_delayed_work(&host->delayed_reset_work);
 
 	host->mrq = NULL;
@@ -298,45 +297,22 @@ static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
 	if (mrq->cmd->error || (mrq->data && mrq->data->error))
 		tmio_mmc_abort_dma(host);
 
-	if (pdata->inquiry_tuning && pdata->inquiry_tuning(host)) {
+	/* Check retuning */
+	if (pdata->retuning && host->done_tuning) {
+		result = pdata->retuning(host);
+		if (result || (mrq->cmd->error == -EILSEQ))
+			host->done_tuning = false;
+	}
+
+	if ((pdata->inquiry_tuning && pdata->inquiry_tuning(host) &&
+	     !host->done_tuning) || cmd == mrq->sbc) {
 		/* finish processing tuning request */
-		if (!host->done_tuning) {
+		if (!host->done_tuning || cmd == mrq->sbc) {
 			complete(&host->completion);
 			return;
 		}
 	}
-	/* Check retuning */
-	if (pdata->retuning && host->done_tuning) {
-		result = pdata->retuning(host);
-		if (result || (mrq->cmd->error == -EILSEQ)) {
-			host->done_tuning = false;
-			goto fail;
-		}
-	}
 
-	if (cmd == mrq->sbc) {
-		host->last_req_ts = jiffies;
-		host->mrq = mrq;
-
-		if (mrq->data) {
-			ret = tmio_mmc_start_data(host, mrq->data);
-			if (ret)
-				goto fail;
-		}
-		ret = tmio_mmc_start_command(host, mrq->cmd);
-		if (!ret) {
-			schedule_delayed_work(&host->delayed_reset_work,
-					      msecs_to_jiffies(2000));
-			return;
-		}
-	}
-
-fail:
-	if (ret) {
-		host->force_pio = false;
-		host->mrq = NULL;
-		mrq->cmd->error = ret;
-	}
 	mmc_request_done(host->mmc, mrq);
 }
 
@@ -980,8 +956,34 @@ static void tmio_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	spin_unlock_irqrestore(&host->lock, flags);
 
-	if (pdata->inquiry_tuning && pdata->inquiry_tuning(host)) {
-		if (!host->done_tuning) {
+	if (pdata->inquiry_tuning && pdata->inquiry_tuning(host) &&
+	    !host->done_tuning) {
+		/* Start retuning */
+		ret = tmio_mmc_execute_tuning(mmc,
+					      MMC_SEND_TUNING_BLOCK);
+		if (ret)
+			goto fail;
+		/* Restore request */
+		host->mrq = mrq;
+	}
+
+	if (mrq->sbc) {
+		init_completion(&host->completion);
+		ret = tmio_mmc_start_command(host, mrq->sbc);
+		if (ret)
+			goto fail;
+		ret = wait_for_completion_timeout(&host->completion,
+						       msecs_to_jiffies(2000));
+		if (ret < 0)
+			goto fail;
+		if (!ret) {
+			ret = -ETIMEDOUT;
+			goto fail;
+		}
+		host->last_req_ts = jiffies;
+		host->mrq = mrq;
+		if (pdata->inquiry_tuning && pdata->inquiry_tuning(host) &&
+		    !host->done_tuning) {
 			/* Start retuning */
 			ret = tmio_mmc_execute_tuning(mmc,
 						      MMC_SEND_TUNING_BLOCK);
@@ -992,17 +994,13 @@ static void tmio_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		}
 	}
 
-	if (mrq->sbc)
-		ret = tmio_mmc_start_command(host, mrq->sbc);
-	else {
-		if (mrq->data) {
-			ret = tmio_mmc_start_data(host, mrq->data);
-			if (ret)
-				goto fail;
-		}
-		ret = tmio_mmc_start_command(host, mrq->cmd);
+	if (mrq->data) {
+		ret = tmio_mmc_start_data(host, mrq->data);
+		if (ret)
+			goto fail;
 	}
 
+	ret = tmio_mmc_start_command(host, mrq->cmd);
 	if (!ret) {
 		schedule_delayed_work(&host->delayed_reset_work,
 				      msecs_to_jiffies(2000));
