@@ -627,6 +627,8 @@ static struct usbhs_private usbhs_priv __initdata = {
 			.buswait_bwait	= 4,
 			.pipe_type	= gose_usbhs_pipe_type,
 			.pipe_size	= ARRAY_SIZE(gose_usbhs_pipe_type),
+			.d0_rx_id	= USB_DMAC_SLAVE_USBHS_RX,
+			.d1_tx_id	= USB_DMAC_SLAVE_USBHS_TX,
 		},
 	}
 };
