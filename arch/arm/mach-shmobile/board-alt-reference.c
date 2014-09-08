@@ -332,6 +332,9 @@ static const struct clk_name clk_enables[] __initconst = {
 	{ "pvrsrvkm", NULL, "pvrsrvkm" },
 	{ "vcp0", NULL, "vcp1" },
 	{ "dmal", NULL, "sh-dma-engine.0" },
+#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+	{ "usbdmac0", NULL, "sh-dma-engine.4" },
+#endif
 	{ "ssi", NULL, "rcar_sound" },
 	{ "scu", NULL, "rcar_sound" },
 };
