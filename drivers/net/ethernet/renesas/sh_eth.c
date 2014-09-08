@@ -1852,6 +1852,9 @@ static int sh_eth_set_settings(struct net_device *ndev,
 	unsigned long flags;
 	int ret;
 
+	if (!mdp->is_opened)
+		return -EAGAIN;
+
 	spin_lock_irqsave(&mdp->lock, flags);
 
 	/* disable tx and rx */
@@ -1987,6 +1990,9 @@ static int sh_eth_set_ringparam(struct net_device *ndev,
 	/* Set new parameters */
 	mdp->num_rx_ring = ring->rx_pending;
 	mdp->num_tx_ring = ring->tx_pending;
+
+	if (!mdp->is_opened)
+		return 0;
 
 	ret = sh_eth_ring_init(ndev);
 	if (ret < 0) {
