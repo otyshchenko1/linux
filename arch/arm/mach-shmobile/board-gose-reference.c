@@ -445,6 +445,61 @@ PDATA_HSCIF(17, 0xe6cd0000, gic_spi(21), 2); /* HSCIF2 */
 #define AUXDATA_HSCIF(index, baseaddr, irq) SCIF_AD("hscif", index, baseaddr)
 
 #if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+/* USB-DMAC */
+static const struct sh_dmae_channel usb_dmac_channels[] = {
+	{
+		.offset = 0,
+	}, {
+		.offset = 0x20,
+	},
+};
+
+static const struct sh_dmae_slave_config usb_dmac_slaves[] = {
+	{
+		.slave_id	= USB_DMAC_SLAVE_USBHS_TX,
+		.chcr		= USBTS_INDEX2VAL(USBTS_XMIT_SZ_32BYTE),
+	}, {
+		.slave_id	= USB_DMAC_SLAVE_USBHS_RX,
+		.chcr		= USBTS_INDEX2VAL(USBTS_XMIT_SZ_32BYTE),
+	},
+};
+
+static struct sh_dmae_pdata usb_dmac_platform_data = {
+	.slave		= usb_dmac_slaves,
+	.slave_num	= ARRAY_SIZE(usb_dmac_slaves),
+	.channel	= usb_dmac_channels,
+	.channel_num	= ARRAY_SIZE(usb_dmac_channels),
+	.ts_low_shift	= USBTS_LOW_SHIFT,
+	.ts_low_mask	= USBTS_LOW_BIT << USBTS_LOW_SHIFT,
+	.ts_high_shift	= USBTS_HI_SHIFT,
+	.ts_high_mask	= USBTS_HI_BIT << USBTS_HI_SHIFT,
+	.ts_shift	= dma_usbts_shift,
+	.ts_shift_num	= ARRAY_SIZE(dma_usbts_shift),
+	.dmaor_init	= DMAOR_DME,
+	.chcr_offset	= 0x14,
+	.chcr_ie_bit	= 1 << 5,
+	.dmaor_is_32bit	= 1,
+	.needs_tend_set	= 1,
+	.no_dmars	= 1,
+	.slave_only	= 1,
+};
+
+static struct resource usb_dmac_resources[] = {
+	DEFINE_RES_MEM(0xe65a0020, 0x44), /* Channel registers and DMAOR */
+	DEFINE_RES_MEM(0xe65a0000, 0x14), /* VCR/SWR/DMICR */
+	DEFINE_RES_IRQ(gic_spi(109)),
+};
+
+static void __init gose_add_usb_dmac_prototype(void)
+{
+	platform_device_register_resndata(&platform_bus, "sh-dma-engine",
+					  4,
+					  usb_dmac_resources,
+					  ARRAY_SIZE(usb_dmac_resources),
+					  &usb_dmac_platform_data,
+					  sizeof(usb_dmac_platform_data));
+}
+
 /* USBHS */
 static const struct resource usbhs_resources[] __initconst = {
 	DEFINE_RES_MEM(0xe6590000, 0x100),
@@ -887,6 +942,9 @@ static void __init gose_add_standard_devices(void)
 	shmobile_clk_workaround(clk_enables, ARRAY_SIZE(clk_enables), true);
 	r8a7793_add_dt_devices();
 	gose_add_dmac_prototype();
+#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+	gose_add_usb_dmac_prototype();
+#endif
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     gose_auxdata_lookup, NULL);
 
