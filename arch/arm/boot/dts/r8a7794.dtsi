@@ -41,6 +41,10 @@
 			compatible = "arm,cortex-a7";
 			reg = <0>;
 			clock-frequency = <1000000000>;
+			clocks = <&z2_clk>;
+
+			/* kHz - uV - OPPs unknown yet */
+			operating-points = <1000000 1000000>;
 		};
 
 		cpu1: cpu@1 {
@@ -549,6 +553,14 @@
 			clock-div = <2>;
 			clock-mult = <1>;
 			clock-output-names = "pll1_div2";
+		};
+		z2_clk: z2_clk {
+			compatible = "fixed-factor-clock";
+			clocks = <&cpg_clocks R8A7794_CLK_PLL1>;
+			#clock-cells = <0>;
+			clock-div = <2>;
+			clock-mult = <1>;
+			clock-output-names = "z2";
 		};
 		zg_clk: zg_clk {
 			compatible = "fixed-factor-clock";
