@@ -28,6 +28,8 @@ struct simple_card_data {
 	struct snd_soc_dai_link dai_link[];	/* dynamically allocated */
 };
 
+#define simple_priv_to_dev(priv) ((priv)->snd_card.dev)
+
 static int asoc_simple_card_hw_params(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params *params)
 {
@@ -165,11 +167,12 @@ asoc_simple_card_sub_parse_of(struct device_node *np,
 }
 
 static int asoc_simple_card_dai_link_of(struct device_node *node,
-					struct device *dev,
+					struct simple_card_data *priv,
 					struct snd_soc_dai_link *dai_link,
 					struct simple_dai_props *dai_props,
 					bool is_top_level_node)
 {
+	struct device *dev = simple_priv_to_dev(priv);
 	struct device_node *np = NULL;
 	struct device_node *bitclkmaster = NULL;
 	struct device_node *framemaster = NULL;
@@ -300,9 +303,9 @@ dai_link_of_err:
 }
 
 static int asoc_simple_card_parse_of(struct device_node *node,
-				     struct simple_card_data *priv,
-				     struct device *dev)
+				     struct simple_card_data *priv)
 {
+	struct device *dev = simple_priv_to_dev(priv);
 	struct snd_soc_dai_link *dai_link = priv->snd_card.dai_link;
 	struct simple_dai_props *dai_props = priv->dai_props;
 	u32 val;
@@ -344,7 +347,7 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 		int i;
 		for (i = 0; (np = of_get_next_child(node, np)); i++) {
 			dev_dbg(dev, "\tlink %d:\n", i);
-			ret = asoc_simple_card_dai_link_of(np, dev,
+			ret = asoc_simple_card_dai_link_of(np, priv,
 							   dai_link + i,
 							   dai_props + i,
 							   false);
@@ -355,7 +358,7 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 		}
 	} else {
 		/* For single DAI link & old style of DT node */
-		ret = asoc_simple_card_dai_link_of(node, dev,
+		ret = asoc_simple_card_dai_link_of(node, priv,
 						   dai_link, dai_props, true);
 		if (ret < 0)
 			return ret;
@@ -427,7 +430,7 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 
 	if (np && of_device_is_available(np)) {
 
-		ret = asoc_simple_card_parse_of(np, priv, dev);
+		ret = asoc_simple_card_parse_of(np, priv);
 		if (ret < 0) {
 			if (ret != -EPROBE_DEFER)
 				dev_err(dev, "parse error %d\n", ret);
