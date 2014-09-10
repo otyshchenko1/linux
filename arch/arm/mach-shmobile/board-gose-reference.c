@@ -38,7 +38,7 @@
 #include <linux/spi/sh_msiof.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/phy.h>
-#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 #include <linux/usb/renesas_usbhs.h>
 #endif
 #include <media/soc_camera.h>
@@ -236,7 +236,7 @@ static const struct clk_name clk_names[] __initconst = {
  * This is a really crude hack to work around core platform clock issues
  */
 static const struct clk_name clk_enables[] __initconst = {
-#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 	{ "hsusb", NULL, "renesas_usbhs" },
 #else
 	{ "ehci", NULL, "pci-rcar-gen2.0" },
@@ -246,7 +246,7 @@ static const struct clk_name clk_enables[] __initconst = {
 	{ "scu", NULL, "rcar_sound" },
 	{ "dmal", NULL, "sh-dma-engine.0" },
 	{ "dmah", NULL, "sh-dma-engine.1" },
-#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 	{ "usbdmac0", NULL, "sh-dma-engine.4" },
 #endif
 	{ "pvrsrvkm", NULL, "pvrsrvkm" },
@@ -447,7 +447,7 @@ PDATA_HSCIF(17, 0xe6cd0000, gic_spi(21), 2); /* HSCIF2 */
 #define AUXDATA_SCIFB(index, baseaddr, irq) SCIF_AD("scifb", index, baseaddr)
 #define AUXDATA_HSCIF(index, baseaddr, irq) SCIF_AD("hscif", index, baseaddr)
 
-#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 /* USB-DMAC */
 static const struct sh_dmae_channel usb_dmac_channels[] = {
 	{
@@ -678,7 +678,7 @@ static void __init gose_add_usb1_host(void)
 
 /* USBHS PHY */
 static const struct rcar_gen2_phy_platform_data usbhs_phy_pdata __initconst = {
-#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 	.chan0_pci = 0,	/* Channel 0 is USBHS */
 #else
 	.chan0_pci = 1,	/* Channel 0 is PCI USB */
@@ -832,7 +832,7 @@ static void __init gose_add_usb_devices(void)
 					  ARRAY_SIZE(usbhs_phy_resources),
 					  &usbhs_phy_pdata,
 					  sizeof(usbhs_phy_pdata));
-#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 	gose_add_usb0_gadget();
 #else
 	gose_add_usb0_host();
@@ -948,7 +948,7 @@ static void __init gose_add_standard_devices(void)
 	shmobile_clk_workaround(clk_enables, ARRAY_SIZE(clk_enables), true);
 	r8a7793_add_dt_devices();
 	gose_add_dmac_prototype();
-#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 	gose_add_usb_dmac_prototype();
 #endif
 	of_platform_populate(NULL, of_default_bus_match_table,
