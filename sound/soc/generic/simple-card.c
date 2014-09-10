@@ -29,6 +29,8 @@ struct simple_card_data {
 };
 
 #define simple_priv_to_dev(priv) ((priv)->snd_card.dev)
+#define simple_priv_to_link(priv, i) ((priv)->snd_card.dai_link + i)
+#define simple_priv_to_props(priv, i) ((priv)->dai_props + i)
 
 static int asoc_simple_card_hw_params(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params *params)
@@ -168,11 +170,12 @@ asoc_simple_card_sub_parse_of(struct device_node *np,
 
 static int asoc_simple_card_dai_link_of(struct device_node *node,
 					struct simple_card_data *priv,
-					struct snd_soc_dai_link *dai_link,
-					struct simple_dai_props *dai_props,
+					int idx,
 					bool is_top_level_node)
 {
 	struct device *dev = simple_priv_to_dev(priv);
+	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, idx);
+	struct simple_dai_props *dai_props = simple_priv_to_props(priv, idx);
 	struct device_node *np = NULL;
 	struct device_node *bitclkmaster = NULL;
 	struct device_node *framemaster = NULL;
@@ -306,8 +309,6 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 				     struct simple_card_data *priv)
 {
 	struct device *dev = simple_priv_to_dev(priv);
-	struct snd_soc_dai_link *dai_link = priv->snd_card.dai_link;
-	struct simple_dai_props *dai_props = priv->dai_props;
 	u32 val;
 	int ret;
 
@@ -348,9 +349,7 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 		for (i = 0; (np = of_get_next_child(node, np)); i++) {
 			dev_dbg(dev, "\tlink %d:\n", i);
 			ret = asoc_simple_card_dai_link_of(np, priv,
-							   dai_link + i,
-							   dai_props + i,
-							   false);
+							   i, false);
 			if (ret < 0) {
 				of_node_put(np);
 				return ret;
@@ -358,8 +357,7 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 		}
 	} else {
 		/* For single DAI link & old style of DT node */
-		ret = asoc_simple_card_dai_link_of(node, priv,
-						   dai_link, dai_props, true);
+		ret = asoc_simple_card_dai_link_of(node, priv, 0, true);
 		if (ret < 0)
 			return ret;
 	}
