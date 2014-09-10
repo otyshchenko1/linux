@@ -230,6 +230,7 @@ static const struct clk_name clk_names[] __initconst = {
 	{ "tddmac", NULL, NULL },
 	{ "fdp1", NULL, NULL },
 	{ "fdp0", NULL, NULL },
+	{ "pvrsrvkm", NULL, "pvrsrvkm" },
 };
 
 /*
@@ -249,7 +250,6 @@ static const struct clk_name clk_enables[] __initconst = {
 #if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 	{ "usbdmac0", NULL, "sh-dma-engine.4" },
 #endif
-	{ "pvrsrvkm", NULL, "pvrsrvkm" },
 	{ "ssp_dev", NULL, "ssp_dev" },
 };
 
