@@ -38,7 +38,7 @@
 #include <linux/spi/sh_msiof.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/phy.h>
-#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 #include <linux/usb/renesas_usbhs.h>
 #endif
 #if defined(CONFIG_VIDEO_RENESAS_VSP1)
@@ -287,7 +287,7 @@ static const struct clk_name clk_names[] __initconst = {
  * This is a really crude hack to work around core platform clock issues
  */
 static const struct clk_name clk_enables[] __initconst = {
-#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 	{ "hsusb", NULL, "renesas_usbhs" },
 #else
 	{ "ehci", NULL, "pci-rcar-gen2.0" },
@@ -298,7 +298,7 @@ static const struct clk_name clk_enables[] __initconst = {
 	{ "scu", NULL, "rcar_sound" },
 	{ "dmal", NULL, "sh-dma-engine.0" },
 	{ "dmah", NULL, "sh-dma-engine.1" },
-#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 	{ "usbdmac0", NULL, "sh-dma-engine.4" },
 #endif
 	{ "pvrsrvkm", NULL, "pvrsrvkm" },
@@ -484,7 +484,7 @@ PDATA_HSCIF(9, 0xe62c8000, gic_spi(155), 1); /* HSCIF1 */
 #define AUXDATA_SCIFB(index, baseaddr, irq) SCIF_AD("scifb", index, baseaddr)
 #define AUXDATA_HSCIF(index, baseaddr, irq) SCIF_AD("hscif", index, baseaddr)
 
-#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 /* USB-DMAC */
 static const struct sh_dmae_channel usb_dmac_channels[] = {
 	{
@@ -710,7 +710,7 @@ static void __init lager_add_usb0_device(void)
 
 /* USBHS PHY */
 static const struct rcar_gen2_phy_platform_data usbhs_phy_pdata __initconst = {
-#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 	.chan0_pci = 0,	/* Channel 0 is USBHS */
 #else
 	.chan0_pci = 1,	/* Channel 0 is PCI USB */
@@ -1003,7 +1003,7 @@ static void __init lager_add_standard_devices(void)
 	shmobile_clk_workaround(clk_enables, ARRAY_SIZE(clk_enables), true);
 	r8a7790_add_dt_devices();
 	lager_add_dmac_prototype();
-#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 	lager_add_usb_dmac_prototype();
 #endif
 	of_platform_populate(NULL, of_default_bus_match_table,
@@ -1015,7 +1015,7 @@ static void __init lager_add_standard_devices(void)
 					  ARRAY_SIZE(usbhs_phy_resources),
 					  &usbhs_phy_pdata,
 					  sizeof(usbhs_phy_pdata));
-#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 	lager_register_usbhs();
 #else
 	lager_add_usb0_device();
