@@ -263,7 +263,7 @@
 		renesas,function = "ssi";
 	};
 	sound_clk_pins: sound_clk {
-		renesas,groups = "audio_clk_a";
+		renesas,groups = "audio_clk_c";
 		renesas,function = "audio_clk";
 	};
 };
