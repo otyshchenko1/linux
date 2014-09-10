@@ -23,7 +23,8 @@ struct rsnd_adg {
 	int rbgb_rate_for_48khz_div_6;	/* RBGB */
 	u32 ckr;
 #ifdef QUICK_HACK
-	unsigned int quick_hack_rate;
+	unsigned int quick_hack_rate[CLKMAX];
+	int quick_hack_used_clk;
 #endif
 };
 
@@ -144,7 +145,9 @@ int rsnd_adg_set_convert_clk_gen2(struct rsnd_mod *mod,
 		adg->rbgb_rate_for_48khz_div_6,	/* 0100: RBGB */
 	};
 #ifdef QUICK_HACK
-	sel_rate[0] = adg->quick_hack_rate;
+	int i;
+	for (i = 0; i < CLKMAX; i++)
+		sel_rate[i] = adg->quick_hack_rate[i];
 #endif
 
 	min = ~0;
@@ -330,7 +333,7 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *mod, unsigned int rate)
 #ifndef QUICK_HACK
 		if (rate == clk_get_rate(clk)) {
 #else
-		if (rate == adg->quick_hack_rate) {
+		if (rate == adg->quick_hack_rate[i]) {
 #endif
 			data = sel_table[i];
 			goto found_clock;
@@ -377,7 +380,7 @@ void rsnd_adg_clk_set_rate(struct rsnd_mod *mod, unsigned int rate)
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
 
-	adg->quick_hack_rate = rate / 1 * 32 * 2 * 4;
+	adg->quick_hack_rate[adg->quick_hack_used_clk] = rate / 1 * 32 * 2 * 4;
 }
 #endif
 
@@ -411,7 +414,7 @@ static void rsnd_adg_ssi_clk_init(struct rsnd_priv *priv, struct rsnd_adg *adg)
 #ifndef QUICK_HACK
 		rate = clk_get_rate(clk);
 #else
-		rate = adg->quick_hack_rate;
+		rate = adg->quick_hack_rate[i];
 #endif
 
 		if (0 == rate) /* not used */
@@ -441,6 +444,12 @@ int rsnd_adg_probe(struct platform_device *pdev,
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct clk *clk;
 	int i;
+#ifdef QUICK_HACK
+	struct device_node *np_root, *np_pfc, *np_clk;
+	const char *name;
+	const char *clk_name[CLKMAX] = {
+		"audio_clk_a", "audio_clk_b", "audio_clk_c", "audio_clk_i" };
+#endif
 
 	adg = devm_kzalloc(dev, sizeof(*adg), GFP_KERNEL);
 	if (!adg) {
@@ -455,6 +464,21 @@ int rsnd_adg_probe(struct platform_device *pdev,
 
 	for_each_rsnd_clk(clk, adg, i)
 		dev_dbg(dev, "clk %d : %p\n", i, clk);
+
+#ifdef QUICK_HACK
+	np_root = of_find_node_by_path("/");
+	np_pfc = of_find_node_by_name(np_root, "pfc");
+	np_clk = of_get_child_by_name(np_pfc, "sound_clk");
+	of_property_read_string(np_clk, "renesas,groups", &name);
+
+	for (i = 0; i < CLKMAX; i++) {
+		if (!strcmp(name, clk_name[i])) {
+			adg->quick_hack_used_clk = i;
+			break;
+		}
+	}
+	dev_dbg(dev, "used clk%d (name:%s)\n", i, name);
+#endif
 
 	rsnd_adg_ssi_clk_init(priv, adg);
 
