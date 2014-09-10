@@ -39,7 +39,7 @@
 #include <linux/spi/sh_msiof.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/phy.h>
-#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 #include <linux/usb/renesas_usbhs.h>
 #endif
 #include <media/soc_camera.h>
@@ -323,7 +323,7 @@ static const struct clk_name clk_enables[] __initconst = {
 	{ "mmcif0", NULL, "ee200000.mmc" },
 	{ "sdhi0", NULL, "ee100000.sd" },
 	{ "sdhi1", NULL, "ee140000.sd" },
-#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 	{ "hsusb", NULL, "renesas_usbhs" },
 #else
 	{ "ehci", NULL, "pci-rcar-gen2.0" },
@@ -332,7 +332,7 @@ static const struct clk_name clk_enables[] __initconst = {
 	{ "pvrsrvkm", NULL, "pvrsrvkm" },
 	{ "vcp0", NULL, "vcp1" },
 	{ "dmal", NULL, "sh-dma-engine.0" },
-#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 	{ "usbdmac0", NULL, "sh-dma-engine.4" },
 #endif
 	{ "ssi", NULL, "rcar_sound" },
@@ -531,7 +531,7 @@ PDATA_HSCIF(17, 0xe6cd0000, gic_spi(21), 2); /* HSCIF2 */
 #define AUXDATA_SCIFB(index, baseaddr, irq) SCIF_AD("scifb", index, baseaddr)
 #define AUXDATA_HSCIF(index, baseaddr, irq) SCIF_AD("hscif", index, baseaddr)
 
-#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 /* USB-DMAC */
 static const struct sh_dmae_channel usb_dmac_channels[] = {
 	{
@@ -746,7 +746,7 @@ static void __init alt_add_usb0_device(void)
 #endif
 /* USBHS PHY */
 static const struct rcar_gen2_phy_platform_data usbhs_phy_pdata __initconst = {
-#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 	.chan0_pci = 0,	/* Channel 0 is USBHS */
 #else
 	.chan0_pci = 1,	/* Channel 0 is PCI USB */
@@ -997,7 +997,7 @@ static void __init alt_add_standard_devices(void)
 	shmobile_clk_workaround(clk_enables, ARRAY_SIZE(clk_enables), true);
 	r8a7794_add_dt_devices();
 	alt_add_dmac_prototype();
-#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 	alt_add_usb_dmac_prototype();
 #endif
 	of_platform_populate(NULL, of_default_bus_match_table,
@@ -1009,7 +1009,7 @@ static void __init alt_add_standard_devices(void)
 					  ARRAY_SIZE(usbhs_phy_resources),
 					  &usbhs_phy_pdata,
 					  sizeof(usbhs_phy_pdata));
-#if defined(CONFIG_USB_RENESAS_USBHS_UDC)
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 	alt_register_usbhs();
 #else
 	alt_add_usb0_device();
