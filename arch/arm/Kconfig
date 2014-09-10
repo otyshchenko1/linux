@@ -294,6 +294,7 @@ config ARCH_MULTIPLATFORM
 	select AUTO_ZRELADDR
 	select COMMON_CLK
 	select MULTI_IRQ_HANDLER
+	select PM_GENERIC_DOMAINS if PM
 	select SPARSE_IRQ
 	select USE_OF
 
