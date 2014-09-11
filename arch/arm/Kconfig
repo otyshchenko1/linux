@@ -1388,6 +1388,7 @@ config ISA_DMA_API
 
 config PCI
 	bool "PCI support" if MIGHT_HAVE_PCI
+	select PCI_DOMAINS
 	help
 	  Find out whether you have a PCI motherboard. PCI is the name of a
 	  bus system, i.e. the way the CPU talks to the other stuff inside
@@ -1396,7 +1397,6 @@ config PCI
 
 config PCI_DOMAINS
 	bool
-	depends on PCI
 
 config PCI_NANOENGINE
 	bool "BSE nanoEngine PCI support"
