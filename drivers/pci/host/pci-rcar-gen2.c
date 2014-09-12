@@ -16,6 +16,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_pci.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -100,6 +101,7 @@ struct rcar_pci_priv {
 	struct resource io_res;
 	struct resource mem_res;
 	struct resource *cfg_res;
+	int domain;
 	int irq;
 	unsigned long window_size;
 };
@@ -369,6 +371,8 @@ static int rcar_pci_probe(struct platform_device *pdev)
 
 	priv->window_size = SZ_1G;
 
+	priv->domain = of_pci_get_domain_nr(pdev->dev.of_node, true);
+
 	phy = usb_get_phy_dev(&pdev->dev, 0);
 	if (IS_ERR(phy))
 		return PTR_ERR(phy);
@@ -382,6 +386,9 @@ static int rcar_pci_probe(struct platform_device *pdev)
 	hw.map_irq = rcar_pci_map_irq;
 	hw.ops = &rcar_pci_ops;
 	hw.setup = rcar_pci_setup;
+#ifdef CONFIG_PCI_DOMAINS
+	hw.domain = priv->domain;
+#endif
 	pci_common_init_dev(&pdev->dev, &hw);
 	return 0;
 }
