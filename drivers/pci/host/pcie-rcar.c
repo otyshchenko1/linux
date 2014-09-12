@@ -128,6 +128,7 @@ struct rcar_pcie {
 	struct device		*dev;
 	void __iomem		*base;
 	struct resource		res[PCI_MAX_RESOURCES];
+	int			domain;
 	struct resource		busn;
 	int			root_bus_nr;
 	struct clk		*clk;
@@ -403,13 +404,13 @@ static void rcar_pcie_enable(struct rcar_pcie *pcie)
 {
 	struct platform_device *pdev = to_platform_device(pcie->dev);
 
+#ifdef CONFIG_PCI_DOMAINS
+	rcar_pci.domain = pcie->domain;
+#endif
 	rcar_pci.nr_controllers = 1;
 	rcar_pci.private_data = (void **)&pcie;
 
 	pci_common_init_dev(&pdev->dev, &rcar_pci);
-#ifdef CONFIG_PCI_DOMAINS
-	rcar_pci.domain++;
-#endif
 }
 
 static int phy_wait_for_ack(struct rcar_pcie *pcie)
@@ -932,6 +933,8 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 
 	pcie->dev = &pdev->dev;
 	platform_set_drvdata(pdev, pcie);
+
+	pcie->domain = of_pci_get_domain_nr(pdev->dev.of_node, true);
 
 	/* Get the bus range */
 	if (of_pci_parse_bus_range(pdev->dev.of_node, &pcie->busn)) {
