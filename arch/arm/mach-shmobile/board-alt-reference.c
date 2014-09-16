@@ -300,6 +300,7 @@ static const struct clk_name clk_names[] __initconst = {
 	{ "vpc0", NULL, "vpc1" },
 	{ "2ddmac", NULL, "tddmac" },
 	{ "fdp0", NULL, "fdp0" },
+	{ "pvrsrvkm", NULL, "pvrsrvkm" },
 };
 
 /*
@@ -318,7 +319,6 @@ static const struct clk_name clk_enables[] __initconst = {
 	{ "ehci", NULL, "pci-rcar-gen2.0" },
 #endif
 	{ "ehci", NULL, "pci-rcar-gen2.1" },
-	{ "pvrsrvkm", NULL, "pvrsrvkm" },
 	{ "vcp0", NULL, "vcp1" },
 	{ "dmal", NULL, "sh-dma-engine.0" },
 #if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
