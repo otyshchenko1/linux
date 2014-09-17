@@ -24,12 +24,18 @@
 
 #define CARDNAME	"ravb"
 #define TX_TIMEOUT	(5*HZ)
-#define TX_RING_SIZE	64	/* Tx ring size */
-#define RX_RING_SIZE	1024	/* Rx ring size */
-#define TX_RING_MIN	64
-#define RX_RING_MIN	64
-#define TX_RING_MAX	1024
-#define RX_RING_MAX	2048
+#define BE_TX_RING_SIZE	64	/* Tx ring size for Best Effort */
+#define BE_RX_RING_SIZE	1024	/* Rx ring size for Best Effort */
+#define NC_TX_RING_SIZE	64	/* Tx ring size for Network Control */
+#define NC_RX_RING_SIZE	64	/* Rx ring size for Network Control */
+#define BE_TX_RING_MIN	64
+#define BE_RX_RING_MIN	64
+#define NC_TX_RING_MIN	64
+#define NC_RX_RING_MIN	64
+#define BE_TX_RING_MAX	1024
+#define BE_RX_RING_MAX	2048
+#define NC_TX_RING_MAX	128
+#define NC_RX_RING_MAX	128
 #define PKT_BUF_SZ	1538
 
 enum {
@@ -819,6 +825,13 @@ struct ravb_txdesc {
 };
 
 #define DBAT_ENTRY_NUM	(22)
+#define RX_QUEUE_OFFSET	(4)
+#define NUM_RX_QUEUE	(2)
+#define NUM_TX_QUEUE	(2)
+enum RAVB_QUEUE {
+	RAVB_BE = 0,	/* Best Effort Queue */
+	RAVB_NC,	/* Network Control Queue */
+};
 
 struct ravb_tstamp_skb {
 	struct sk_buff *skb;
@@ -859,27 +872,30 @@ struct ravb_private {
 	struct ravb_cpu_data *cd;
 	const u16 *reg_offset;
 	void __iomem *addr;
-	u32 num_rx_ring;
-	u32 num_tx_ring;
+	u32 num_rx_ring[NUM_RX_QUEUE];
+	u32 num_tx_ring[NUM_TX_QUEUE];
 	u32 desc_bat_sz;
-	dma_addr_t rx_desc_dma;
-	dma_addr_t tx_desc_dma;
+	dma_addr_t rx_desc_dma[NUM_RX_QUEUE];
+	dma_addr_t tx_desc_dma[NUM_TX_QUEUE];
 	dma_addr_t desc_bat_dma;
-	struct ravb_ex_rxdesc *rx_ring;
-	struct ravb_txdesc *tx_ring;
+	struct ravb_ex_rxdesc *rx_ring[NUM_RX_QUEUE];
+	struct ravb_txdesc *tx_ring[NUM_TX_QUEUE];
 	struct ravb_desc *desc_bat;
-	struct sk_buff **rx_skbuff;
-	struct sk_buff **tx_skbuff;
-	struct sk_buff **tx_skbuff_aligned;
+	struct sk_buff **rx_skbuff[NUM_RX_QUEUE];
+	struct sk_buff **tx_skbuff[NUM_TX_QUEUE];
+	struct sk_buff **tx_skbuff_aligned[NUM_TX_QUEUE];
 	u32 rx_over_errors;
 	u32 rx_fifo_errors;
+	struct net_device_stats stats[NUM_RX_QUEUE];
 	u32 tstamp_tx_ctrl;
 	u32 tstamp_rx_ctrl;
 	struct list_head ts_skb_head;
 	u32 ts_skb_tag;
 	spinlock_t lock;		/* Register access lock */
-	u32 cur_rx, dirty_rx;		/* Producer/consumer ring indices */
-	u32 cur_tx, dirty_tx;
+	u32 cur_rx[NUM_RX_QUEUE];	/* Consumer ring indices */
+	u32 dirty_rx[NUM_RX_QUEUE];	/* Producer ring indices */
+	u32 cur_tx[NUM_TX_QUEUE];
+	u32 dirty_tx[NUM_TX_QUEUE];
 	u32 rx_buf_sz;			/* Based on MTU+slack. */
 	int edmac_endian;
 	struct napi_struct napi;
