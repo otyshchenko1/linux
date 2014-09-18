@@ -26,6 +26,7 @@
 #include <linux/of_platform.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
 #define DRV_NAME "rcar-pcie"
@@ -933,6 +934,9 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 
 	pcie->dev = &pdev->dev;
 	platform_set_drvdata(pdev, pcie);
+
+	pm_runtime_enable(pcie->dev);
+	pm_runtime_get_sync(pcie->dev);
 
 	pcie->domain = of_pci_get_domain_nr(pdev->dev.of_node, true);
 
