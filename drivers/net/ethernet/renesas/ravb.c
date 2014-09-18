@@ -45,6 +45,8 @@
 #include <linux/sh_eth.h>
 #include <linux/of_mdio.h>
 #include <linux/net_tstamp.h>
+#include <linux/of_gpio.h>
+#include <linux/gpio.h>
 
 #include "ravb.h"
 
@@ -1186,6 +1188,8 @@ static void ravb_adjust_link(struct net_device *ndev)
 	struct phy_device *phydev = mdp->phydev;
 	int new_state = 0;
 
+	if (phydev->irq > 0)
+		phy_read_status(phydev);
 	if (phydev->link) {
 		if (phydev->duplex != mdp->duplex) {
 			new_state = 1;
@@ -1225,34 +1229,21 @@ static void ravb_adjust_link(struct net_device *ndev)
 /* PHY init function */
 static int ravb_phy_init(struct net_device *ndev)
 {
-	struct device_node *np = ndev->dev.parent->of_node;
 	struct ravb_private *mdp = netdev_priv(ndev);
 	struct phy_device *phydev = NULL;
+	char phy_id[MII_BUS_ID_SIZE + 3];
 
 	mdp->link = 0;
 	mdp->speed = 0;
 	mdp->duplex = -1;
 
 	/* Try connect to PHY */
-	if (np) {
-		struct device_node *pn;
 
-		pn = of_parse_phandle(np, "phy-handle", 0);
-		phydev = of_phy_connect(ndev, pn,
-					ravb_adjust_link, 0,
-					mdp->phy_interface);
+	snprintf(phy_id, sizeof(phy_id), PHY_ID_FMT,
+		 mdp->mii_bus->id, mdp->phy_id);
 
-		if (!phydev)
-			phydev = ERR_PTR(-ENOENT);
-	} else {
-		char phy_id[MII_BUS_ID_SIZE + 3];
-
-		snprintf(phy_id, sizeof(phy_id), PHY_ID_FMT,
-			 mdp->mii_bus->id, mdp->phy_id);
-
-		phydev = phy_connect(ndev, phy_id, ravb_adjust_link,
-				     mdp->phy_interface);
-	}
+	phydev = phy_connect(ndev, phy_id, ravb_adjust_link,
+			     mdp->phy_interface);
 
 	if (IS_ERR(phydev)) {
 		netdev_err(ndev, "failed to connect PHY\n");
@@ -2000,16 +1991,12 @@ static int sh_mdio_init(struct ravb_private *mdp,
 	}
 
 	/* register MDIO bus */
-	if (dev->of_node) {
-		ret = of_mdiobus_register(mdp->mii_bus, dev->of_node);
-	} else {
-		for (i = 0; i < PHY_MAX_ADDR; i++)
-			mdp->mii_bus->irq[i] = PHY_POLL;
-		if (pd->phy_irq > 0)
-			mdp->mii_bus->irq[pd->phy] = pd->phy_irq;
+	for (i = 0; i < PHY_MAX_ADDR; i++)
+		mdp->mii_bus->irq[i] = PHY_POLL;
+	if (pd->phy_irq > 0)
+		mdp->mii_bus->irq[pd->phy] = pd->phy_irq;
 
-		ret = mdiobus_register(mdp->mii_bus);
-	}
+	ret = mdiobus_register(mdp->mii_bus);
 
 	if (ret)
 		goto out_free_bus;
@@ -2054,6 +2041,8 @@ static struct ravb_plat_data *ravb_parse_dt(struct device *dev)
 	struct device_node *np = dev->of_node;
 	struct ravb_plat_data *pdata;
 	const char *mac_addr;
+	int gpio;
+	enum of_gpio_flags flags;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
@@ -2069,6 +2058,19 @@ static struct ravb_plat_data *ravb_parse_dt(struct device *dev)
 		of_property_read_bool(np, "renesas,no-ether-link");
 	pdata->ether_link_active_low =
 		of_property_read_bool(np, "renesas,ether-link-active-low");
+	of_property_read_u32(np, "renesas,phy", &pdata->phy);
+	of_property_read_u32(np, "renesas,phy_irq", &pdata->phy_irq);
+	gpio = of_get_named_gpio_flags(np, "phy-int-gpio", 0, &flags);
+	if (gpio_is_valid(gpio)) {
+		gpio_request_one(gpio,
+				 GPIOF_DIR_IN | GPIOF_EXPORT_DIR_FIXED,
+				 "AVB_phy_int");
+		pdata->phy_irq = gpio_to_irq(gpio);
+		if (flags & OF_GPIO_ACTIVE_LOW)
+			irq_set_irq_type(pdata->phy_irq, IRQ_TYPE_LEVEL_LOW);
+		else
+			irq_set_irq_type(pdata->phy_irq, IRQ_TYPE_LEVEL_HIGH);
+	}
 
 	return pdata;
 }
