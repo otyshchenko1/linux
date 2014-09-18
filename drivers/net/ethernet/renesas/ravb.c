@@ -169,11 +169,15 @@ static const u16 ravb_offset_rcar_gen2[RAVB_MAX_REGISTER_OFFSET] = {
 	[GMTT] 0x0394,
 	[GPTC] = 0x0398,
 	[GTI] = 0x039C,
-	[GTO] = 0x03A0,
+	[GTO0] = 0x03A0,
+	[GTO1] = 0x03A4,
+	[GTO2] = 0x03A8,
 	[GIC] = 0x03AC,
 	[GIS] = 0x03B0,
 	[GCPT] = 0x03B4,
-	[GCT] = 0x03B8,
+	[GCT0] = 0x03B8,
+	[GCT1] = 0x03BC,
+	[GCT2] = 0x03C0,
 
 	[ECMR]	= 0x0500,
 	[ECSR]	= 0x0510,
@@ -1549,6 +1553,9 @@ static int ravb_set_ringparam(struct net_device *ndev,
 static int ravb_get_ts_info(struct net_device *ndev,
 			    struct ethtool_ts_info *info)
 {
+	struct ravb_private *mdp = netdev_priv(ndev);
+	struct ravb_ptp *ptp = mdp->ptp;
+
 	info->so_timestamping =
 		SOF_TIMESTAMPING_TX_SOFTWARE |
 		SOF_TIMESTAMPING_RX_SOFTWARE |
@@ -1563,8 +1570,10 @@ static int ravb_get_ts_info(struct net_device *ndev,
 		(1 << HWTSTAMP_FILTER_NONE) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
 		(1 << HWTSTAMP_FILTER_ALL);
-	/* TODO need to set ptp clock device index */
-	info->phc_index = -1;
+	if (ptp)
+		info->phc_index = ptp_clock_index(ptp->clock);
+	else
+		info->phc_index = -1;
 
 	return 0;
 }
@@ -2116,6 +2125,7 @@ static int ravb_drv_probe(struct platform_device *pdev)
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	mdp = netdev_priv(ndev);
+	mdp->ndev = ndev;
 	mdp->num_tx_ring[RAVB_BE] = BE_TX_RING_SIZE;
 	mdp->num_rx_ring[RAVB_BE] = BE_RX_RING_SIZE;
 	mdp->num_tx_ring[RAVB_NC] = NC_TX_RING_SIZE;
@@ -2222,6 +2232,9 @@ static int ravb_drv_probe(struct platform_device *pdev)
 	/* initialise HW timestamp list */
 	INIT_LIST_HEAD(&mdp->ts_skb_head);
 
+	/* initialise PTP Clock driver */
+	ravb_ptp_init(ndev, pdev);
+
 	/* debug message level */
 	mdp->msg_enable = RAVB_DEF_MSG_ENABLE;
 
@@ -2262,6 +2275,8 @@ out_napi_del:
 			  mdp->desc_bat_sz, mdp->desc_bat, mdp->desc_bat_dma);
 
 out_release:
+	/* stop PTP Clock driver */
+	ravb_ptp_stop(ndev, pdev);
 	/* net_dev free */
 	if (ndev)
 		free_netdev(ndev);
@@ -2275,6 +2290,9 @@ static int ravb_drv_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct ravb_private *mdp = netdev_priv(ndev);
+
+	/* stop PTP Clock driver */
+	ravb_ptp_stop(ndev, pdev);
 
 	dma_free_coherent(NULL, mdp->desc_bat_sz, mdp->desc_bat,
 			  mdp->desc_bat_dma);

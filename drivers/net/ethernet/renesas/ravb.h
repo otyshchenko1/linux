@@ -21,6 +21,9 @@
 #define __RAVB_H__
 
 #include <linux/list.h>
+#include <linux/netdevice.h>
+#include <linux/phy.h>
+#include <linux/ptp_clock_kernel.h>
 
 #define CARDNAME	"ravb"
 #define TX_TIMEOUT	(5*HZ)
@@ -152,11 +155,15 @@ enum {
 	GMTT,
 	GPTC,
 	GTI,
-	GTO,
+	GTO0,
+	GTO1,
+	GTO2,
 	GIC,
 	GIS,
 	GCPT,
-	GCT,
+	GCT0,
+	GCT1,
+	GCT2,
 
 	/* Ether registers */
 	ECMR,
@@ -839,6 +846,15 @@ struct ravb_tstamp_skb {
 	struct list_head list;
 };
 
+struct ravb_ptp {
+	struct net_device *ndev;
+	spinlock_t lock; /* protects regs */
+	struct ptp_clock *clock;
+	struct ptp_clock_info caps;
+	u32 default_addend;
+	int irq;
+};
+
 /* This structure is used by each CPU dependency handling. */
 struct ravb_cpu_data {
 	/* optional functions */
@@ -868,6 +884,7 @@ struct ravb_cpu_data {
 };
 
 struct ravb_private {
+	struct net_device *ndev;
 	struct platform_device *pdev;
 	struct ravb_cpu_data *cd;
 	const u16 *reg_offset;
@@ -891,6 +908,7 @@ struct ravb_private {
 	u32 tstamp_rx_ctrl;
 	struct list_head ts_skb_head;
 	u32 ts_skb_tag;
+	struct ravb_ptp *ptp;
 	spinlock_t lock;		/* Register access lock */
 	u32 cur_rx[NUM_RX_QUEUE];	/* Consumer ring indices */
 	u32 dirty_rx[NUM_RX_QUEUE];	/* Producer ring indices */
@@ -942,5 +960,23 @@ static inline unsigned long ravb_read(struct net_device *ndev,
 
 	return ioread32(mdp->addr + mdp->reg_offset[enum_index]);
 }
+
+#if defined(CONFIG_PTP_1588_CLOCK_RAVB)
+extern int ravb_ptp_init(struct net_device *ndev,
+			 struct platform_device *pdev);
+extern int ravb_ptp_stop(struct net_device *ndev,
+			 struct platform_device *pdev);
+#else
+static inline int ravb_ptp_init(struct net_device *ndev,
+			 struct platform_device *pdev)
+{
+	return 0;
+}
+static inline int ravb_ptp_stop(struct net_device *ndev,
+			 struct platform_device *pdev)
+{
+	return 0;
+}
+#endif
 
 #endif	/* #ifndef __RAVB_H__ */
