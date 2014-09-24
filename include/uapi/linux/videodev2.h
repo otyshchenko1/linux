@@ -105,6 +105,7 @@ enum v4l2_field {
 					 transmitted first */
 	V4L2_FIELD_PICONV_DIVIDE = 10,
 	V4L2_FIELD_PICONV_EXTRACT = 11,
+	V4L2_FIELD_PICONV_COMPOSITE = 12,
 };
 #define V4L2_FIELD_HAS_TOP(field)	\
 	((field) == V4L2_FIELD_TOP 	||\
@@ -126,6 +127,10 @@ enum v4l2_field {
 	 (field) == V4L2_FIELD_INTERLACED_BT ||\
 	 (field) == V4L2_FIELD_SEQ_TB ||\
 	 (field) == V4L2_FIELD_SEQ_BT)
+#define V4L2_FIELD_IS_PICONV(field)	\
+	((field) == V4L2_FIELD_PICONV_DIVIDE ||\
+	 (field) == V4L2_FIELD_PICONV_EXTRACT ||\
+	 (field) == V4L2_FIELD_PICONV_COMPOSITE)
 
 enum v4l2_buf_type {
 	V4L2_BUF_TYPE_VIDEO_CAPTURE        = 1,

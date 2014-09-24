@@ -621,7 +621,7 @@ static bool vsp1_pipeline_ready(struct vsp1_pipeline *pipe)
  * Return the next queued buffer or NULL if the queue is empty.
  */
 static struct vsp1_video_buffer *
-vsp1_video_complete_buffer(struct vsp1_video *video)
+vsp1_video_complete_buffer(struct vsp1_video *video, bool is_input)
 {
 	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&video->video.entity);
 	struct vsp1_video_buffer *next = NULL;
@@ -644,26 +644,40 @@ vsp1_video_complete_buffer(struct vsp1_video *video)
 	if (!list_is_singular(&video->irqqueue))
 		next = list_entry(done->queue.next,
 					struct vsp1_video_buffer, queue);
-	else if (pipe->lif) {
-		/* In DU output mode reuse the buffer
-		* if the list is singular. */
+	else if (pipe->lif
+		|| video->format.field == V4L2_FIELD_PICONV_COMPOSITE) {
+		/* Reuse the buffer if the list is singular. */
 		spin_unlock_irqrestore(&video->irqlock, flags);
 		return done;
 	}
 
-	if (video->format.field == V4L2_FIELD_PICONV_DIVIDE) {
+	if (video->format.field == V4L2_FIELD_PICONV_DIVIDE
+		|| (video->format.field == V4L2_FIELD_PICONV_COMPOSITE
+		&& !is_input)) {
 		if (vsp1->display_field == V4L2_FIELD_BOTTOM) {
-			/* In DU output mode reuse the buffer
-			 * if DU's field is Bottom in DIVIDE mode. */
+			/* Use the bottom field of the buffer
+			 * under the following conditions.
+			 * (1) In DU output mode, PI conversion mode
+			 *     is DIVIDE mode.
+			 * (2) In memory output mode, PI conversion mode
+			 *     is COMPOSITE mode, and the buffer
+			 *     is for output. */
 			spin_unlock_irqrestore(&video->irqlock, flags);
 			return done;
 		}
 	}
 
-	if (video->format.field == V4L2_FIELD_PICONV_EXTRACT) {
+	if (video->format.field == V4L2_FIELD_PICONV_EXTRACT
+		|| (video->format.field == V4L2_FIELD_PICONV_COMPOSITE
+		&& is_input)) {
 		if (vsp1->display_field != next->buf.v4l2_buf.field) {
-			/* In DU output mode reuse the buffer
-			 * if DU's field is not next buffer's field. */
+			/* Reuse the buffer under the following conditions
+			 * (1) DU's field differs form the next buffer's field.
+			 * (2) In DU output mode, PI conversion mode
+			 *     is EXTRACT mode.
+			 * (3) In memory output mode, PI conversion mode
+			 *     is COMPOSITE mode, and the buffer
+			 *     is for input. */
 			spin_unlock_irqrestore(&video->irqlock, flags);
 			return done;
 		}
@@ -683,12 +697,13 @@ vsp1_video_complete_buffer(struct vsp1_video *video)
 }
 
 static void vsp1_video_frame_end(struct vsp1_pipeline *pipe,
-				 struct vsp1_video *video)
+				 struct vsp1_video *video,
+				 bool is_input)
 {
 	struct vsp1_video_buffer *buf;
 	unsigned long flags;
 
-	buf = vsp1_video_complete_buffer(video);
+	buf = vsp1_video_complete_buffer(video, is_input);
 	if (buf == NULL)
 		return;
 
@@ -713,10 +728,10 @@ void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe)
 
 	/* Complete buffers on all video nodes. */
 	for (i = 0; i < pipe->num_inputs; ++i)
-		vsp1_video_frame_end(pipe, &pipe->inputs[i]->video);
+		vsp1_video_frame_end(pipe, &pipe->inputs[i]->video, true);
 
 	if (!pipe->lif)
-		vsp1_video_frame_end(pipe, &pipe->output->video);
+		vsp1_video_frame_end(pipe, &pipe->output->video, false);
 
 	spin_lock_irqsave(&pipe->irqlock, flags);
 
@@ -940,14 +955,13 @@ static void vsp1_video_buffer_queue(struct vb2_buffer *vb)
 	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
 	unsigned long flags;
 	bool empty;
-	struct vsp1_rwpf *rpf = container_of(video, struct vsp1_rwpf, video);
+	struct vsp1_rwpf *rwpf = container_of(video, struct vsp1_rwpf, video);
 	int duch;
 
 	spin_lock_irqsave(&video->irqlock, flags);
 	empty = list_empty(&video->irqqueue);
-	if (video->format.field == V4L2_FIELD_PICONV_DIVIDE
-		|| video->format.field == V4L2_FIELD_PICONV_EXTRACT)
-			vsp1_video_set_bottom(buf, &rpf->video.format);
+	if (V4L2_FIELD_IS_PICONV(video->format.field))
+		vsp1_video_set_bottom(buf, &rwpf->video.format);
 	vsp1_set_cropupdate(video, buf);
 	list_add_tail(&buf->queue, &video->irqqueue);
 	spin_unlock_irqrestore(&video->irqlock, flags);
@@ -955,9 +969,10 @@ static void vsp1_video_buffer_queue(struct vb2_buffer *vb)
 	if (!empty)
 		return;
 
+	vsp1->display_field = V4L2_FIELD_TOP;
+
 	if (video->format.field == V4L2_FIELD_PICONV_DIVIDE
 		|| video->format.field == V4L2_FIELD_PICONV_EXTRACT) {
-		vsp1->display_field = V4L2_FIELD_TOP;
 		duch = vsp1_get_du_channel(vsp1->id);
 		if (duch != DU_CH_NONE) {
 			vsp1_sync_du(duch, 0, 1000);

@@ -81,6 +81,9 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	u32 srcrpf = 0;
 	u32 outfmt = 0;
 	int ret;
+	u32 stride_y = 0;
+	u32 stride_c = 0;
+	u32 height = crop->height;
 
 	ret = vsp1_entity_set_streaming(&wpf->entity, enable);
 	if (ret < 0)
@@ -113,11 +116,20 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	if (!pipe->lif) {
 		struct v4l2_pix_format_mplane *format = &wpf->video.format;
 
+		stride_y = format->plane_fmt[0].bytesperline;
+		if (format->num_planes > 1)
+			stride_c = format->plane_fmt[1].bytesperline;
+		if (format->field == V4L2_FIELD_PICONV_COMPOSITE) {
+			stride_y = stride_y * 2;
+			stride_c = stride_c * 2;
+			height = height / 2;
+		}
+
 		vsp1_wpf_write(wpf, VI6_WPF_DSTM_STRIDE_Y,
-			       format->plane_fmt[0].bytesperline);
+			       stride_y);
 		if (format->num_planes > 1)
 			vsp1_wpf_write(wpf, VI6_WPF_DSTM_STRIDE_C,
-				       format->plane_fmt[1].bytesperline);
+				       stride_c);
 	}
 
 	vsp1_wpf_write(wpf, VI6_WPF_HSZCLIP, VI6_WPF_SZCLIP_EN |
@@ -125,7 +137,7 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 		       (crop->width << VI6_WPF_SZCLIP_SIZE_SHIFT));
 	vsp1_wpf_write(wpf, VI6_WPF_VSZCLIP, VI6_WPF_SZCLIP_EN |
 		       (crop->top << VI6_WPF_SZCLIP_OFST_SHIFT) |
-		       (crop->height << VI6_WPF_SZCLIP_SIZE_SHIFT));
+		       (height << VI6_WPF_SZCLIP_SIZE_SHIFT));
 
 	/* Format */
 	if (!pipe->lif) {
@@ -198,12 +210,25 @@ static void wpf_vdev_queue(struct vsp1_video *video,
 			   struct vsp1_video_buffer *buf)
 {
 	struct vsp1_rwpf *wpf = container_of(video, struct vsp1_rwpf, video);
+	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&video->video.entity);
+	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
 
-	vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_Y, buf->addr[0]);
-	if (buf->buf.num_planes > 1)
-		vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_C0, buf->addr[1]);
-	if (buf->buf.num_planes > 2)
-		vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_C1, buf->addr[2]);
+	if (video->format.field == V4L2_FIELD_PICONV_COMPOSITE
+		&& vsp1->display_field == V4L2_FIELD_BOTTOM) {
+		vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_Y, buf->addr_btm[0]);
+		if (buf->buf.num_planes > 1)
+			vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_C0,
+						   buf->addr_btm[1]);
+		if (buf->buf.num_planes > 2)
+			vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_C1,
+						   buf->addr_btm[2]);
+	} else {
+		vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_Y, buf->addr[0]);
+		if (buf->buf.num_planes > 1)
+			vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_C0, buf->addr[1]);
+		if (buf->buf.num_planes > 2)
+			vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_C1, buf->addr[2]);
+	}
 }
 
 static const struct vsp1_video_operations wpf_vdev_ops = {
