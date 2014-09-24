@@ -55,6 +55,12 @@ enum vsp1_pipeline_state {
 	VSP1_PIPELINE_STOPPING,
 };
 
+enum vsp1_update_crop_state {
+	VSP1_UPDATE_CROP_NORMAL,
+	VSP1_UPDATE_CROP_REQUESTED,
+	VSP1_UPDATE_CROP_UPDATE,
+};
+
 /*
  * struct vsp1_pipeline - A VSP1 hardware pipeline
  * @media: the media pipeline
@@ -102,6 +108,8 @@ struct vsp1_video_buffer {
 	unsigned int length[3];
 
 	dma_addr_t addr_btm[3];
+
+	bool update_reg;
 };
 
 static inline struct vsp1_video_buffer *
@@ -136,6 +144,8 @@ struct vsp1_video {
 	spinlock_t irqlock;
 	struct list_head irqqueue;
 	unsigned int sequence;
+
+	int update_crop;
 };
 
 static inline struct vsp1_video *to_vsp1_video(struct video_device *vdev)
