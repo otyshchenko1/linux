@@ -16,8 +16,12 @@
 #include <linux/mutex.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 #include <linux/v4l2-mediabus.h>
 #include <linux/videodev2.h>
+#if IS_ENABLED(CONFIG_DRM)
+#include <linux/rcar-du-frm-interface.h>
+#endif
 
 #include <media/media-entity.h>
 #include <media/v4l2-dev.h>
@@ -42,6 +46,34 @@
 #define VSP1_VIDEO_MAX_WIDTH		8190U
 #define VSP1_VIDEO_MIN_HEIGHT		2U
 #define VSP1_VIDEO_MAX_HEIGHT		8190U
+
+/* DU Registers */
+#define PLANEREG0_PLN1_ADDR			0xFEB00190
+#define PLANEREG0_PLN2_ADDR			0xFEB00290
+#define PLANEREG2_PLN1_ADDR			0xFEB40190
+#define PRIOREG_ADDR				0xFEB11020
+
+#define PLANEREG_PNVSPS				0x2000
+#define PLANE_NO_1					0x0001
+#define PLANE_NO_2					0x0002
+
+/* Product Registers */
+#define PRR_ADDRESS					0xFF000044
+#define PRODUCT_ID_H2				0x4500
+#define PRODUCT_MASK				0x7F00
+
+/* DU channel ID */
+#define DU_CH_NONE					-1
+#define DU_CH_0						0
+#define DU_CH_1						1
+#define DU_CH_2						2
+
+/* VSPD channel ID */
+#define VSPD_CH_ID_1				2
+#define VSPD_CH_ID_2				3
+
+/* size of register */
+#define REG_SIZE					0x04
 
 /* -----------------------------------------------------------------------------
  * Helper functions
@@ -232,7 +264,6 @@ static int __vsp1_video_try_format(struct vsp1_video *video,
 
 	pix->pixelformat = info->fourcc;
 	pix->colorspace = V4L2_COLORSPACE_SRGB;
-	pix->field = V4L2_FIELD_NONE;
 	memset(pix->reserved, 0, sizeof(pix->reserved));
 
 	/* Align the width and height for YUV 4:2:2 and 4:2:0 formats. */
@@ -573,6 +604,8 @@ vsp1_video_complete_buffer(struct vsp1_video *video)
 	struct vsp1_video_buffer *done;
 	unsigned long flags;
 	unsigned int i;
+	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
+
 
 	spin_lock_irqsave(&video->irqlock, flags);
 
@@ -584,17 +617,35 @@ vsp1_video_complete_buffer(struct vsp1_video *video)
 	done = list_first_entry(&video->irqqueue,
 				struct vsp1_video_buffer, queue);
 
-	/* In DU output mode reuse the buffer if the list is singular. */
-	if (pipe->lif && list_is_singular(&video->irqqueue)) {
+	if (!list_is_singular(&video->irqqueue))
+		next = list_entry(done->queue.next,
+					struct vsp1_video_buffer, queue);
+	else if (pipe->lif) {
+		/* In DU output mode reuse the buffer
+		 * if the list is singular. */
 		spin_unlock_irqrestore(&video->irqlock, flags);
 		return done;
 	}
 
-	list_del(&done->queue);
+	if (video->format.field == V4L2_FIELD_PICONV_DIVIDE) {
+		if (vsp1->display_field == V4L2_FIELD_BOTTOM) {
+			/* In DU output mode reuse the buffer
+			 * if DU's field is Bottom in DIVIDE mode. */
+			spin_unlock_irqrestore(&video->irqlock, flags);
+			return done;
+		}
+	}
 
-	if (!list_empty(&video->irqqueue))
-		next = list_first_entry(&video->irqqueue,
-					struct vsp1_video_buffer, queue);
+	if (video->format.field == V4L2_FIELD_PICONV_EXTRACT) {
+		if (vsp1->display_field != next->buf.v4l2_buf.field) {
+			/* In DU output mode reuse the buffer
+			 * if DU's field is not next buffer's field. */
+			spin_unlock_irqrestore(&video->irqlock, flags);
+			return done;
+		}
+	}
+
+	list_del(&done->queue);
 
 	spin_unlock_irqrestore(&video->irqlock, flags);
 
@@ -762,21 +813,130 @@ static int vsp1_video_buffer_prepare(struct vb2_buffer *vb)
 	return 0;
 }
 
+static void vsp1_video_set_bottom(struct vsp1_video_buffer *buf,
+		     struct v4l2_pix_format_mplane *format)
+{
+	int index = 0;
+
+	for (index = 0; index < buf->buf.num_planes; index++)
+		buf->addr_btm[index] = buf->addr[index]
+			+ format->plane_fmt[index].bytesperline;
+}
+
+static int vsp1_get_du_channel(int id)
+{
+	void __iomem *planereg;
+	void __iomem *prioreg;
+	void __iomem *ppr;
+	u32 product_id;
+	u32 val;
+	u32 mask = 0x0000000F;
+	bool isDU0 = false;
+	int ret = DU_CH_NONE;
+	int planeno;
+	int i;
+	u32 plnreg0;
+	u32 plnreg2;
+
+	switch (id) {
+	case VSPD_CH_ID_1:
+		planeno = PLANE_NO_1;
+		plnreg0 = PLANEREG0_PLN1_ADDR;
+		break;
+	case VSPD_CH_ID_2:
+		planeno = PLANE_NO_2;
+		plnreg0 = PLANEREG0_PLN2_ADDR;
+		plnreg2 = PLANEREG2_PLN1_ADDR;
+		break;
+	default:
+		/* Return if the device is not VSPD */
+		return DU_CH_NONE;
+	}
+	/* Check connect VSP and DU (PnDDC4R0) */
+	planereg = ioremap_nocache(plnreg0, REG_SIZE);
+	val = ioread32(planereg) & PLANEREG_PNVSPS;
+	iounmap(planereg);
+	if (val != 0x0) {
+		/* check connect DU0 or DU1 (DS0PR0.S0Sx)*/
+		prioreg = ioremap_nocache(PRIOREG_ADDR, REG_SIZE);
+		val = ioread32(prioreg);
+		iounmap(prioreg);
+		for (i = 0; i < 8; i++) {
+			if ((val & mask) == planeno) {
+				isDU0 = true;
+				break;
+			}
+			val = val >> 4;
+		}
+		if (isDU0)
+			/*connect DU0*/
+			ret = DU_CH_0;
+		else
+			/*connect DU1*/
+			ret = DU_CH_1;
+	} else {
+		/* Check connect VSP and DU (PnDDC4R2, H2 only.) */
+		ppr = ioremap_nocache(PRR_ADDRESS, REG_SIZE);
+		product_id = ioread32(ppr) & PRODUCT_MASK;
+		iounmap(ppr);
+		if (product_id == PRODUCT_ID_H2 && id == VSPD_CH_ID_2) {
+			planereg = ioremap_nocache(plnreg2, REG_SIZE);
+			val = ioread32(planereg) & PLANEREG_PNVSPS;
+			iounmap(planereg);
+			if (val != 0x0)
+				/*connect DU2*/
+				ret = DU_CH_2;
+		}
+	}
+
+	return ret;
+}
+
+static void vsp1_sync_du(int duch, int target, int limit)
+{
+	int cnt;
+	int frm;
+	for (cnt = 0; cnt < limit; cnt++) {
+#if IS_ENABLED(CONFIG_DRM)
+		frm = rcar_du_get_frmend(duch);
+#endif
+		if (frm == target)
+			break;
+		usleep_range(100, 200);
+	}
+}
+
 static void vsp1_video_buffer_queue(struct vb2_buffer *vb)
 {
 	struct vsp1_video *video = vb2_get_drv_priv(vb->vb2_queue);
 	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&video->video.entity);
 	struct vsp1_video_buffer *buf = to_vsp1_video_buffer(vb);
+	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
 	unsigned long flags;
 	bool empty;
+	struct vsp1_rwpf *rpf = container_of(video, struct vsp1_rwpf, video);
+	int duch;
 
 	spin_lock_irqsave(&video->irqlock, flags);
 	empty = list_empty(&video->irqqueue);
+	if (video->format.field == V4L2_FIELD_PICONV_DIVIDE
+		|| video->format.field == V4L2_FIELD_PICONV_EXTRACT)
+			vsp1_video_set_bottom(buf, &rpf->video.format);
 	list_add_tail(&buf->queue, &video->irqqueue);
 	spin_unlock_irqrestore(&video->irqlock, flags);
 
 	if (!empty)
 		return;
+
+	if (video->format.field == V4L2_FIELD_PICONV_DIVIDE
+		|| video->format.field == V4L2_FIELD_PICONV_EXTRACT) {
+		vsp1->display_field = V4L2_FIELD_TOP;
+		duch = vsp1_get_du_channel(vsp1->id);
+		if (duch != DU_CH_NONE) {
+			vsp1_sync_du(duch, 0, 1000);
+			vsp1_sync_du(duch, 1, 1000);
+		}
+	}
 
 	spin_lock_irqsave(&pipe->irqlock, flags);
 

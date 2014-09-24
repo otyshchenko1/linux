@@ -64,6 +64,10 @@ struct vsp1_device {
 
 	struct v4l2_device v4l2_dev;
 	struct media_device media_dev;
+
+	int id;
+
+	unsigned int display_field;
 };
 
 int vsp1_device_get(struct vsp1_device *vsp1);

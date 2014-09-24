@@ -100,6 +100,8 @@ struct vsp1_video_buffer {
 
 	dma_addr_t addr[3];
 	unsigned int length[3];
+
+	dma_addr_t addr_btm[3];
 };
 
 static inline struct vsp1_video_buffer *

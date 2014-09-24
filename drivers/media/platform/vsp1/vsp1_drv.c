@@ -40,6 +40,16 @@ static irqreturn_t vsp1_irq_handler(int irq, void *data)
 	irqreturn_t ret = IRQ_NONE;
 	unsigned int i;
 
+	/* change display_field  Top - Bottom */
+	if (vsp1->display_field == V4L2_FIELD_TOP)
+		vsp1->display_field = V4L2_FIELD_BOTTOM;
+	else if (vsp1->display_field == V4L2_FIELD_BOTTOM)
+		vsp1->display_field = V4L2_FIELD_TOP;
+	else {
+		WARN_ON(1);
+		dev_warn(vsp1->dev, "unknown display field.\n");
+	}
+
 	for (i = 0; i < vsp1->pdata->wpf_count; ++i) {
 		struct vsp1_rwpf *wpf = vsp1->wpf[i];
 		struct vsp1_pipeline *pipe;
@@ -538,6 +548,12 @@ static int vsp1_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to create entities\n");
 		return ret;
 	}
+
+	/* Initialize display_field */
+	vsp1->display_field = V4L2_FIELD_TOP;
+
+	/* get channel ID*/
+	vsp1->id = pdev->id;
 
 	platform_set_drvdata(pdev, vsp1);
 

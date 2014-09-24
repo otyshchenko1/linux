@@ -81,6 +81,9 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	u32 pstride;
 	u32 infmt;
 	int ret;
+	u32 stride_y = 0;
+	u32 stride_c = 0;
+	u32 height = 0;
 
 	ret = vsp1_entity_set_streaming(&rpf->entity, enable);
 	if (ret < 0)
@@ -95,22 +98,31 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	 * left corner in the plane buffer. Only two offsets are needed, as
 	 * planes 2 and 3 always have identical strides.
 	 */
+	stride_y = format->plane_fmt[0].bytesperline;
+	height = crop->height;
+	if (format->num_planes > 1)
+		stride_c = format->plane_fmt[1].bytesperline;
+
+	if (format->field == V4L2_FIELD_PICONV_DIVIDE
+		|| format->field == V4L2_FIELD_PICONV_EXTRACT) {
+		stride_y = stride_y * 2;
+		stride_c = stride_c * 2;
+		height = height / 2;
+	}
 	vsp1_rpf_write(rpf, VI6_RPF_SRC_BSIZE,
 		       (crop->width << VI6_RPF_SRC_BSIZE_BHSIZE_SHIFT) |
-		       (crop->height << VI6_RPF_SRC_BSIZE_BVSIZE_SHIFT));
+		       (height << VI6_RPF_SRC_BSIZE_BVSIZE_SHIFT));
 	vsp1_rpf_write(rpf, VI6_RPF_SRC_ESIZE,
 		       (crop->width << VI6_RPF_SRC_ESIZE_EHSIZE_SHIFT) |
-		       (crop->height << VI6_RPF_SRC_ESIZE_EVSIZE_SHIFT));
+		       (height << VI6_RPF_SRC_ESIZE_EVSIZE_SHIFT));
 
-	rpf->offsets[0] = crop->top * format->plane_fmt[0].bytesperline
+	rpf->offsets[0] = crop->top * stride_y
 			+ crop->left * fmtinfo->bpp[0] / 8;
-	pstride = format->plane_fmt[0].bytesperline
-		<< VI6_RPF_SRCM_PSTRIDE_Y_SHIFT;
+	pstride = stride_y << VI6_RPF_SRCM_PSTRIDE_Y_SHIFT;
 	if (format->num_planes > 1) {
-		rpf->offsets[1] = crop->top * format->plane_fmt[1].bytesperline
+		rpf->offsets[1] = crop->top * stride_c
 				+ crop->left * fmtinfo->bpp[1] / 8;
-		pstride |= format->plane_fmt[1].bytesperline
-			<< VI6_RPF_SRCM_PSTRIDE_C_SHIFT;
+		pstride |= stride_c << VI6_RPF_SRCM_PSTRIDE_C_SHIFT;
 	}
 
 	vsp1_rpf_write(rpf, VI6_RPF_SRCM_PSTRIDE, pstride);
@@ -179,15 +191,30 @@ static void rpf_vdev_queue(struct vsp1_video *video,
 			   struct vsp1_video_buffer *buf)
 {
 	struct vsp1_rwpf *rpf = container_of(video, struct vsp1_rwpf, video);
+	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&video->video.entity);
+	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
 
-	vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_Y,
-		       buf->addr[0] + rpf->offsets[0]);
-	if (buf->buf.num_planes > 1)
-		vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C0,
-			       buf->addr[1] + rpf->offsets[1]);
-	if (buf->buf.num_planes > 2)
-		vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C1,
-			       buf->addr[2] + rpf->offsets[1]);
+	if ((video->format.field == V4L2_FIELD_PICONV_DIVIDE
+		|| video->format.field == V4L2_FIELD_PICONV_EXTRACT)
+		&& vsp1->display_field == V4L2_FIELD_BOTTOM) {
+		vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_Y,
+			       buf->addr_btm[0] + rpf->offsets[0]);
+		if (buf->buf.num_planes > 1)
+			vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C0,
+				       buf->addr_btm[1] + rpf->offsets[1]);
+		if (buf->buf.num_planes > 2)
+			vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C1,
+				       buf->addr_btm[2] + rpf->offsets[1]);
+	} else {
+		vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_Y,
+			       buf->addr[0] + rpf->offsets[0]);
+		if (buf->buf.num_planes > 1)
+			vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C0,
+				       buf->addr[1] + rpf->offsets[1]);
+		if (buf->buf.num_planes > 2)
+			vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C1,
+				       buf->addr[2] + rpf->offsets[1]);
+	}
 }
 
 static const struct vsp1_video_operations rpf_vdev_ops = {
