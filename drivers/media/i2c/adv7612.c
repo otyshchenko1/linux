@@ -59,6 +59,9 @@
 #define ADV7612_IO_PWR_ON		0x42	/* Power on */
 #define ADV7612_IO_PWR_OFF		0x62	/* Power down */
 
+#define ADV7612_HDMI_DDC_PWRDN	0x73	/* Power DDC pads control register */
+#define ADV7612_HDMI_DDC_PWR_ON		0x00	/* Power on */
+#define ADV7612_HDMI_DDC_PWR_OFF	0x01	/* Power down */
 
 /****************************************/
 /* ADV7612 CP register definition       */
@@ -1343,6 +1346,9 @@ static int adv7612_suspend(struct i2c_client *client, pm_message_t state)
 	ret = adv7612_write_register(client, ADV7612_I2C_IO,
 				ADV7612_IO_PWR_MAN_REG, ADV7612_IO_PWR_OFF);
 
+	/* Power down all DDC pads */
+	ret = adv7612_write_register(client, ADV7612_I2C_HDMI,
+			ADV7612_HDMI_DDC_PWRDN, ADV7612_HDMI_DDC_PWR_OFF);
 	return ret;
 }
 
@@ -1360,6 +1366,10 @@ static int adv7612_resume(struct i2c_client *client)
 				ADV7612_IO_PWR_MAN_REG, ADV7612_IO_PWR_ON);
 	if (ret < 0)
 		return ret;
+
+	/* Power up all DDC pads */
+	ret = adv7612_write_register(client, ADV7612_I2C_HDMI,
+			ADV7612_HDMI_DDC_PWRDN, ADV7612_HDMI_DDC_PWR_ON);
 
 	/* Initializes AVD7612 to its default values */
 	ret = adv7612_write_registers(client, adv7612_init_defaults);
