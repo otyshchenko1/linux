@@ -2071,6 +2071,11 @@ static struct ravb_plat_data *ravb_parse_dt(struct device *dev)
 		else
 			irq_set_irq_type(pdata->phy_irq, IRQ_TYPE_LEVEL_HIGH);
 	}
+	gpio = of_get_named_gpio(np, "phy-reset-gpio", 0);
+	if (gpio_is_valid(gpio))
+		gpio_request_one(gpio,
+				 GPIOF_OUT_INIT_HIGH | GPIOF_EXPORT_DIR_FIXED,
+				 "AVB_phy_reset");
 
 	return pdata;
 }
