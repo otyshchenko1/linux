@@ -94,7 +94,7 @@
 #define VNMC_INF_YUV8_BT601	(1 << 16)
 #define VNMC_INF_YUV16		(5 << 16)
 #define VNMC_INF_RGB888		(6 << 16)
-#define VNMC_INF_RGB_MASK	(6 << 16)
+#define VNMC_INF_MASK		(7 << 16)
 #define VNMC_VUP		(1 << 10)
 #define VNMC_IM_ODD		(0 << 3)
 #define VNMC_IM_ODD_EVEN	(1 << 3)
@@ -675,7 +675,7 @@ static int rcar_vin_setup(struct rcar_vin_priv *priv)
 	if (output_is_yuv)
 		vnmc |= VNMC_BPS;
 
-	if (vnmc & VNMC_INF_RGB_MASK)
+	if ((vnmc & VNMC_INF_MASK) == VNMC_INF_RGB888)
 		vnmc ^= VNMC_BPS;
 
 	/* progressive or interlaced mode */
