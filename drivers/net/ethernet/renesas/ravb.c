@@ -2077,6 +2077,7 @@ static struct ravb_plat_data *ravb_parse_dt(struct device *dev)
 
 static const struct of_device_id ravb_match_table[] = {
 	{ .compatible = "renesas,gether-r8a7790", .data = &r8a779x_data_giga },
+	{ .compatible = "renesas,gether-r8a7794", .data = &r8a779x_data_giga },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ravb_match_table);
@@ -2335,6 +2336,7 @@ static const struct dev_pm_ops ravb_dev_pm_ops = {
 
 static struct platform_device_id ravb_id_table[] = {
 	{ "r8a7790-gether", (kernel_ulong_t)&r8a779x_data_giga },
+	{ "r8a7794-gether", (kernel_ulong_t)&r8a779x_data_giga },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, ravb_id_table);
