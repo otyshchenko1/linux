@@ -143,8 +143,8 @@ static struct rsnd_ssi_platform_info rsnd_ssi[] = {
 };
 
 static struct rsnd_src_platform_info rsnd_src[2] = {
-	RSND_SRC(0, AUDIO_DMAC_SLAVE_SCU0_TX),
-	RSND_SRC(0, AUDIO_DMAC_SLAVE_CMD1_TO_MEM),
+	RSND_SRC(0, AUDIO_DMAC_SLAVE_SCU0_TX, gic_spi(352)),
+	RSND_SRC(0, AUDIO_DMAC_SLAVE_CMD1_TO_MEM, gic_spi(353)),
 };
 
 static struct rsnd_dvc_platform_info rsnd_dvc[2] = {
