@@ -14,6 +14,7 @@
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -91,6 +92,21 @@ enum rsnd_reg {
 	RSND_REG_SHARE20,
 	RSND_REG_SHARE21,
 	RSND_REG_SHARE22,
+	RSND_REG_SHARE23,
+	RSND_REG_SHARE24,
+	RSND_REG_SHARE25,
+	RSND_REG_SHARE26,
+	RSND_REG_SHARE27,
+	RSND_REG_SHARE28,
+	RSND_REG_SHARE29,
+	RSND_REG_SHARE30,
+	RSND_REG_SHARE31,
+	RSND_REG_SHARE32,
+	RSND_REG_SHARE33,
+	RSND_REG_SHARE34,
+	RSND_REG_SHARE35,
+	RSND_REG_SHARE36,
+	RSND_REG_SHARE37,
 
 	RSND_REG_MAX,
 };
@@ -129,6 +145,21 @@ enum rsnd_reg {
 #define RSND_REG_CMD_CTRL		RSND_REG_SHARE20
 #define RSND_REG_CMDOUT_TIMSEL		RSND_REG_SHARE21
 #define RSND_REG_BUSIF_DALIGN		RSND_REG_SHARE22
+#define RSND_REG_STATUS			RSND_REG_SHARE23
+#define RSND_REG_SSI_SYS_STATUS0	RSND_REG_SHARE24
+#define RSND_REG_SSI_SYS_STATUS1	RSND_REG_SHARE25
+#define RSND_REG_SSI_SYS_STATUS2	RSND_REG_SHARE26
+#define RSND_REG_SSI_SYS_STATUS3	RSND_REG_SHARE27
+#define RSND_REG_SSI_SYS_INT_EN0	RSND_REG_SHARE28
+#define RSND_REG_SSI_SYS_INT_EN1	RSND_REG_SHARE29
+#define RSND_REG_SSI_SYS_INT_EN2	RSND_REG_SHARE30
+#define RSND_REG_SSI_SYS_INT_EN3	RSND_REG_SHARE31
+#define RSND_REG_SCU_SYS_STATUS0	RSND_REG_SHARE32
+#define RSND_REG_SCU_SYS_INT_EN0	RSND_REG_SHARE33
+#define RSND_REG_SCU_SYS_STATUS1	RSND_REG_SHARE34
+#define RSND_REG_SCU_SYS_INT_EN1	RSND_REG_SHARE35
+#define RSND_REG_SRC_STATUS		RSND_REG_SHARE36
+#define RSND_REG_SRC_INT_EN0		RSND_REG_SHARE37
 
 struct rsnd_of_data;
 struct rsnd_priv;
@@ -400,6 +431,12 @@ int rsnd_src_ssiu_stop(struct rsnd_mod *ssi_mod,
 		       int use_busif);
 int rsnd_src_enable_ssi_irq(struct rsnd_mod *ssi_mod,
 			    struct rsnd_dai *rdai);
+int rsnd_src_enable_dma_ssi_irq(struct rsnd_mod *ssi_mod,
+				struct rsnd_dai *rdai,
+				int use_busif);
+int rsnd_src_disable_dma_ssi_irq(struct rsnd_mod *ssi_mod,
+				 struct rsnd_dai *rdai,
+				 int use_busif);
 
 #define rsnd_src_nr(priv) ((priv)->src_nr)
 
