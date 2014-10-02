@@ -76,6 +76,7 @@
 		gpio-ranges = <&pfc 0 0 32>;
 		#interrupt-cells = <2>;
 		interrupt-controller;
+		clocks = <&mstp9_clks R8A7794_CLK_GPIO0>;
 	};
 
 	gpio1: gpio@e6051000 {
@@ -87,6 +88,7 @@
 		gpio-ranges = <&pfc 0 32 32>;
 		#interrupt-cells = <2>;
 		interrupt-controller;
+		clocks = <&mstp9_clks R8A7794_CLK_GPIO1>;
 	};
 
 	gpio2: gpio@e6052000 {
@@ -98,6 +100,7 @@
 		gpio-ranges = <&pfc 0 64 32>;
 		#interrupt-cells = <2>;
 		interrupt-controller;
+		clocks = <&mstp9_clks R8A7794_CLK_GPIO2>;
 	};
 
 	gpio3: gpio@e6053000 {
@@ -109,6 +112,7 @@
 		gpio-ranges = <&pfc 0 96 32>;
 		#interrupt-cells = <2>;
 		interrupt-controller;
+		clocks = <&mstp9_clks R8A7794_CLK_GPIO3>;
 	};
 
 	gpio4: gpio@e6054000 {
@@ -120,6 +124,7 @@
 		gpio-ranges = <&pfc 0 128 32>;
 		#interrupt-cells = <2>;
 		interrupt-controller;
+		clocks = <&mstp9_clks R8A7794_CLK_GPIO4>;
 	};
 
 	gpio5: gpio@e6055000 {
@@ -131,6 +136,7 @@
 		gpio-ranges = <&pfc 0 160 32>;
 		#interrupt-cells = <2>;
 		interrupt-controller;
+		clocks = <&mstp9_clks R8A7794_CLK_GPIO5>;
 	};
 
 	gpio6: gpio@e6055400 {
@@ -142,6 +148,7 @@
 		gpio-ranges = <&pfc 0 192 32>;
 		#interrupt-cells = <2>;
 		interrupt-controller;
+		clocks = <&mstp9_clks R8A7794_CLK_GPIO6>;
 	};
 
 	timer {
@@ -818,15 +825,21 @@
 		mstp9_clks: mstp9_clks@e6150994 {
 			compatible = "renesas,r8a7794-mstp-clocks", "renesas,cpg-mstp-clocks";
 			reg = <0 0xe6150994 0 4>, <0 0xe61509a4 0 4>;
-			clocks = <&cpg_clocks R8A7794_CLK_QSPI>, <&hp_clk>, <&hp_clk>,
+			clocks = <&cp_clk>, <&cp_clk>, <&cp_clk>,
+				 <&cp_clk>, <&cp_clk>, <&cp_clk>,
+				 <&cpg_clocks R8A7794_CLK_QSPI>, <&hp_clk>, <&hp_clk>,
 				 <&hp_clk>, <&hp_clk>, <&hp_clk>, <&hp_clk>;
 			#clock-cells = <1>;
 			renesas,clock-indices = <
+				R8A7794_CLK_GPIO6 R8A7794_CLK_GPIO5 R8A7794_CLK_GPIO4
+				R8A7794_CLK_GPIO3 R8A7794_CLK_GPIO2 R8A7794_CLK_GPIO1
+				R8A7794_CLK_GPIO0
 				R8A7794_CLK_QSPI_MOD R8A7794_CLK_I2C5 R8A7794_CLK_I2C4
 				R8A7794_CLK_I2C3 R8A7794_CLK_I2C2 R8A7794_CLK_I2C1
 				R8A7794_CLK_I2C0
 			>;
 			clock-output-names =
+				"gpio6", "gpio5", "gpio4", "gpio3", "gpio2", "gpio1", "gpio0",
 				"qspi_mod", "i2c5", "i2c4", "i2c3", "i2c2", "i2c1", "i2c0";
 		};
 		mstp10_clks: mstp10_clks@e6150998 {
