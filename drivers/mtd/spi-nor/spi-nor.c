@@ -402,6 +402,7 @@ struct flash_info {
 #define	SECT_4K_PMC		0x10	/* SPINOR_OP_BE_4K_PMC works uniformly */
 #define	SPI_NOR_DUAL_READ	0x20    /* Flash supports Dual Read */
 #define	SPI_NOR_QUAD_READ	0x40    /* Flash supports Quad Read */
+#define	SPI_NOR_QUAD_PP		0x80    /* Flash supports Quad Page program */
 };
 
 #define INFO(_jedec_id, _ext_id, _sector_size, _n_sectors, _flags)	\
@@ -501,7 +502,8 @@ const struct spi_device_id spi_nor_ids[] = {
 	{ "s25sl064p",  INFO(0x010216, 0x4d00,  64 * 1024, 128, 0) },
 	{ "s25fl256s0", INFO(0x010219, 0x4d00, 256 * 1024, 128, 0) },
 	{ "s25fl256s1", INFO(0x010219, 0x4d01,  64 * 1024, 512, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
-	{ "s25fl512s",  INFO(0x010220, 0x4d00, 256 * 1024, 256, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
+	{ "s25fl512s",  INFO(0x010220, 0x4d00, 256 * 1024, 256,
+		SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_QUAD_PP) },
 	{ "s70fl01gs",  INFO(0x010221, 0x4d00, 256 * 1024, 256, 0) },
 	{ "s25sl12800", INFO(0x012018, 0x0300, 256 * 1024,  64, 0) },
 	{ "s25sl12801", INFO(0x012018, 0x0301,  64 * 1024, 256, 0) },
@@ -1011,6 +1013,11 @@ int spi_nor_scan(struct spi_nor *nor, const struct spi_device_id *id,
 		nor->flash_read = SPI_NOR_DUAL;
 	}
 
+	if (mode == SPI_NOR_QUAD && info->flags & SPI_NOR_QUAD_PP)
+		nor->flash_pp = SPI_NOR_QPP;
+	else
+		nor->flash_pp = SPI_NOR_PP;
+
 	/* Default commands */
 	switch (nor->flash_read) {
 	case SPI_NOR_QUAD:
@@ -1030,7 +1037,17 @@ int spi_nor_scan(struct spi_nor *nor, const struct spi_device_id *id,
 		return -EINVAL;
 	}
 
-	nor->program_opcode = SPINOR_OP_PP;
+	switch (nor->flash_pp) {
+	case SPI_NOR_QPP:
+		nor->program_opcode = SPINOR_OP_QPP;
+		break;
+	case SPI_NOR_PP:
+		nor->program_opcode = SPINOR_OP_PP;
+		break;
+	default:
+		dev_err(dev, "No Pqge program opcode defined\n");
+		return -EINVAL;
+	}
 
 	if (info->addr_width)
 		nor->addr_width = info->addr_width;
@@ -1053,7 +1070,14 @@ int spi_nor_scan(struct spi_nor *nor, const struct spi_device_id *id,
 				nor->read_opcode = SPINOR_OP_READ4;
 				break;
 			}
-			nor->program_opcode = SPINOR_OP_PP_4B;
+			switch (nor->flash_pp) {
+			case SPI_NOR_QPP:
+				nor->program_opcode = SPINOR_OP_QPP_4B;
+				break;
+			case SPI_NOR_PP:
+				nor->program_opcode = SPINOR_OP_PP_4B;
+				break;
+			}
 			/* No small sector erase for 4-byte command set */
 			nor->erase_opcode = SPINOR_OP_SE_4B;
 			mtd->erasesize = info->sector_size;
