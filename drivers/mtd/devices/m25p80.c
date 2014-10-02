@@ -76,6 +76,16 @@ static int m25p80_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len,
 	return spi_write(spi, flash->command, len + 1);
 }
 
+static inline unsigned int m25p80_tx_nbits(struct spi_nor *nor)
+{
+	switch (nor->flash_pp) {
+	case SPI_NOR_QPP:
+		return 4;
+	default:
+		return 0;
+	}
+}
+
 static void m25p80_write(struct spi_nor *nor, loff_t to, size_t len,
 			size_t *retlen, const u_char *buf)
 {
@@ -98,6 +108,7 @@ static void m25p80_write(struct spi_nor *nor, loff_t to, size_t len,
 	spi_message_add_tail(&t[0], &m);
 
 	t[1].tx_buf = buf;
+	t[1].tx_nbits = m25p80_tx_nbits(nor);
 	t[1].len = len;
 	spi_message_add_tail(&t[1], &m);
 
