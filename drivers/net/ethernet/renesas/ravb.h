@@ -919,6 +919,9 @@ struct ravb_private {
 	struct napi_struct napi;
 	/* MII transceiver section. */
 	u32 phy_id;			/* PHY ID */
+	int phy_irq;			/* PHY irq number */
+	int *phy_ignore_pins;		/* Unused pins */
+	int num_phy_ignore_pins;	/* Number of unused pins */
 	struct mii_bus *mii_bus;	/* MDIO bus control */
 	struct phy_device *phydev;	/* PHY device control */
 	int link;

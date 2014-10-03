@@ -1226,6 +1226,53 @@ static void ravb_adjust_link(struct net_device *ndev)
 		phy_print_status(phydev);
 }
 
+/* PHY configuration for EEB-xxPHY and TSE-xxPHY board */
+#define PHY_ID_MASK		0xfffffff0
+#define PHY_ID_VSC8211		0x000fc4b0
+#define PHY_ID_BCM54810		0x03625d00
+#define PHY_ID_BCM89810		0x03625cc0
+static void ravb_phy_hack(struct net_device *ndev)
+{
+	struct ravb_private *mdp = netdev_priv(ndev);
+	unsigned long phy_id;
+	int ret, i, gpio;
+
+	phy_id = (phy_read(mdp->phydev, 0x2) << 16) |
+		 phy_read(mdp->phydev, 0x3);
+	switch (phy_id & PHY_ID_MASK) {
+	case PHY_ID_VSC8211:
+		/* Modify CMODE */
+		ret = phy_read(mdp->phydev, 0x17);
+		ret &= ~0xf006;
+		ret |= 0x2002;
+		phy_write(mdp->phydev, 0x17, ret);
+		ret = phy_read(mdp->phydev, 0x0);
+		ret |= 0x8000;
+		phy_write(mdp->phydev, 0x0, ret);
+		ret = phy_read(mdp->phydev, 0x0);
+		ret &= ~0x8000;
+		phy_write(mdp->phydev, 0x0, ret);
+		break;
+	case PHY_ID_BCM54810:
+	case PHY_ID_BCM89810:
+		/* Unused pins must be GPIO Input */
+		for (i = 0; i < mdp->num_phy_ignore_pins; i++) {
+			gpio = mdp->phy_ignore_pins[i];
+			if (!gpio_is_valid(gpio))
+				continue;
+			gpio_request_one(gpio,
+					 GPIOF_DIR_IN | GPIOF_EXPORT_DIR_FIXED,
+					 "AVB_mii-lite-ignore");
+		}
+		/* {TSE,EEB}-BRPHY board's PHY_IRQ is fixed ACTIVE_HIGH */
+		if (mdp->phy_irq)
+			irq_set_irq_type(mdp->phy_irq, IRQ_TYPE_LEVEL_HIGH);
+		break;
+	default:
+		break;
+	}
+}
+
 /* PHY init function */
 static int ravb_phy_init(struct net_device *ndev)
 {
@@ -1268,20 +1315,8 @@ static int ravb_phy_start(struct net_device *ndev)
 	if (ret)
 		return ret;
 
-	ret = phy_read(mdp->phydev, 0x3);
-	if ((ret & 0x03f0) == 0x00b0) {
-		/* if PHY is Vitesse VSC8211, modify CMODE */
-		ret = phy_read(mdp->phydev, 0x17);
-		ret &= ~0xf006;
-		ret |= 0x2002;
-		phy_write(mdp->phydev, 0x17, ret);
-		ret = phy_read(mdp->phydev, 0x0);
-		ret |= 0x8000;
-		phy_write(mdp->phydev, 0x0, ret);
-		ret = phy_read(mdp->phydev, 0x0);
-		ret &= ~0x8000;
-		phy_write(mdp->phydev, 0x0, ret);
-	}
+	ravb_phy_hack(ndev);
+
 	phy_start(mdp->phydev);
 
 	return 0;
@@ -2036,12 +2071,13 @@ static const struct net_device_ops ravb_netdev_ops = {
 };
 
 #ifdef CONFIG_OF
-static struct ravb_plat_data *ravb_parse_dt(struct device *dev)
+static struct ravb_plat_data *ravb_parse_dt(struct device *dev,
+					    struct ravb_private *mdp)
 {
 	struct device_node *np = dev->of_node;
 	struct ravb_plat_data *pdata;
 	const char *mac_addr;
-	int gpio;
+	int gpio, count, i;
 	enum of_gpio_flags flags;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
@@ -2076,6 +2112,15 @@ static struct ravb_plat_data *ravb_parse_dt(struct device *dev)
 		gpio_request_one(gpio,
 				 GPIOF_OUT_INIT_HIGH | GPIOF_EXPORT_DIR_FIXED,
 				 "AVB_phy_reset");
+	count = of_gpio_named_count(np,
+				    "renesas,mii-lite-ignore-pins");
+	mdp->num_phy_ignore_pins = count;
+	mdp->phy_ignore_pins = devm_kmalloc_array(dev, count, sizeof(int),
+						  GFP_KERNEL);
+	for (i = 0; i < count; i++) {
+		mdp->phy_ignore_pins[i] = of_get_named_gpio(np,
+					"renesas,mii-lite-ignore-pins", i);
+	}
 
 	return pdata;
 }
@@ -2148,7 +2193,7 @@ static int ravb_drv_probe(struct platform_device *pdev)
 	mdp->pdev = pdev;
 
 	if (pdev->dev.of_node)
-		pd = ravb_parse_dt(&pdev->dev);
+		pd = ravb_parse_dt(&pdev->dev, mdp);
 	if (!pd) {
 		dev_err(&pdev->dev, "no platform data\n");
 		ret = -EINVAL;
@@ -2157,6 +2202,7 @@ static int ravb_drv_probe(struct platform_device *pdev)
 
 	/* get PHY ID */
 	mdp->phy_id = pd->phy;
+	mdp->phy_irq = pd->phy_irq;
 	mdp->phy_interface = pd->phy_interface;
 	/* EDMAC endian */
 	mdp->edmac_endian = pd->edmac_endian;
