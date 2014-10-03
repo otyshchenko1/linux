@@ -10,6 +10,8 @@
 
 #include <linux/delay.h>
 #include <linux/kernel.h>
+#include <linux/notifier.h>
+#include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_clock.h>
 #include <linux/pm_domain.h>
@@ -163,15 +165,12 @@ static int pd_power_up(struct generic_pm_domain *genpd)
 	return rcar_sysc_power_up(to_r8a7794_ch(genpd));
 }
 
-static bool pd_is_off(struct generic_pm_domain *genpd)
-{
-	return rcar_sysc_power_is_off(to_r8a7794_ch(genpd));
-}
-
 static bool pd_active_wakeup(struct device *dev)
 {
 	return true;
 }
+
+static struct notifier_block platform_nb;
 
 static void r8a7794_init_pm_domain(struct r8a7794_pm_domain *r8a7794_pd)
 {
@@ -185,8 +184,7 @@ static void r8a7794_init_pm_domain(struct r8a7794_pm_domain *r8a7794_pd)
 	genpd->power_off = pd_power_down;
 	genpd->power_on = pd_power_up;
 
-	if (pd_is_off(&r8a7794_pd->genpd))
-		pd_power_up(&r8a7794_pd->genpd);
+	bus_register_notifier(&platform_bus_type, &platform_nb);
 }
 
 static struct r8a7794_pm_domain r8a7794_pm_domains[] = {
@@ -206,6 +204,41 @@ void __init r8a7794_init_pm_domains(void)
 	for (j = 0; j < ARRAY_SIZE(r8a7794_pm_domains); j++)
 		r8a7794_init_pm_domain(&r8a7794_pm_domains[j]);
 }
+
+static int r8a7794_pm_notifier_call(struct notifier_block *nb,
+				    unsigned long event, void *data)
+{
+	struct device *dev = data;
+	struct r8a7794_pm_domain *pd;
+	int j;
+
+	switch (event) {
+	case BUS_NOTIFY_BIND_DRIVER:
+		for (j = 0; j < ARRAY_SIZE(r8a7794_pm_domains); j++) {
+			pd = &r8a7794_pm_domains[j];
+			if (!strcmp(pd->genpd.name, dev_name(dev))) {
+				pm_genpd_add_device(&pd->genpd, dev);
+				if (pm_clk_no_clocks(dev))
+					pm_clk_add(dev, NULL);
+			}
+		}
+		break;
+
+	case BUS_NOTIFY_UNBOUND_DRIVER:
+		for (j = 0; j < ARRAY_SIZE(r8a7794_pm_domains); j++) {
+			pd = &r8a7794_pm_domains[j];
+			if (!strcmp(pd->genpd.name, dev_name(dev)))
+				pm_genpd_remove_device(&pd->genpd, dev);
+
+		}
+		break;
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block platform_nb = {
+	.notifier_call = r8a7794_pm_notifier_call,
+};
 
 #endif /* CONFIG_PM */
 
