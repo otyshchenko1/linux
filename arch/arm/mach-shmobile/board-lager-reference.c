@@ -914,7 +914,7 @@ static void lager_restart(char mode, const char *cmd)
 	struct i2c_adapter *adap;
 	struct i2c_client *client;
 	u8 val;
-	int busnum = 3;
+	int busnum = 7;
 
 	adap = i2c_get_adapter(busnum);
 	if (!adap) {
