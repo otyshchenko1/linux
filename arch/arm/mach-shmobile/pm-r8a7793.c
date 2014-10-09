@@ -22,7 +22,7 @@
 #define RST		0xe6160000
 #define CA15BAR		0x0020
 #define CA15RESCNT	0x0040
-#define RAM		0xe6300000
+#define RAM		0xe63c0000
 
 /* SYSC */
 #define SYSCIER 0x0c
