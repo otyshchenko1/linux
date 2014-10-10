@@ -33,6 +33,7 @@
 
 /* only enable the cluster that includes the boot CPU by default */
 static bool enable_multicluster = false;
+static bool is_last_cpu;
 
 static __init int apmu_setup(char *opt)
 {
@@ -216,7 +217,10 @@ static inline void cpu_enter_lowpower_a15(void)
 	if (is_a15_l2shutdown)
 		do_l2shutdown_settings();
 
-	v7_exit_coherency_flush(louis);
+	if (is_last_cpu)
+		v7_exit_coherency_flush(all);
+	else
+		v7_exit_coherency_flush(louis);
 }
 
 void __cpuinit shmobile_smp_apmu_cpu_shutdown(unsigned int cpu)
@@ -283,6 +287,7 @@ static int __cpuinit shmobile_smp_apmu_do_suspend(unsigned long cpu)
 #if defined(CONFIG_SUSPEND)
 static int __cpuinit shmobile_smp_apmu_enter_suspend(suspend_state_t state)
 {
+	is_last_cpu = true;
 	/*
 	 * Disable the CPU interface when a CPU core is entering L2
 	 * shutdown mode, that will help us to prevent spurious CPU
@@ -313,6 +318,7 @@ static int __cpuinit shmobile_smp_apmu_enter_suspend(suspend_state_t state)
 	}
 
 	rcar_sysc_clear_event_status();
+	is_last_cpu = false;
 
 	return 0;
 }
@@ -321,6 +327,7 @@ void __init shmobile_smp_apmu_suspend_init(void)
 {
 	cpucmcr_ca7  = ioremap_nocache(CPUCMCR_CA7, 0x4);
 	cpucmcr_ca15 = ioremap_nocache(CPUCMCR_CA15, 0x4);
+	is_last_cpu = false;
 
 	shmobile_suspend_ops.enter = shmobile_smp_apmu_enter_suspend;
 }
