@@ -254,6 +254,9 @@ void __cpuinit shmobile_smp_apmu_cpu_die(unsigned int cpu)
 	/* Shutdown CPU core */
 	shmobile_smp_apmu_cpu_shutdown(cpu);
 
+	/* Drain the WB before WFI */
+	dsb();
+
 	/* jump to shared mach-shmobile sleep / reset code */
 	shmobile_smp_sleep();
 }
