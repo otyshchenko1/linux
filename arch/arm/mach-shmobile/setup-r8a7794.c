@@ -376,7 +376,7 @@ void __init r8a7794_add_standard_devices(void)
 void __init r8a7794_init_early(void)
 {
 #ifndef CONFIG_ARM_ARCH_TIMER
-	shmobile_setup_delay(1300, 2, 4); /* Cortex-A15 @ 1300MHz */
+	shmobile_setup_delay(1000, 2, 4); /* Cortex-A7 @ 1000MHz */
 #endif
 }
 
