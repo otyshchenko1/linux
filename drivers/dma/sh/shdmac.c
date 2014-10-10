@@ -696,9 +696,7 @@ static int sh_dmae_runtime_suspend(struct device *dev)
 
 static int sh_dmae_runtime_resume(struct device *dev)
 {
-	struct sh_dmae_device *shdev = dev_get_drvdata(dev);
-
-	return sh_dmae_rst(shdev);
+	return 0;
 }
 
 #ifdef CONFIG_PM
