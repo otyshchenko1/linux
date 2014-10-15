@@ -41,7 +41,7 @@
 #if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 #include <linux/usb/renesas_usbhs.h>
 #endif
-#if defined(CONFIG_VIDEO_RENESAS_VSP1)
+#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1)
 #include <linux/platform_data/vsp1.h>
 #endif
 #include <media/soc_camera.h>
@@ -229,7 +229,7 @@ static const struct clk_name clk_names[] __initconst = {
 	{ "vin1", NULL, "r8a7790-vin.1" },
 	{ "vspr", NULL, NULL },
 	{ "vsps", NULL, NULL },
-#if defined(CONFIG_VIDEO_RENESAS_VSP1)
+#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1)
 	{ "vsp1-du0", NULL, "vsp1.2" },
 	{ "vsp1-du1", NULL, "vsp1.3" },
 #else
@@ -679,7 +679,7 @@ static const struct rcar_gen2_phy_platform_data usbhs_phy_pdata __initconst = {
 #else
 	.chan0_pci = 1,	/* Channel 0 is PCI USB */
 #endif
-#ifndef CONFIG_USB_XHCI_HCD
+#if !IS_ENABLED(CONFIG_USB_XHCI_HCD)
 	.chan2_pci = 1,	/* Channel 2 is PCI USB */
 #else
 	.chan2_pci = 0,	/* Channel 2 is USB3.0 */
@@ -728,7 +728,7 @@ static const struct platform_device_info pci2_info __initconst = {
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
-#ifndef CONFIG_USB_XHCI_HCD
+#if !IS_ENABLED(CONFIG_USB_XHCI_HCD)
 static void __init lager_add_usb2_device(void)
 {
 	usb_bind_phy("pci-rcar-gen2.2", 0, "usb_phy_rcar_gen2");
@@ -800,7 +800,7 @@ static void __init lager_add_camera1_device(void)
 }
 
 /* VSP1 */
-#if defined(CONFIG_VIDEO_RENESAS_VSP1)
+#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1)
 static const struct vsp1_platform_data lager_vspr_pdata __initconst = {
 	.features = VSP1_HAS_LUT | VSP1_HAS_SRU,
 	.rpf_count = 5,
@@ -985,13 +985,13 @@ static void __init lager_add_standard_devices(void)
 	lager_add_usb0_device();
 #endif
 	lager_add_usb1_device();
-#ifndef CONFIG_USB_XHCI_HCD
+#if !IS_ENABLED(CONFIG_USB_XHCI_HCD)
 	lager_add_usb2_device();
 #endif
 	lager_add_rsnd_device();
 	lager_add_camera0_device();
 	lager_add_camera1_device();
-#if defined(CONFIG_VIDEO_RENESAS_VSP1)
+#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1)
 	lager_add_vsp1_devices();
 #endif
 	lager_add_msiof_device(spi_bus, ARRAY_SIZE(spi_bus));
