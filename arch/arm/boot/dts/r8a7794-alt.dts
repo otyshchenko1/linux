@@ -238,6 +238,11 @@
 		renesas,function = "eth";
 	};
 
+	avb_pins: avb {
+		renesas,groups = "avb_mdio", "avb_gmii";
+		renesas,function = "avb";
+	};
+
 	qspi_pins: spi0 {
 		renesas,groups = "qspi_ctrl", "qspi_data4";
 		renesas,function = "qspi";
@@ -295,6 +300,29 @@
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 		micrel,led-mode = <1>;
 	};
+};
+
+&avb {
+	pinctrl-0 = <&avb_pins>;
+	pinctrl-names = "default";
+
+	renesas,no-ether-link;
+	renesas,phy = <0>;
+	renesas,mii-lite-ignore-pins = <&gpio3 30 0
+				        &gpio3 23 0
+				        &gpio3 22 0
+				        &gpio3 21 0
+				        &gpio3 20 0
+				        &gpio3 19 0
+				        &gpio3 18 0
+				        &gpio3 10 0
+				        &gpio3 9 0
+				        &gpio3 8 0
+				        &gpio3 7 0
+				        &gpio3 6 0>;
+	phy-int-gpio = <&gpio3 28 GPIO_ACTIVE_LOW>;
+	phy-reset-gpio = <&gpio3 27 0>;
+	status = "disabled";
 };
 
 &scif2 {
