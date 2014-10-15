@@ -338,6 +338,7 @@ static struct notifier_block paniced = {
 
 static bool drm_fb_helper_is_bound(struct drm_fb_helper *fb_helper)
 {
+#if !defined(CONFIG_DRM_RCAR_DU) && !defined(CONFIG_DRM_RCAR_DU_MODULE)
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_crtc *crtc;
 	int bound = 0, crtcs_bound = 0;
@@ -351,6 +352,7 @@ static bool drm_fb_helper_is_bound(struct drm_fb_helper *fb_helper)
 
 	if (bound < crtcs_bound)
 		return false;
+#endif
 	return true;
 }
 
@@ -398,12 +400,10 @@ static void drm_fb_helper_dpms(struct fb_info *info, int dpms_mode)
 	 * For each CRTC in this fb, turn the connectors on/off.
 	 */
 	drm_modeset_lock_all(dev);
-#if !defined(CONFIG_DRM_FBDEV_CRTC)
 	if (!drm_fb_helper_is_bound(fb_helper)) {
 		drm_modeset_unlock_all(dev);
 		return;
 	}
-#endif
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		crtc = fb_helper->crtc_info[i].mode_set.crtc;
 
@@ -968,12 +968,10 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 	int i;
 
 	drm_modeset_lock_all(dev);
-#if !defined(CONFIG_DRM_FBDEV_CRTC)
 	if (!drm_fb_helper_is_bound(fb_helper)) {
 		drm_modeset_unlock_all(dev);
 		return -EBUSY;
 	}
-#endif
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		crtc = fb_helper->crtc_info[i].mode_set.crtc;
 
