@@ -184,6 +184,11 @@
 		renesas,function = "eth";
 	};
 
+	avb_pins: avb {
+		renesas,groups = "avb_mdio", "avb_gmii";
+		renesas,function = "avb";
+	};
+
 	phy1_pins: phy1 {
 		renesas,groups = "intc_irq0";
 		renesas,function = "intc";
@@ -300,6 +305,30 @@
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 		micrel,led-mode = <1>;
 	};
+};
+
+&avb {
+	pinctrl-0 = <&avb_pins>;
+	pinctrl-names = "default";
+
+	renesas,no-ether-link;
+	renesas,phy = <0>;
+	renesas,mii-lite-ignore-pins = <&gpio0 15 0
+				        &gpio0 14 0
+				        &gpio0 13 0
+				        &gpio0 12 0
+				        &gpio2 16 0
+				        &gpio2 14 0
+				        &gpio2 13 0
+				        &gpio2 6 0
+				        &gpio2 5 0
+				        &gpio2 4 0
+				        &gpio2 3 0
+				        &gpio2 17 0
+				        &gpio3 9 0>;
+	phy-int-gpio = <&gpio2 15 GPIO_ACTIVE_LOW>;
+	phy-reset-gpio = <&gpio4 10 0>;
+	status = "disabled";
 };
 
 &mmcif1 {
