@@ -30,7 +30,7 @@
 #include <linux/platform_data/camera-rcar.h>
 #include <linux/platform_data/rcar-du.h>
 #include <linux/platform_data/usb-rcar-gen2-phy.h>
-#if defined(CONFIG_VIDEO_RENESAS_VSP1)
+#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1)
 #include <linux/platform_data/vsp1.h>
 #endif
 #include <linux/serial_sci.h>
@@ -292,7 +292,7 @@ static const struct clk_name clk_names[] __initconst = {
 	{ "dvc1", "dvc.1", "rcar_sound" },
 	{ "vin0", NULL, "r8a7794-vin.0" },
 	{ "vsps", NULL, NULL },
-#if defined(CONFIG_VIDEO_RENESAS_VSP1)
+#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1)
 	{ "vsp1-du0", NULL, "vsp1.2" },
 #else
 	{ "vsp1-du0", NULL, NULL },
@@ -856,7 +856,7 @@ static void __init alt_add_camera0_device(void)
 }
 
 /* VSP1 */
-#if defined(CONFIG_VIDEO_RENESAS_VSP1)
+#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1)
 static const struct vsp1_platform_data alt_vsps_pdata __initconst = {
 	.features = 0,
 	.rpf_count = 5,
@@ -1005,7 +1005,7 @@ static void __init alt_add_standard_devices(void)
 	alt_add_usb1_device();
 	alt_add_rsnd_device();
 	alt_add_camera0_device();
-#if defined(CONFIG_VIDEO_RENESAS_VSP1)
+#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1)
 	alt_add_vsp1_devices();
 #endif
 	alt_add_msiof_device(spi_bus, ARRAY_SIZE(spi_bus));
