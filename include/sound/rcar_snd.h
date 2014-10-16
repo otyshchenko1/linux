@@ -48,14 +48,15 @@ struct rsnd_ssi_platform_info {
 };
 
 #define RSND_SRC(rate, _dma_id, _irq_id)				\
-{ .convert_rate = rate, .dma_id = _dma_id, .irq_id = _irq_id }
+{ .convert_rate = rate, .dma_id = _dma_id, .irq_id = _irq_id, .unused = 0 }
 #define RSND_SRC_UNUSED				\
-{ .convert_rate = 0, .dma_id = -1, .irq_id = -1}
+{ .convert_rate = 0, .dma_id = -1, .irq_id = -1, .unused = 1 }
 
 struct rsnd_src_platform_info {
 	u32 convert_rate; /* sampling rate convert */
 	int dma_id; /* for Gen2 SCU */
 	int irq_id; /* for SRC interrupt */
+	int unused;
 };
 
 /*

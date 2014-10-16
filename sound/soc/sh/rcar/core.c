@@ -1028,6 +1028,12 @@ static int rsnd_probe(struct platform_device *pdev)
 	priv->info	= info;
 	spin_lock_init(&priv->lock);
 
+	priv->ssi_clk	= devm_clk_get(dev, "ssi");
+	priv->scu_clk	= devm_clk_get(dev, "scu");
+
+	clk_prepare_enable(priv->ssi_clk);
+	clk_prepare_enable(priv->scu_clk);
+
 	/*
 	 *	init each module
 	 */
@@ -1067,6 +1073,9 @@ static int rsnd_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 
+	clk_disable_unprepare(priv->scu_clk);
+	clk_disable_unprepare(priv->ssi_clk);
+
 	dev_info(dev, "probed\n");
 	return ret;
 
@@ -1097,10 +1106,37 @@ static int rsnd_remove(struct platform_device *pdev)
 	return ret;
 }
 
+#ifdef CONFIG_PM_RUNTIME
+static int rsnd_runtime_suspend(struct device *dev)
+{
+	struct rsnd_priv *priv = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(priv->scu_clk);
+	clk_disable_unprepare(priv->ssi_clk);
+
+	return 0;
+}
+
+static int rsnd_runtime_resume(struct device *dev)
+{
+	struct rsnd_priv *priv = dev_get_drvdata(dev);
+
+	clk_prepare_enable(priv->ssi_clk);
+	clk_prepare_enable(priv->scu_clk);
+
+	return 0;
+}
+#endif	/* CONFIG_PM_RUNTIME */
+
+static struct dev_pm_ops rsnd_pm_ops = {
+	SET_RUNTIME_PM_OPS(rsnd_runtime_suspend, rsnd_runtime_resume, NULL)
+};
+
 static struct platform_driver rsnd_driver = {
 	.driver	= {
 		.name	= "rcar_sound",
 		.of_match_table = rsnd_of_match,
+		.pm	= &rsnd_pm_ops,
 	},
 	.probe		= rsnd_probe,
 	.remove		= rsnd_remove,

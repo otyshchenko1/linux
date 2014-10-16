@@ -357,6 +357,8 @@ struct rsnd_priv {
 	struct platform_device *pdev;
 	struct rcar_snd_info *info;
 	spinlock_t lock;
+	struct clk *ssi_clk;
+	struct clk *scu_clk;
 
 	/*
 	 * below value will be filled on rsnd_gen_probe()

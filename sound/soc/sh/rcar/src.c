@@ -1135,6 +1135,9 @@ int rsnd_src_probe(struct platform_device *pdev,
 	priv->src	= src;
 
 	for_each_rsnd_src(src, priv, i) {
+		if (info->src_info[i].unused)
+			continue;
+
 		snprintf(name, RSND_SRC_NAME_SIZE, "%s.%d",
 			 SRC_NAME, i);
 
