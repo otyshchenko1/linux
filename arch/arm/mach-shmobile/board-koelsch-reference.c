@@ -243,8 +243,6 @@ static const struct clk_name clk_enables[] __initconst = {
 	{ "ehci", NULL, "pci-rcar-gen2.0" },
 #endif
 	{ "ehci", NULL, "pci-rcar-gen2.1" },
-	{ "ssi", NULL, "rcar_sound" },
-	{ "scu", NULL, "rcar_sound" },
 	{ "dmal", NULL, "sh-dma-engine.0" },
 	{ "dmah", NULL, "sh-dma-engine.1" },
 #if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
