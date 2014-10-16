@@ -452,8 +452,12 @@ struct adv7511 {
 	enum adv7511_sync_polarity hsync_polarity;
 
 	struct edid *edid;
-
 	int gpio_pd;
+
+	struct workqueue_struct *work_queue;
+	struct delayed_work edid_handler;
+	unsigned int edid_read_retries;
+	bool connector_detect_disconnect;
 };
 
 

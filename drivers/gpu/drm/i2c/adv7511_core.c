@@ -25,6 +25,9 @@
 #include <drm/drm_encoder_slave.h>
 #include <drm/drm_edid.h>
 
+#define EDID_MAX_RETRIES	(8)
+#define EDID_DELAY		(250) /* ms */
+
 static const uint8_t adv7511_register_defaults[] = {
 	0x12, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 00 */
 	0x00, 0x00, 0x01, 0x0e, 0xbc, 0x18, 0x01, 0x13,
@@ -352,12 +355,28 @@ static bool adv7511_hpd(struct adv7511 *adv7511)
 	return false;
 }
 
+static void adv7511_edid_handler(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct adv7511 *adv7511 =
+		 container_of(dwork, struct adv7511, edid_handler);
+
+	if (adv7511->encoder) {
+		if (!adv7511->connector_detect_disconnect)
+			adv7511->connector_detect_disconnect = true;
+
+		drm_helper_hpd_irq_event(adv7511->encoder->dev);
+	}
+}
+
 static irqreturn_t adv7511_irq_handler(int irq, void *devid)
 {
 	struct adv7511 *adv7511 = devid;
 
-	if (adv7511_hpd(adv7511) && adv7511->encoder)
+	if (adv7511_hpd(adv7511) && adv7511->encoder) {
+		cancel_delayed_work(&adv7511->edid_handler);
 		drm_helper_hpd_irq_event(adv7511->encoder->dev);
+	}
 
 	wake_up_all(&adv7511->wq);
 
@@ -504,14 +523,52 @@ static int adv7511_get_modes(struct drm_encoder *encoder,
 	if (adv7511->dpms_mode != DRM_MODE_DPMS_ON) {
 		regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER,
 				ADV7511_POWER_POWER_DOWN, ADV7511_POWER_POWER_DOWN);
-		regcache_mark_dirty(adv7511->regmap);
+		regcache_sync(adv7511->regmap);
 	}
 
 	kfree(adv7511->edid);
 	adv7511->edid = edid;
-	if (!edid)
-		return 0;
+	if (!edid) {
+		if (adv7511->edid_read_retries) {
+			adv7511->edid_read_retries--;
 
+			if (adv7511->dpms_mode == DRM_MODE_DPMS_ON) {
+				regmap_update_bits(adv7511->regmap,
+						   ADV7511_REG_POWER,
+						   ADV7511_POWER_POWER_DOWN,
+						   ADV7511_POWER_POWER_DOWN);
+				regcache_sync(adv7511->regmap);
+			}
+
+			adv7511->current_edid_segment = -1;
+			regmap_write(adv7511->regmap, ADV7511_REG_INT(0),
+						      ADV7511_INT0_EDID_READY |
+						      ADV7511_INT1_DDC_ERROR);
+			regmap_update_bits(adv7511->regmap,
+					   ADV7511_REG_POWER,
+					   ADV7511_POWER_POWER_DOWN, 0);
+			regmap_update_bits(adv7511->regmap,
+					   ADV7511_REG_POWER2,
+					   ADV7511_REG_POWER2_HDP_SRC_MASK,
+					   ADV7511_REG_POWER2_HDP_SRC_NONE);
+			regcache_sync(adv7511->regmap);
+
+			if (adv7511->dpms_mode != DRM_MODE_DPMS_ON) {
+				regmap_update_bits(adv7511->regmap,
+						   ADV7511_REG_POWER,
+						   ADV7511_POWER_POWER_DOWN,
+						   ADV7511_POWER_POWER_DOWN);
+				regcache_sync(adv7511->regmap);
+			}
+
+			queue_delayed_work(adv7511->work_queue,
+				   &adv7511->edid_handler,
+				   msecs_to_jiffies(EDID_DELAY));
+		}
+		return 0;
+	}
+
+	cancel_delayed_work(&adv7511->edid_handler);
 	drm_mode_connector_update_edid_property(connector, edid);
 	count = drm_add_edid_modes(connector, edid);
 
@@ -537,6 +594,7 @@ static void adv7511_encoder_dpms(struct drm_encoder *encoder, int mode)
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
 		adv7511->current_edid_segment = -1;
+		adv7511->edid_read_retries = EDID_MAX_RETRIES;
 
 		regmap_write(adv7511->regmap, ADV7511_REG_INT(0),
 			ADV7511_INT0_EDID_READY | ADV7511_INT1_DDC_ERROR);
@@ -558,6 +616,7 @@ static void adv7511_encoder_dpms(struct drm_encoder *encoder, int mode)
 		regcache_sync(adv7511->regmap);
 		break;
 	default:
+		adv7511->edid_read_retries = EDID_MAX_RETRIES;
 		/* TODO: setup additional power down modes */
 		regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER,
 				ADV7511_POWER_POWER_DOWN, ADV7511_POWER_POWER_DOWN);
@@ -575,6 +634,7 @@ static enum drm_connector_status adv7511_encoder_detect(struct drm_encoder *enco
 	enum drm_connector_status status;
 	unsigned int val;
 	bool hpd;
+	bool pending_disconnect = false;
 	int ret;
 
 	ret = regmap_read(adv7511->regmap, ADV7511_REG_STATUS, &val);
@@ -588,18 +648,26 @@ static enum drm_connector_status adv7511_encoder_detect(struct drm_encoder *enco
 
 	hpd = adv7511_hpd(adv7511);
 
+	if (adv7511->connector_detect_disconnect) {
+		pending_disconnect = true;
+		adv7511->connector_detect_disconnect = false;
+	}
+
 	/* The chip resets itself when the cable is disconnected, so in case
 	 * there is a pending HPD interrupt and the cable is connected there was
 	 * at least one transition from disconnected to connected and the chip
 	 * has to be reinitialized. */
-	if (status == connector_status_connected && hpd &&
+	if (status == connector_status_connected &&
+		(hpd || pending_disconnect) &&
 		adv7511->dpms_mode == DRM_MODE_DPMS_ON) {
 		regcache_mark_dirty(adv7511->regmap);
 		adv7511_encoder_dpms(encoder, adv7511->dpms_mode);
-		adv7511_get_modes(encoder, connector);
-		if (adv7511->status == connector_status_connected)
+		if (!adv7511->edid)
+			adv7511_get_modes(encoder, connector);
+		if (adv7511->status == connector_status_connected &&
+			!pending_disconnect)
 			status = connector_status_disconnected;
-	} else {
+	} else if (pending_disconnect) {
 		/* Renable HDP sensing */
 		regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER2,
 				ADV7511_REG_POWER2_HDP_SRC_MASK,
@@ -607,6 +675,7 @@ static enum drm_connector_status adv7511_encoder_detect(struct drm_encoder *enco
 	}
 
 	adv7511->status = status;
+
 	return status;
 }
 
@@ -876,6 +945,8 @@ static int adv7511_probe(struct i2c_client *i2c,
 
 	adv7511->dpms_mode = DRM_MODE_DPMS_OFF;
 	adv7511->status = connector_status_disconnected;
+	adv7511->edid_read_retries = EDID_MAX_RETRIES;
+	adv7511->connector_detect_disconnect = false;
 
 	adv7511->gpio_pd = link_config.gpio_pd;
 
@@ -912,6 +983,13 @@ static int adv7511_probe(struct i2c_client *i2c,
 	adv7511->i2c_packet = i2c_new_dummy(i2c->adapter, packet_i2c_addr >> 1);
 	if (!adv7511->i2c_edid)
 		return -ENOMEM;
+
+	adv7511->work_queue =
+		 create_singlethread_workqueue(dev_name(&i2c->dev));
+	if (!adv7511->work_queue)
+		return -ENOMEM;
+
+	INIT_DELAYED_WORK(&adv7511->edid_handler, adv7511_edid_handler);
 
 #if defined(CONFIG_DRM_RCAR_DU) || defined(CONFIG_DRM_RCAR_DU_MODULE)
 	/* HPD interrupt enable only */
@@ -988,10 +1066,12 @@ static int adv7511_remove(struct i2c_client *i2c)
 {
 	struct adv7511 *adv7511 = i2c_get_clientdata(i2c);
 
+	cancel_delayed_work_sync(&adv7511->edid_handler);
 	i2c_unregister_device(adv7511->i2c_edid);
 
 	if (i2c->irq)
 		free_irq(i2c->irq, adv7511);
+	destroy_workqueue(adv7511->work_queue);
 	kfree(adv7511->edid);
 
 	return 0;
