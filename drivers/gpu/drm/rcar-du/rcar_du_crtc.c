@@ -108,10 +108,13 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 	clk_in = clk_get_rate(rcrtc->clock);
 	div_in = DIV_ROUND_CLOSEST(clk_in, mode->clock * 1000);
 
+	/* External dot clock */
 	if (pdata->exclk != 0) {
-		/* External dot clock */
 		clk_ex = pdata->exclk;
 		div_ex = DIV_ROUND_CLOSEST(clk_ex, mode->clock * 1000);
+	}
+
+	if (div_ex) {
 		/* Select recommand dot clock */
 		abs_ex = abs((mode->clock * 1000) - (clk_ex / div_ex));
 		abs_in = abs((mode->clock * 1000) - (clk_in / div_in));
@@ -126,6 +129,15 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 		div = div_in;
 		dclksel_bit = ESCR_DCLKSEL_CLKS;
 	}
+
+	if (dclksel_bit & ESCR_DCLKSEL_CLKS)
+		dev_dbg(rcrtc->group->dev->dev,
+		      "Internal clock is used in CRTC[%d]. Dot clock:%ldkHz\n",
+		       rcrtc->index, ((clk_in / div_in) / 1000));
+	else
+		dev_dbg(rcrtc->group->dev->dev,
+		      "External clock is used in CRTC[%d]. Dot clock:%ldkHz\n",
+		       rcrtc->index, ((clk_ex / div_ex) / 1000));
 
 	div = clamp(div, 1U, 64U) - 1;
 
