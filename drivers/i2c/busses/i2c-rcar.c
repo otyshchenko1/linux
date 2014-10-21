@@ -522,7 +522,6 @@ static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 
 		/* go to stop phase */
 		rcar_i2c_bus_phase(priv, RCAR_BUS_PHASE_STOP);
-		rcar_i2c_irq_mask(priv, RCAR_IRQ_OPEN_FOR_STOP);
 		rcar_i2c_flags_set(priv, ID_NACK);
 		rcar_i2c_status_bit_clear(priv, MNR);
 		goto out;
@@ -533,8 +532,14 @@ static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 	 */
 	if (msr & MST) {
 		dev_dbg(dev, "Stop\n");
-		rcar_i2c_flags_set(priv, ID_DONE);
-		rcar_i2c_status_clear(priv);
+		if (rcar_i2c_flags_has(priv, ID_NACK)) {
+			/* don't set ID_DONE for expecting ACK
+					after auto-restart by HW */
+			rcar_i2c_status_bit_clear(priv, MST);
+		} else {
+			rcar_i2c_flags_set(priv, ID_DONE);
+			rcar_i2c_status_clear(priv);
+		}
 		goto out;
 	}
 
@@ -611,6 +616,10 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 					     rcar_i2c_flags_has(priv, ID_DONE),
 					     5 * HZ);
 		if (!timeout) {
+			if (rcar_i2c_flags_has(priv, ID_NACK)) {
+				ret = -ENXIO;
+				break;
+			}
 			ret = -ETIMEDOUT;
 			break;
 		}
@@ -618,11 +627,6 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 		/*
 		 * error handling
 		 */
-		if (rcar_i2c_flags_has(priv, ID_NACK)) {
-			ret = -ENXIO;
-			break;
-		}
-
 		if (rcar_i2c_flags_has(priv, ID_ARBLOST)) {
 			ret = -EAGAIN;
 			break;
