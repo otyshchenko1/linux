@@ -14,6 +14,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
@@ -43,6 +44,7 @@ struct gpio_rcar_priv {
 	struct irq_chip irq_chip;
 	struct irq_domain *irq_domain;
 	u32 no_suspend; /* do not disable this GPIO port during suspend */
+	struct clk *clk;
 };
 
 #define IOINTSEL 0x00
@@ -430,20 +432,27 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, p);
 
+	p->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(p->clk)) {
+		dev_err(&pdev->dev, "failed to get access to GPIO clock\n");
+		return PTR_ERR(p->clk);
+	}
+	clk_prepare_enable(p->clk);
+
 	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 
 	if (!io || !irq) {
 		dev_err(dev, "missing IRQ or IOMEM\n");
 		ret = -EINVAL;
-		goto err0;
+		goto err1;
 	}
 
 	p->base = devm_ioremap_nocache(dev, io->start, resource_size(io));
 	if (!p->base) {
 		dev_err(dev, "failed to remap I/O memory\n");
 		ret = -ENXIO;
-		goto err0;
+		goto err1;
 	}
 
 	gpio_chip = &p->gpio_chip;
@@ -476,20 +485,20 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	if (!p->irq_domain) {
 		ret = -ENXIO;
 		dev_err(dev, "cannot initialize irq domain\n");
-		goto err0;
+		goto err1;
 	}
 
 	if (devm_request_irq(dev, irq->start, gpio_rcar_irq_handler,
 			     IRQF_SHARED, name, p)) {
 		dev_err(dev, "failed to request IRQ\n");
 		ret = -ENOENT;
-		goto err1;
+		goto err2;
 	}
 
 	ret = gpiochip_add(gpio_chip);
 	if (ret) {
 		dev_err(dev, "failed to add GPIO controller\n");
-		goto err1;
+		goto err2;
 	}
 
 	dev_info(dev, "driving %d GPIOs\n", p->config.number_of_pins);
@@ -511,8 +520,10 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 
 	return 0;
 
-err1:
+err2:
 	irq_domain_remove(p->irq_domain);
+err1:
+	clk_disable_unprepare(p->clk);
 err0:
 	return ret;
 }
@@ -532,6 +543,8 @@ static int gpio_rcar_remove(struct platform_device *pdev)
 
 	if (!pdata && IS_ENABLED(CONFIG_OF) && np)
 		of_remove_property(np, &p->gpios_property);
+
+	clk_disable_unprepare(p->clk);
 
 	return 0;
 }
