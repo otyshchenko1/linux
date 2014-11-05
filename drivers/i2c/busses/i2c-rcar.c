@@ -342,18 +342,15 @@ static void rcar_i2c_status_bit_clear(struct rcar_i2c_priv *priv, u32 bit)
 static int rcar_i2c_recv(struct rcar_i2c_priv *priv)
 {
 	rcar_i2c_set_addr(priv, 1);
+	rcar_i2c_status_clear(priv);
+	rcar_i2c_bus_phase(priv, RCAR_BUS_PHASE_ADDR);
 
 	if (rcar_i2c_flags_has(priv, ID_FIRST_MSG)) {	/* start */
-		rcar_i2c_status_clear(priv);
-		rcar_i2c_bus_phase(priv, RCAR_BUS_PHASE_ADDR);
 		/* get ESG bit clear timing */
 		rcar_i2c_read(priv, ICMCR);
 		rcar_i2c_flags_clr(priv, ID_FIRST_MSG);
 		/* clear ESG bit for avoiding auto restart by H/W */
 		rcar_i2c_bus_phase(priv, RCAR_BUS_PHASE_DATA);
-	} else {	/* restart */
-		rcar_i2c_bus_phase(priv, RCAR_BUS_PHASE_ADDR);
-		rcar_i2c_status_clear(priv);
 	}
 
 	rcar_i2c_irq_mask(priv, RCAR_IRQ_OPEN_FOR_RECV);
@@ -373,18 +370,15 @@ static int rcar_i2c_send(struct rcar_i2c_priv *priv)
 		return ret;
 
 	rcar_i2c_set_addr(priv, 0);
+	rcar_i2c_status_clear(priv);
+	rcar_i2c_bus_phase(priv, RCAR_BUS_PHASE_ADDR);
 
 	if (rcar_i2c_flags_has(priv, ID_FIRST_MSG)) {	/* start */
-		rcar_i2c_status_clear(priv);
-		rcar_i2c_bus_phase(priv, RCAR_BUS_PHASE_ADDR);
 		/* get ESG bit clear timing */
 		rcar_i2c_read(priv, ICMCR);
 		rcar_i2c_flags_clr(priv, ID_FIRST_MSG);
 		/* clear ESG bit for avoiding auto restart by H/W */
 		rcar_i2c_bus_phase(priv, RCAR_BUS_PHASE_DATA);
-	} else {	/* restart */
-		rcar_i2c_bus_phase(priv, RCAR_BUS_PHASE_ADDR);
-		rcar_i2c_status_clear(priv);
 	}
 
 	rcar_i2c_irq_mask(priv, RCAR_IRQ_OPEN_FOR_SEND);
