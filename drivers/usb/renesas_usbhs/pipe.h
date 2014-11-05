@@ -40,6 +40,7 @@ struct usbhs_pipe {
 
 	struct usbhs_pkt_handle *handler;
 	struct dma_async_tx_descriptor *desc;
+	dma_cookie_t cookie;
 
 	void *mod_private;
 };

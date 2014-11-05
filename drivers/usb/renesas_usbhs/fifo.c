@@ -822,6 +822,13 @@ static void xfer_work(struct work_struct *work)
 	struct device *dev = usbhs_priv_to_dev(priv);
 	enum dma_transfer_direction dir;
 
+	if (pipe->cookie != 0)
+		if (dma_async_is_tx_complete(chan,
+					     pipe->cookie,
+					     NULL,
+					     NULL) != DMA_SUCCESS)
+			dmaengine_terminate_all(chan);
+
 	dir = usbhs_pipe_is_dir_in(pipe) ? DMA_DEV_TO_MEM : DMA_MEM_TO_DEV;
 
 	desc = dmaengine_prep_slave_single(chan, pkt->dma + pkt->actual,
@@ -835,7 +842,8 @@ static void xfer_work(struct work_struct *work)
 	desc->callback		= usbhsf_dma_complete;
 	desc->callback_param	= pipe;
 
-	if (dmaengine_submit(desc) < 0) {
+	pipe->cookie = dmaengine_submit(desc);
+	if (pipe->cookie < 0) {
 		dev_err(dev, "Failed to submit dma descriptor\n");
 		return;
 	}
