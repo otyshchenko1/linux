@@ -17,6 +17,8 @@ struct rcar_gen2_phy_platform_data {
 	bool chan0_pci:1;	/* true: PCI USB host 0, false: USBHS */
 	/* USB channel 2 configuration */
 	bool chan2_pci:1;	/* true: PCI USB host 2, false: USBSS */
+	int gpio_vbus;
+	bool wakeup;
 };
 
 #endif
