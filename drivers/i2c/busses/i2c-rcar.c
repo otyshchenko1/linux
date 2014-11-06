@@ -778,7 +778,18 @@ static struct platform_driver rcar_i2c_driver = {
 	.id_table	= rcar_i2c_id_table,
 };
 
-module_platform_driver(rcar_i2c_driver);
+static int __init rcar_i2c_adap_init(void)
+{
+	return platform_driver_register(&rcar_i2c_driver);
+}
+
+static void __exit rcar_i2c_adap_exit(void)
+{
+	platform_driver_unregister(&rcar_i2c_driver);
+}
+
+subsys_initcall(rcar_i2c_adap_init);
+module_exit(rcar_i2c_adap_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Renesas R-Car I2C bus driver");
