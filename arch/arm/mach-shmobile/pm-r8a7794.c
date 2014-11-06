@@ -23,7 +23,6 @@
 
 #define RST		0xe6160000
 #define CA7BAR		0x0030
-#define CA7RESCNT	0x0044
 #define RAM		0xe63c0000
 
 /* SYSC */
@@ -261,10 +260,6 @@ void __init r8a7794_pm_init(void)
 	bar = (RAM >> 8) & 0xfffffc00;
 	writel_relaxed(bar, p + CA7BAR);
 	writel_relaxed(bar | 0x10, p + CA7BAR);
-
-	/* enable clocks to all CPUs */
-	writel_relaxed((readl_relaxed(p + CA7RESCNT) & ~0x0f) | 0x5a5a0000,
-		       p + CA7RESCNT);
 	iounmap(p);
 
 	r8a7794_sysc_init();

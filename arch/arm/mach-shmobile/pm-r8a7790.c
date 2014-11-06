@@ -28,8 +28,6 @@
 #define RST		0xe6160000
 #define CA15BAR		0x0020
 #define CA7BAR		0x0030
-#define CA15RESCNT	0x0040
-#define CA7RESCNT	0x0044
 #define RAM		0xe63c0000
 
 /* SYSC */
@@ -173,12 +171,6 @@ void __init r8a7790_pm_init(void)
 	writel_relaxed(bar, p + CA7BAR);
 	writel_relaxed(bar | 0x10, p + CA15BAR);
 	writel_relaxed(bar | 0x10, p + CA7BAR);
-
-	/* de-assert reset for all CPUs */
-	writel_relaxed((readl_relaxed(p + CA15RESCNT) & ~0x0f) | 0xa5a50000,
-		       p + CA15RESCNT);
-	writel_relaxed((readl_relaxed(p + CA7RESCNT) & ~0x0f) | 0x5a5a0000,
-		       p + CA7RESCNT);
 	iounmap(p);
 
 	r8a7790_sysc_init();

@@ -38,10 +38,10 @@ endif
 
 # CPU reset vector handling objects
 cpu-y				:= platsmp.o headsmp.o
-cpu-$(CONFIG_ARCH_R8A7790)	+= platsmp-apmu.o
-cpu-$(CONFIG_ARCH_R8A7791)	+= platsmp-apmu.o
-cpu-$(CONFIG_ARCH_R8A7793)	+= platsmp-apmu.o
-cpu-$(CONFIG_ARCH_R8A7794)	+= platsmp-apmu.o
+cpu-$(CONFIG_ARCH_R8A7790)	+= platsmp-apmu.o platsmp-rst.o
+cpu-$(CONFIG_ARCH_R8A7791)	+= platsmp-apmu.o platsmp-rst.o
+cpu-$(CONFIG_ARCH_R8A7793)	+= platsmp-apmu.o platsmp-rst.o
+cpu-$(CONFIG_ARCH_R8A7794)	+= platsmp-apmu.o platsmp-rst.o
 
 # SMP objects
 smp-y				:= $(cpu-y)

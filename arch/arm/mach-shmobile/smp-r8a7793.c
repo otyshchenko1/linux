@@ -19,6 +19,7 @@
 
 #include <asm/smp_plat.h>
 #include <mach/platsmp-apmu.h>
+#include <mach/platsmp-rst.h>
 
 #include "common.h"
 #include "pm-rcar.h"
@@ -28,6 +29,8 @@
 #define APMU		0xe6151000
 #define CA15DBGRCR	0x1180
 
+#define CA15RESCNT	0x0040
+
 static struct rcar_apmu_config r8a7793_apmu_config[] = {
 	{
 		.iomem = DEFINE_RES_MEM(0xe6152000, 0x88),
@@ -35,10 +38,18 @@ static struct rcar_apmu_config r8a7793_apmu_config[] = {
 	},
 };
 
+static struct rcar_rst_config r8a7793_rst_config[] = {
+	{
+		.rescnt = CA15RESCNT,
+		.rescnt_magic = 0xa5a50000,
+	}
+};
+
 static void __init r8a7793_smp_prepare_cpus(unsigned int max_cpus)
 {
 	void __iomem *p;
 	u32 val;
+	unsigned int k;
 
 	/* let APMU code install data related to shmobile_boot_vector */
 	shmobile_smp_apmu_prepare_cpus(max_cpus,
@@ -54,6 +65,11 @@ static void __init r8a7793_smp_prepare_cpus(unsigned int max_cpus)
 	}
 
 	r8a7793_pm_init();
+
+	/* keep secondary CPU cores in reset */
+	r8a779x_init_reset(r8a7793_rst_config);
+	for (k = 1; k < max_cpus; k++)
+		r8a779x_assert_reset(k);
 }
 
 struct smp_operations r8a7793_smp_ops __initdata = {
