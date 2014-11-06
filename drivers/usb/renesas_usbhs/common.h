@@ -305,6 +305,9 @@ void usbhs_bus_send_sof_enable(struct usbhs_priv *priv);
 void usbhs_bus_send_reset(struct usbhs_priv *priv);
 int usbhs_bus_get_speed(struct usbhs_priv *priv);
 int usbhs_vbus_ctrl(struct usbhs_priv *priv, int enable);
+void usbhsc_bus_init(struct usbhs_priv *priv);
+void usbhsc_set_buswait(struct usbhs_priv *priv);
+void usbhsc_power_ctrl(struct usbhs_priv *priv, int enable);
 
 /*
  * frame

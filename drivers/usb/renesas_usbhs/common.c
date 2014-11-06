@@ -226,7 +226,7 @@ int usbhs_vbus_ctrl(struct usbhs_priv *priv, int enable)
 	return usbhs_platform_call(priv, set_vbus, pdev, enable);
 }
 
-static void usbhsc_bus_init(struct usbhs_priv *priv)
+void usbhsc_bus_init(struct usbhs_priv *priv)
 {
 	usbhs_write(priv, DVSTCTR, 0);
 
@@ -289,7 +289,7 @@ void usbhs_xxxsts_clear(struct usbhs_priv *priv, u16 sts_reg, u16 bit)
 /*
  *		local functions
  */
-static void usbhsc_set_buswait(struct usbhs_priv *priv)
+void usbhsc_set_buswait(struct usbhs_priv *priv)
 {
 	int wait = usbhs_get_dparam(priv, buswait_bwait);
 
@@ -339,7 +339,7 @@ static u32 usbhsc_new_pipe_type[] = {
 /*
  *		power control
  */
-static void usbhsc_power_ctrl(struct usbhs_priv *priv, int enable)
+void usbhsc_power_ctrl(struct usbhs_priv *priv, int enable)
 {
 	struct platform_device *pdev = usbhs_priv_to_pdev(priv);
 	struct device *dev = usbhs_priv_to_dev(priv);
