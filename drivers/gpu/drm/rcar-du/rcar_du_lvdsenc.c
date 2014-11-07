@@ -189,12 +189,12 @@ int rcar_du_lvdsenc_start(struct rcar_du_lvdsenc *lvds,
 	 */
 	lvdcr0 |= LVDCR0_PLLEN;
 	rcar_lvds_write(lvds, LVDCR0, lvdcr0);
-#endif
 
 	usleep_range(100, 150);
 
 	lvdcr0 |= LVDCR0_LVRES;
 	rcar_lvds_write(lvds, LVDCR0, lvdcr0);
+#endif
 
 	lvds->dpms = DRM_MODE_DPMS_ON;
 	return 0;
