@@ -682,6 +682,8 @@ static const struct rcar_gen2_phy_platform_data usbhs_phy_pdata __initconst = {
 #else
 	.chan2_pci = 0,	/* Channel 2 is USB3.0 */
 #endif
+	.gpio_vbus = 851,
+	.wakeup = true,
 };
 
 static const struct resource usbhs_phy_resources[] __initconst = {
