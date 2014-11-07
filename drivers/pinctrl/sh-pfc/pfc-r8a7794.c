@@ -1741,7 +1741,7 @@ static const unsigned int avb_gmii_mux[] = {
 	AVB_COL_MARK,
 };
 static const unsigned int avb_avtp_capture_pins[] = {
-	RCAR_GP_PIN(1, 1),
+	RCAR_GP_PIN(5, 11),
 };
 static const unsigned int avb_avtp_capture_mux[] = {
 	AVB_AVTP_CAPTURE_MARK,
@@ -1753,7 +1753,7 @@ static const unsigned int avb_avtp_match_mux[] = {
 	AVB_AVTP_MATCH_MARK,
 };
 static const unsigned int avb_avtp_capture_b_pins[] = {
-	RCAR_GP_PIN(5, 11),
+	RCAR_GP_PIN(1, 1),
 };
 static const unsigned int avb_avtp_capture_b_mux[] = {
 	AVB_AVTP_CAPTURE_B_MARK,
