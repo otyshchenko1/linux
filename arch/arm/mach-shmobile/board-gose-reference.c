@@ -678,6 +678,8 @@ static const struct rcar_gen2_phy_platform_data usbhs_phy_pdata __initconst = {
 	.chan0_pci = 1,	/* Channel 0 is PCI USB */
 #endif
 	.chan2_pci = 1, /* Channel 2 is PCI USB host */
+	.gpio_vbus = 798,
+	.wakeup = true,
 };
 
 /* VIN */
