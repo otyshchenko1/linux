@@ -1202,7 +1202,7 @@ static enum dma_status rcar_dmac_tx_status(struct dma_chan *chan,
 	unsigned int residue;
 
 	status = dma_cookie_status(chan, cookie, txstate);
-	if (status == DMA_COMPLETE || !txstate)
+	if (status == DMA_SUCCESS || !txstate)
 		return status;
 
 	spin_lock_irqsave(&rchan->lock, flags);
