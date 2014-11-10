@@ -229,17 +229,17 @@ static const struct clk_name clk_names[] __initconst = {
 	{ "fdp1", NULL, NULL },
 	{ "fdp0", NULL, NULL },
 	{ "pvrsrvkm", NULL, "pvrsrvkm" },
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
+	{ "hsusb", NULL, "renesas_usbhs" },
+#else
+	{ "ehci", NULL, "pci-rcar-gen2.0" },
+#endif
 };
 
 /*
  * This is a really crude hack to work around core platform clock issues
  */
 static const struct clk_name clk_enables[] __initconst = {
-#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
-	{ "hsusb", NULL, "renesas_usbhs" },
-#else
-	{ "ehci", NULL, "pci-rcar-gen2.0" },
-#endif
 	{ "ehci", NULL, "pci-rcar-gen2.1" },
 	{ "dmal", NULL, "sh-dma-engine.0" },
 	{ "dmah", NULL, "sh-dma-engine.1" },
