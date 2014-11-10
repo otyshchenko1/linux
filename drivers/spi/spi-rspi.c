@@ -200,6 +200,7 @@ struct rspi_data {
 	void __iomem *addr;
 	u32 max_speed_hz;
 	struct spi_master *master;
+	struct device *dev;
 	wait_queue_head_t wait;
 	struct clk *clk;
 	u16 spcmd;
@@ -809,6 +810,8 @@ static int rspi_setup(struct spi_device *spi)
 {
 	struct rspi_data *rspi = spi_master_get_devdata(spi->master);
 
+	pm_runtime_get_sync(rspi->dev);
+
 	rspi->max_speed_hz = spi->max_speed_hz;
 
 	rspi->spcmd = SPCMD_SSLKP;
@@ -823,6 +826,8 @@ static int rspi_setup(struct spi_device *spi)
 		rspi->sppcr |= SPPCR_SPLP;
 
 	set_config_register(rspi, 8);
+
+	pm_runtime_put_sync(rspi->dev);
 
 	return 0;
 }
@@ -1193,6 +1198,7 @@ static int rspi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, rspi);
 	rspi->ops = ops;
 	rspi->master = master;
+	rspi->dev = &pdev->dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	rspi->addr = devm_ioremap_resource(&pdev->dev, res);
