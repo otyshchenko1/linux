@@ -127,77 +127,6 @@ static void __init koelsch_add_du_device(void)
 	platform_device_register_full(&info);
 }
 
-/* Sound */
-static struct rsnd_ssi_platform_info rsnd_ssi[] = {
-	RSND_SSI(AUDIOPP_DMAC_SLAVE_CMD0_TO_SSI0, gic_spi(370), 0),
-	RSND_SSI(AUDIOPP_DMAC_SLAVE_SSI1_TO_SCU1, gic_spi(371), RSND_SSI_CLK_PIN_SHARE),
-};
-
-static struct rsnd_src_platform_info rsnd_src[2] = {
-	RSND_SRC(0, AUDIO_DMAC_SLAVE_SCU0_TX, gic_spi(352)),
-	RSND_SRC(0, AUDIO_DMAC_SLAVE_CMD1_TO_MEM, gic_spi(353)),
-};
-
-static struct rsnd_dvc_platform_info rsnd_dvc[2] = {
-};
-
-static struct rsnd_dai_platform_info rsnd_dai = {
-	.playback = { .ssi = &rsnd_ssi[0], .src = &rsnd_src[0], .dvc = &rsnd_dvc[0], },
-	.capture  = { .ssi = &rsnd_ssi[1], .src = &rsnd_src[1], .dvc = &rsnd_dvc[1], },
-};
-
-static struct rcar_snd_info rsnd_info = {
-	.flags		= RSND_GEN2,
-	.ssi_info	= rsnd_ssi,
-	.ssi_info_nr	= ARRAY_SIZE(rsnd_ssi),
-	.src_info	= rsnd_src,
-	.src_info_nr	= ARRAY_SIZE(rsnd_src),
-	.dvc_info	= rsnd_dvc,
-	.dvc_info_nr	= ARRAY_SIZE(rsnd_dvc),
-	.dai_info	= &rsnd_dai,
-	.dai_info_nr	= 1,
-};
-
-static struct asoc_simple_card_info rsnd_card_info = {
-	.name		= "SSI01-AK4643",
-	.codec		= "ak4642-codec.2-0012",
-	.platform	= "rcar_sound",
-	.daifmt		= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS,
-	.cpu_dai = {
-		.name	= "rcar_sound",
-	},
-	.codec_dai = {
-		.name	= "ak4642-hifi",
-		.sysclk	= 11289600,
-	},
-};
-
-static void __init koelsch_add_rsnd_device(void)
-{
-	struct resource rsnd_resources[] = {
-		[RSND_GEN2_SCU]  = DEFINE_RES_MEM(0xec500000, 0x1000),
-		[RSND_GEN2_ADG]  = DEFINE_RES_MEM(0xec5a0000, 0x100),
-		[RSND_GEN2_SSIU] = DEFINE_RES_MEM(0xec540000, 0x1000),
-		[RSND_GEN2_SSI]  = DEFINE_RES_MEM(0xec541000, 0x1280),
-	};
-
-	struct platform_device_info cardinfo = {
-		.parent         = &platform_bus,
-		.name           = "asoc-simple-card",
-		.id             = -1,
-		.data           = &rsnd_card_info,
-		.size_data      = sizeof(struct asoc_simple_card_info),
-		.dma_mask       = DMA_BIT_MASK(32),
-	};
-
-	platform_device_register_resndata(
-		&platform_bus, "rcar_sound", -1,
-		rsnd_resources, ARRAY_SIZE(rsnd_resources),
-		&rsnd_info, sizeof(rsnd_info));
-
-	platform_device_register_full(&cardinfo);
-}
-
 /*
  * This is a really crude hack to provide clkdev support to platform
  * devices until they get moved to DT.
@@ -209,12 +138,6 @@ static const struct clk_name clk_names[] __initconst = {
 	{ "du1", "du.1", "rcar-du-r8a7791" },
 	{ "lvds0", "lvds.0", "rcar-du-r8a7791" },
 	{ "hsusb", NULL, "usb_phy_rcar_gen2" },
-	{ "ssi0", "ssi.0", "rcar_sound" },
-	{ "ssi1", "ssi.1", "rcar_sound" },
-	{ "src0", "src.0", "rcar_sound" },
-	{ "src1", "src.1", "rcar_sound" },
-	{ "dvc0", "dvc.0", "rcar_sound" },
-	{ "dvc1", "dvc.1", "rcar_sound" },
 	{ "vin0", NULL, "r8a7791-vin.0" },
 	{ "vin1", NULL, "r8a7791-vin.1" },
 	{ "vsps", NULL, NULL },
@@ -964,7 +887,6 @@ static void __init koelsch_add_standard_devices(void)
 
 	koelsch_add_du_device();
 	koelsch_add_usb_devices();
-	koelsch_add_rsnd_device();
 	koelsch_add_camera0_device();
 	koelsch_add_camera1_device();
 #if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1)
