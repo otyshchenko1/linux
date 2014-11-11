@@ -833,6 +833,8 @@ static int sci_handle_errors(struct uart_port *port)
 
 		if (tty_insert_flip_char(tport, 0, TTY_PARITY))
 			copied++;
+
+		dev_notice(port->dev, "parity error\n");
 	}
 
 	if (copied)
@@ -860,7 +862,6 @@ static int sci_handle_fifo_overrun(struct uart_port *port)
 		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 		tty_flip_buffer_push(tport);
 
-		dev_notice(port->dev, "overrun error\n");
 		copied++;
 	}
 
