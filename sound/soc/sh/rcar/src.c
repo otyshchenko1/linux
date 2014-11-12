@@ -1063,10 +1063,12 @@ static void rsnd_of_parse_src(struct platform_device *pdev,
 			      struct rsnd_priv *priv)
 {
 	struct device_node *src_node;
+	struct device_node *np;
 	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
 	struct rsnd_src_platform_info *src_info;
 	struct device *dev = &pdev->dev;
 	int nr;
+	int i;
 
 	if (!of_data)
 		return;
@@ -1089,6 +1091,15 @@ static void rsnd_of_parse_src(struct platform_device *pdev,
 
 	info->src_info		= src_info;
 	info->src_info_nr	= nr;
+
+	i = -1;
+	for_each_child_of_node(src_node, np) {
+		i++;
+
+		src_info = info->src_info + i;
+
+		src_info->irq_id = irq_of_parse_and_map(np, 0);
+	}
 
 rsnd_of_parse_src_end:
 	of_node_put(src_node);
