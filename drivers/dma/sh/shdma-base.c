@@ -405,10 +405,12 @@ static dma_async_tx_callback __ld_cleanup(struct shdma_chan *schan, bool all)
 
 	spin_unlock_irqrestore(&schan->chan_lock, flags);
 
-	if (callback)
+	if (callback) {
+		__ld_cleanup(schan, all);
 		callback(param);
+	}
 
-	return callback;
+	return NULL;
 }
 
 /*
@@ -418,8 +420,7 @@ static dma_async_tx_callback __ld_cleanup(struct shdma_chan *schan, bool all)
  */
 static void shdma_chan_ld_cleanup(struct shdma_chan *schan, bool all)
 {
-	while (__ld_cleanup(schan, all))
-		;
+	__ld_cleanup(schan, all);
 }
 
 /*
