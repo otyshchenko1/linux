@@ -21,6 +21,9 @@
 #include <linux/platform_device.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb/phy.h>
+#include <linux/usb/otg.h>
+#include <linux/notifier.h>
 #include "common.h"
 
 /*
@@ -58,6 +61,7 @@ struct usbhsg_gpriv {
 #define USBHSG_STATUS_SELF_POWERED	(1 << 3)
 
 	unsigned		softconnect:1;
+	struct usb_phy		*transceiver;
 };
 
 struct usbhsg_recip_handle {
@@ -878,6 +882,9 @@ static int usbhsg_gadget_start(struct usb_gadget *gadget,
 	    driver->max_speed < USB_SPEED_FULL)
 		return -EINVAL;
 
+	if (gpriv->transceiver)
+		otg_set_peripheral(gpriv->transceiver->otg, &gpriv->gadget);
+
 	/* first hook up the driver ... */
 	gpriv->driver = driver;
 
@@ -892,6 +899,9 @@ static int usbhsg_gadget_stop(struct usb_gadget *gadget,
 
 	usbhsg_try_stop(priv, USBHSG_STATUS_REGISTERD);
 	gpriv->driver = NULL;
+
+	if (gpriv->transceiver)
+		otg_set_peripheral(gpriv->transceiver->otg, NULL);
 
 	return 0;
 }
@@ -1010,6 +1020,10 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 	gpriv->gadget.ops		= &usbhsg_gadget_ops;
 	gpriv->gadget.max_speed		= USB_SPEED_HIGH;
 
+	gpriv->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
+	dev_info(dev, "%s transceiver found\n",
+		 gpriv->transceiver ? gpriv->transceiver->label : "No");
+
 	INIT_LIST_HEAD(&gpriv->gadget.ep_list);
 
 	/*
@@ -1064,6 +1078,11 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 err_add_udc:
 	kfree(gpriv->uep);
 
+	if (gpriv->transceiver) {
+		usb_put_phy(gpriv->transceiver);
+		gpriv->transceiver = NULL;
+	}
+
 usbhs_mod_gadget_probe_err_gpriv:
 	kfree(gpriv);
 
@@ -1073,6 +1092,11 @@ usbhs_mod_gadget_probe_err_gpriv:
 void usbhs_mod_gadget_remove(struct usbhs_priv *priv)
 {
 	struct usbhsg_gpriv *gpriv = usbhsg_priv_to_gpriv(priv);
+
+	if (gpriv->transceiver) {
+		usb_put_phy(gpriv->transceiver);
+		gpriv->transceiver = NULL;
+	}
 
 	usb_del_gadget_udc(&gpriv->gadget);
 
