@@ -25,6 +25,7 @@
 #include <linux/usb/otg.h>
 #include <linux/notifier.h>
 #include "common.h"
+#include <linux/usb/otg.h>
 
 /*
  *		struct
@@ -943,14 +944,6 @@ static int usbhsg_set_selfpowered(struct usb_gadget *gadget, int is_self)
 	return 0;
 }
 
-static const struct usb_gadget_ops usbhsg_gadget_ops = {
-	.get_frame		= usbhsg_get_frame,
-	.set_selfpowered	= usbhsg_set_selfpowered,
-	.udc_start		= usbhsg_gadget_start,
-	.udc_stop		= usbhsg_gadget_stop,
-	.pullup			= usbhsg_pullup,
-};
-
 static int usbhsg_start(struct usbhs_priv *priv)
 {
 	return usbhsg_try_start(priv, USBHSG_STATUS_STARTED);
@@ -967,6 +960,61 @@ static int usbhsg_stop(struct usbhs_priv *priv)
 
 	return usbhsg_try_stop(priv, USBHSG_STATUS_STARTED);
 }
+
+#define usbhs_platform_call(priv, func, args...)\
+	(!(priv) ? -ENODEV :			\
+	 !((priv)->pfunc.func) ? 0 :		\
+	 (priv)->pfunc.func(args))
+
+static int usbhsg_vbus_session(struct usb_gadget *gadget, int is_active)
+{
+	struct usbhsg_gpriv *gpriv = usbhsg_gadget_to_gpriv(gadget);
+	struct usbhs_priv *priv = usbhsg_gpriv_to_priv(gpriv);
+	struct device *dev = usbhs_priv_to_dev(priv);
+	struct platform_device *pdev = usbhs_priv_to_pdev(priv);
+	int id;
+
+	dev_dbg(dev, "is_active = %d\n", is_active);
+	id = usbhs_platform_call(priv, get_id, pdev);
+
+	usbhs_mod_change(priv, id);
+
+	if (is_active == 1) {
+		/* power on */
+		usbhsc_power_ctrl(priv, is_active);
+		/* bus init */
+		usbhsc_set_buswait(priv);
+		usbhsc_bus_init(priv);
+
+		/* module start */
+		usbhsg_start(priv);
+	} else {
+		/* module stop */
+		usbhsg_stop(priv);
+
+		/* bus init */
+		usbhsc_bus_init(priv);
+
+		/* power off */
+		usbhsc_power_ctrl(priv, is_active);
+
+		usbhs_mod_change(priv, -1);
+
+		/* reset phy for next connection */
+		usbhs_platform_call(priv, phy_reset, pdev);
+	}
+
+	return 0;
+}
+
+static const struct usb_gadget_ops usbhsg_gadget_ops = {
+	.get_frame		= usbhsg_get_frame,
+	.set_selfpowered	= usbhsg_set_selfpowered,
+	.vbus_session		= usbhsg_vbus_session,
+	.udc_start		= usbhsg_gadget_start,
+	.udc_stop		= usbhsg_gadget_stop,
+	.pullup			= usbhsg_pullup,
+};
 
 int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 {
