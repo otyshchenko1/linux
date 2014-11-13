@@ -326,6 +326,7 @@ static const struct clk_name clk_enables[] __initconst = {
 #if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 	{ "usbdmac0", NULL, "sh-dma-engine.4" },
 #endif
+	{ "ipmmu_gp", NULL, "ipmmu_gp" },
 };
 
 #define DMAE_CHANNEL(a, b)			\
