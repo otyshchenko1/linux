@@ -249,6 +249,7 @@ static const struct clk_name clk_enables[] __initconst = {
 	{ "usbdmac0", NULL, "sh-dma-engine.4" },
 #endif
 	{ "ssp_dev", NULL, "ssp_dev" },
+	{ "ipmmu_gp", NULL, "ipmmu_gp" },
 };
 
 #define DMAE_CHANNEL(a, b)			\
