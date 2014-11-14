@@ -15,10 +15,9 @@
  *      2: CN22
  *      3: ADV7511
  *
- * this command is required when playback.
+  * This command is required when Playback/Capture
  *
- * # amixer set "LINEOUT Mixer DACL" on
- * # amixer set "Playback" 100
+ *	amixer set "LINEOUT Mixer DACL" on
  */
 
 /dts-v1/;
@@ -172,6 +171,23 @@
 		regulator-always-on;
 	};
 
+	sound {
+		compatible = "simple-audio-card";
+
+		simple-audio-card,format = "left_j";
+		simple-audio-card,bitclock-master = <&sndcodec>;
+		simple-audio-card,frame-master = <&sndcodec>;
+
+		sndcpu: simple-audio-card,cpu {
+			sound-dai = <&rcar_sound>;
+		};
+
+		sndcodec: simple-audio-card,codec {
+			sound-dai = <&ak4643>;
+			system-clock-frequency = <12288000>;
+		};
+	};
+
 	hdmi_transmitter: adv7511 {
 		compatible = "adi,adv7511";
 		gpios = <&gpio2 31 GPIO_ACTIVE_LOW>;
@@ -200,7 +216,7 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
-	snd_codec: ak4643 {
+	ak4643: sound-codec@12 {
 		#sound-dai-cells = <0>;
 		compatible = "asahi-kasei,ak4643";
 		reg = <0x12>;
@@ -213,8 +229,7 @@
 };
 
 &pfc {
-	pinctrl-0 = <&du_pins &usb0_pins &usb1_pins &sound_pins &sound_clk_pins
-		     &vin0_pins>;
+	pinctrl-0 = <&du_pins &usb0_pins &usb1_pins &vin0_pins>;
 	pinctrl-names = "default";
 
 	du_pins: du {
@@ -397,4 +412,29 @@
 	bus-width = <8>;
 	non-removable;
 	status = "okay";
+};
+
+&rcar_sound {
+	pinctrl-0 = <&sound_pins &sound_clk_pins>;
+	pinctrl-names = "default";
+
+	#sound-dai-cells = <0>;
+
+	status = "okay";
+
+	rcar_sound,dai {
+		dai0 {
+			playback = <&ssi0>;
+			capture  = <&ssi1>;
+		};
+	};
+};
+
+&ssi0 {
+	pio-transfer;
+};
+
+&ssi1 {
+	pio-transfer;
+	shared-pin;
 };
