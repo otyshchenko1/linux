@@ -90,6 +90,8 @@ struct rcar_du_device_info {
 	unsigned int lvds1_crtc;
 	unsigned int vspd_crtc;
 	enum chip_id chip;
+	bool drgbs_use;
+	bool vscs_use;
 };
 
 struct rcar_du_device {

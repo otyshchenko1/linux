@@ -232,6 +232,7 @@
 #define DEFR8			0x20020
 #define DEFR8_CODE		(0x7790 << 16)
 #define DEFR8_VSCS		(1 << 6)
+#define DEFR8_VSCS_MASK		(1 << 6)
 #define DEFR8_DRGBS_DU(n)	((n) << 4)
 #define DEFR8_DRGBS_MASK	(3 << 4)
 #define DEFR8_DEFE8		(1 << 0)

@@ -47,6 +47,7 @@ void rcar_du_group_write(struct rcar_du_group *rgrp, u32 reg, u32 data)
 static void rcar_du_group_setup_defr8(struct rcar_du_group *rgrp)
 {
 	u32 defr8 = DEFR8_CODE | DEFR8_DEFE8;
+	u32 defr8_r = 0;
 
 	if (!rcar_du_has(rgrp->dev, RCAR_DU_FEATURE_DEFR8))
 		return;
@@ -55,18 +56,22 @@ static void rcar_du_group_setup_defr8(struct rcar_du_group *rgrp)
 	 * routing to DPAD0 and VSPD1 routing to DU0/1/2.
 	 */
 	if (rgrp->index == 0) {
-		defr8 |= DEFR8_DRGBS_DU(rgrp->dev->dpad0_source);
-		if (rgrp->dev->vspd1_sink == 2)
+		if (rgrp->dev->info->drgbs_use)
+			defr8 |= DEFR8_DRGBS_DU(rgrp->dev->dpad0_source);
+		if ((rgrp->dev->vspd1_sink == 2) &&
+			(rgrp->dev->info->vscs_use))
 			defr8 |= DEFR8_VSCS;
 	}
 
+	defr8_r = rcar_du_group_read(rgrp, DEFR8) &
+			(DEFR8_DRGBS_MASK | DEFR8_VSCS_MASK);
+
 	rcar_du_group_write(rgrp, DEFR8, defr8);
 
-	/* reset to reflect DEFR8 register */
-	rcar_du_write(rgrp->dev, DSYSR,
-		(rcar_du_read(rgrp->dev, DSYSR) & ~0x00000300) | DSYSR_DRES);
-	rcar_du_write(rgrp->dev, DSYSR,
-		(rcar_du_read(rgrp->dev, DSYSR) & ~0x00000300) | DSYSR_DEN);
+	if ((defr8 & (DEFR8_DRGBS_MASK | DEFR8_VSCS_MASK)) != defr8_r) {
+		/* reset to reflect DEFR8 register */
+		rcar_du_group_restart(rgrp);
+	}
 }
 
 static void rcar_du_group_setup(struct rcar_du_group *rgrp)
