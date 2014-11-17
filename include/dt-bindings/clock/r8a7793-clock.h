@@ -78,10 +78,10 @@
 #define R8A7793_CLK_USBDMAC1		31
 
 /* MSTP5 */
+#define R8A7793_CLK_AUDIO_DMAC1         1
+#define R8A7793_CLK_AUDIO_DMAC0         2
 #define R8A7793_CLK_THERMAL		22
 #define R8A7793_CLK_PWM			23
-#define R8A7793_CLK_DMA_LOW		2
-#define R8A7793_CLK_DMA_HI		1
 
 /* MSTP7 */
 #define R8A7793_CLK_EHCI		3
