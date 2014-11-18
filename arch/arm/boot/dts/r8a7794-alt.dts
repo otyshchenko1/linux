@@ -182,9 +182,7 @@
 	sound {
 		compatible = "simple-audio-card";
 
-		simple-audio-card,format = "left_j";
-		simple-audio-card,bitclock-master = <&sndcodec>;
-		simple-audio-card,frame-master = <&sndcodec>;
+		simple-audio-card,format = "i2s";
 
 		sndcpu: simple-audio-card,cpu {
 			sound-dai = <&rcar_sound>;
