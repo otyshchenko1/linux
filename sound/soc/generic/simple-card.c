@@ -506,6 +506,7 @@ static struct platform_driver asoc_simple_card = {
 		.name	= "asoc-simple-card",
 		.owner = THIS_MODULE,
 		.of_match_table = asoc_simple_of_match,
+		.pm = &snd_soc_pm_ops,
 	},
 	.probe		= asoc_simple_card_probe,
 };
