@@ -642,8 +642,6 @@ static int rsnd_ssi_dma_start(struct rsnd_mod *mod,
 	/* enable Overflow and Underflow IRQ */
 	ssi->cr_etc |= UIEN | OIEN;
 
-	rsnd_src_ssiu_start(mod, rdai, rsnd_ssi_use_busif(mod));
-
 	rsnd_dma_start(dma);
 
 	rsnd_ssi_hw_start(ssi, ssi->rdai, io);
@@ -653,6 +651,8 @@ static int rsnd_ssi_dma_start(struct rsnd_mod *mod,
 	/* enable WS continue */
 	if (rsnd_dai_is_clk_master(rdai))
 		rsnd_mod_write(&ssi->mod, SSIWSR, CONT);
+
+	rsnd_src_ssiu_start(mod, rdai, rsnd_ssi_use_busif(mod));
 
 	return 0;
 }
