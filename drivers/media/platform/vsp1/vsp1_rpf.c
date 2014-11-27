@@ -118,10 +118,21 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	rpf->offsets[0] = crop->top * stride_y
 			+ crop->left * fmtinfo->bpp[0] / 8;
 	pstride = stride_y << VI6_RPF_SRCM_PSTRIDE_Y_SHIFT;
+
+	vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_Y,
+		       rpf->buf_addr[0] + rpf->offsets[0]);
+
 	if (format->num_planes > 1) {
 		rpf->offsets[1] = crop->top * stride_c
 				+ crop->left * fmtinfo->bpp[1] / 8;
 		pstride |= stride_c << VI6_RPF_SRCM_PSTRIDE_C_SHIFT;
+
+		vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C0,
+			       rpf->buf_addr[1] + rpf->offsets[1]);
+
+		if (format->num_planes > 2)
+			vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C1,
+				       rpf->buf_addr[2] + rpf->offsets[1]);
 	}
 
 	vsp1_rpf_write(rpf, VI6_RPF_SRCM_PSTRIDE, pstride);
@@ -192,6 +203,13 @@ static void rpf_vdev_queue(struct vsp1_video *video,
 	struct vsp1_rwpf *rpf = container_of(video, struct vsp1_rwpf, video);
 	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&video->video.entity);
 	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
+	unsigned int i;
+
+	for (i = 0; i < 3; ++i)
+		rpf->buf_addr[i] = buf->addr[i];
+
+	if (!vsp1_entity_is_streaming(&rpf->entity))
+		return;
 
 	if (V4L2_FIELD_IS_PICONV(video->format.field)
 		&& vsp1->display_field == V4L2_FIELD_BOTTOM) {
