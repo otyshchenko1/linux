@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  * Copyright (c) 2006-2009 Red Hat Inc.
  * Copyright (c) 2006-2008 Intel Corporation
  * Copyright (c) 2007 Dave Airlie <airlied@linux.ie>
@@ -868,7 +868,11 @@ int drm_fb_helper_set_par(struct fb_info *info)
 			disp_set_mode->private_flags = DRM_FB_CHANGED;
 		} else if ((var->xres != disp_set_mode->hdisplay) ||
 			 (var->yres != disp_set_mode->vdisplay) ||
-			 (fb->pixel_format != pre_pixfmt)) {
+			 (fb->pixel_format != pre_pixfmt) ||
+			 (((var->vmode & FB_VMODE_INTERLACED)
+				== FB_VMODE_INTERLACED) ^
+			 ((disp_set_mode->flags & DRM_MODE_FLAG_INTERLACE)
+				== DRM_MODE_FLAG_INTERLACE))) {
 			disp_set_mode->private_flags = DRM_MODE_CHANGED;
 		} else
 			disp_set_mode->private_flags = false;
