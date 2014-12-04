@@ -560,7 +560,7 @@ static void ravb_ring_format(struct net_device *ndev, int q)
 			mdp->tx_skbuff_aligned[q][i] = tx_skb;
 			txdesc = &mdp->tx_ring[q][i];
 			txdesc->dptr = virt_to_phys(tx_skb->data);
-			txdesc->dt = DT_FEMPTY;
+			txdesc->dt = DT_EEMPTY;
 		}
 		txdesc = &mdp->tx_ring[q][i];
 		txdesc->dptr = (u32)mdp->tx_desc_dma[q];
@@ -811,7 +811,7 @@ static int ravb_txfree(struct net_device *ndev, int q)
 		}
 		stats->tx_packets++;
 		stats->tx_bytes += desc->ds;
-		desc->dt = DT_FEMPTY;
+		desc->dt = DT_EEMPTY;
 	}
 	return free_num;
 }
@@ -1736,9 +1736,10 @@ static int ravb_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 			return NETDEV_TX_BUSY;
 		}
 	}
+	entry = mdp->cur_tx[q] % mdp->num_tx_ring[q];
+	mdp->cur_tx[q]++;
 	spin_unlock_irqrestore(&mdp->lock, flags);
 
-	entry = mdp->cur_tx[q] % mdp->num_tx_ring[q];
 	mdp->tx_skbuff[q][entry] = skb;
 	desc = &mdp->tx_ring[q][entry];
 	/* soft swap. */
@@ -1786,8 +1787,6 @@ static int ravb_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	/* descriptor type */
 	desc->dt = DT_FSINGLE;
-
-	mdp->cur_tx[q]++;
 
 	if (!(ravb_read(ndev, TCCR) & (TCCR_TSRQ0 << q))) {
 		spin_lock_irqsave(&mdp->lock, flags);
