@@ -392,6 +392,8 @@ int ravb_ptp_init(struct net_device *ndev,
 #endif
 	ravb_ptp->default_addend = ravb_read(ndev, GTI);
 
+	spin_lock_init(&ravb_ptp->lock);
+
 	spin_lock_irqsave(&ravb_ptp->lock, flags);
 	ravb_ptp_select_counter(ravb_ptp, TCSS_CORR_GPTP);
 	spin_unlock_irqrestore(&ravb_ptp->lock, flags);
