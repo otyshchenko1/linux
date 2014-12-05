@@ -46,7 +46,6 @@ static int rpf_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct vsp1_rwpf *rpf =
 		container_of(ctrl->handler, struct vsp1_rwpf, ctrls);
-	struct vsp1_pipeline *pipe;
 
 	if (!vsp1_entity_is_streaming(&rpf->entity))
 		return 0;
@@ -55,9 +54,6 @@ static int rpf_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_ALPHA_COMPONENT:
 		vsp1_rpf_write(rpf, VI6_RPF_VRTCOL_SET,
 			       ctrl->val << VI6_RPF_VRTCOL_SET_LAYA_SHIFT);
-
-		pipe = to_vsp1_pipeline(&rpf->entity.subdev.entity);
-		vsp1_pipeline_propagate_alpha(pipe, &rpf->entity, ctrl->val);
 		break;
 	}
 
