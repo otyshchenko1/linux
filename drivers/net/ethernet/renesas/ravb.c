@@ -922,7 +922,10 @@ static int ravb_rx(struct net_device *ndev, u32 ris0, int *quota, int q)
 			}
 			skb_put(skb, pkt_len);
 			skb->protocol = eth_type_trans(skb, ndev);
-			netif_receive_skb(skb);
+			if (q == RAVB_NC)
+				netif_rx(skb);
+			else
+				netif_receive_skb(skb);
 			stats->rx_packets++;
 			stats->rx_bytes += pkt_len;
 		}
