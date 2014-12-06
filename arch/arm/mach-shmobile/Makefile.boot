@@ -15,6 +15,7 @@ loadaddr-$(CONFIG_MACH_MACKEREL) += 0x40008000
 loadaddr-$(CONFIG_MACH_MARZEN) += 0x60008000
 loadaddr-$(CONFIG_MACH_GOSE) += 0x40008000
 loadaddr-$(CONFIG_MACH_ALT) += 0x40008000
+loadaddr-$(CONFIG_MACH_SILK) += 0x40008000
 
 __ZRELADDR	:= $(sort $(loadaddr-y))
    zreladdr-y   += $(__ZRELADDR)
