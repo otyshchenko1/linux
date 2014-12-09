@@ -1,7 +1,7 @@
 /*
  * rcar_du_crtc.c  --  R-Car Display Unit CRTCs
  *
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -73,8 +73,10 @@ static int rcar_du_crtc_get(struct rcar_du_crtc *rcrtc)
 {
 	int ret;
 
-	if (rcrtc->started)
+	if (rcrtc->use_count != 0)
 		return 0;
+
+	rcrtc->use_count++;
 
 	ret = clk_prepare_enable(rcrtc->clock);
 	if (ret < 0)
@@ -89,8 +91,10 @@ static int rcar_du_crtc_get(struct rcar_du_crtc *rcrtc)
 
 static void rcar_du_crtc_put(struct rcar_du_crtc *rcrtc)
 {
-	if (!rcrtc->started)
+	if (rcrtc->use_count == 0)
 		return;
+
+	rcrtc->use_count--;
 
 	rcar_du_group_put(rcrtc->group);
 	clk_disable_unprepare(rcrtc->clock);
