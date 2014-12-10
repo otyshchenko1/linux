@@ -188,6 +188,7 @@ static const struct clk_name clk_enables[] __initconst = {
 	{ "sys-dmac0", NULL, "sh-dma-engine.3" },
 #if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 	{ "usbdmac0", NULL, "sh-dma-engine.4" },
+	{ "usbdmac1", NULL, "sh-dma-engine.5" },
 #endif
 	{ "ssp_dev", NULL, "ssp_dev" },
 };
@@ -417,6 +418,42 @@ static struct resource usb_dmac_resources[] = {
 	DEFINE_RES_IRQ(gic_spi(109)),
 };
 
+static const struct sh_dmae_slave_config usb_dmac1_slaves[] = {
+	{
+		.slave_id	= USB_DMAC1_SLAVE_USBHS_TX,
+		.chcr		= USBTS_INDEX2VAL(USBTS_XMIT_SZ_32BYTE),
+	}, {
+		.slave_id	= USB_DMAC1_SLAVE_USBHS_RX,
+		.chcr		= USBTS_INDEX2VAL(USBTS_XMIT_SZ_32BYTE),
+	},
+};
+
+static struct sh_dmae_pdata usb_dmac1_platform_data = {
+	.slave		= usb_dmac1_slaves,
+	.slave_num	= ARRAY_SIZE(usb_dmac1_slaves),
+	.channel	= usb_dmac_channels,
+	.channel_num	= ARRAY_SIZE(usb_dmac_channels),
+	.ts_low_shift	= USBTS_LOW_SHIFT,
+	.ts_low_mask	= USBTS_LOW_BIT << USBTS_LOW_SHIFT,
+	.ts_high_shift	= USBTS_HI_SHIFT,
+	.ts_high_mask	= USBTS_HI_BIT << USBTS_HI_SHIFT,
+	.ts_shift	= dma_usbts_shift,
+	.ts_shift_num	= ARRAY_SIZE(dma_usbts_shift),
+	.dmaor_init	= DMAOR_DME,
+	.chcr_offset	= 0x14,
+	.chcr_ie_bit	= 1 << 5,
+	.dmaor_is_32bit	= 1,
+	.needs_tend_set	= 1,
+	.no_dmars	= 1,
+	.slave_only	= 1,
+};
+
+static struct resource usb_dmac1_resources[] = {
+	DEFINE_RES_MEM(0xe65b0020, 0x44), /* Channel registers and DMAOR */
+	DEFINE_RES_MEM(0xe65b0000, 0x14), /* VCR/SWR/DMICR */
+	DEFINE_RES_IRQ(gic_spi(110)),
+};
+
 static void __init lager_add_usb_dmac_prototype(void)
 {
 	platform_device_register_resndata(&platform_bus, "sh-dma-engine",
@@ -425,6 +462,13 @@ static void __init lager_add_usb_dmac_prototype(void)
 					  ARRAY_SIZE(usb_dmac_resources),
 					  &usb_dmac_platform_data,
 					  sizeof(usb_dmac_platform_data));
+	platform_device_register_resndata(&platform_bus, "sh-dma-engine",
+					  5,
+					  usb_dmac1_resources,
+					  ARRAY_SIZE(usb_dmac1_resources),
+					  &usb_dmac1_platform_data,
+					  sizeof(usb_dmac1_platform_data));
+
 }
 
 /* USBHS */
