@@ -492,6 +492,9 @@ static int adv7511_get_modes(struct drm_encoder *encoder,
 			ADV7511_INT0_EDID_READY | ADV7511_INT1_DDC_ERROR);
 		regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER,
 				ADV7511_POWER_POWER_DOWN, 0);
+		regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER2,
+				ADV7511_REG_POWER2_HDP_SRC_MASK,
+				ADV7511_REG_POWER2_HDP_SRC_NONE);
 		adv7511->current_edid_segment = -1;
 		regcache_sync(adv7511->regmap);
 	}
@@ -946,6 +949,9 @@ static int adv7511_probe(struct i2c_client *i2c,
 	/* For active status of EDID ready */
 	regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER,
 			ADV7511_POWER_POWER_DOWN, 0);
+	regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER2,
+			ADV7511_REG_POWER2_HDP_SRC_MASK,
+			ADV7511_REG_POWER2_HDP_SRC_NONE);
 	regcache_sync(adv7511->regmap);
 
 	adv7511->dpms_mode = DRM_MODE_DPMS_ON;
