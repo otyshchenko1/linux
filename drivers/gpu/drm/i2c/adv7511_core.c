@@ -2,7 +2,7 @@
  * drivers/gpu/drm/i2c/adv7511_core.c
  *     This file is hdmi setting for adv7511.
  *
- * Copyright (C) 2013 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * * Analog Devices ADV7511 HDMI transmitter driver
  *
@@ -942,6 +942,8 @@ static int adv7511_probe(struct i2c_client *i2c,
 	/* For active status of EDID ready */
 	regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER,
 			ADV7511_POWER_POWER_DOWN, 0);
+
+	adv7511->dpms_mode = DRM_MODE_DPMS_ON;
 
 #if defined(CONFIG_DRM_RCAR_DU) || defined(CONFIG_DRM_RCAR_DU_MODULE)
 	/* Wait status of hotplug detect and hotplug interrupts */
