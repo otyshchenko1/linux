@@ -27,6 +27,7 @@
 
 #define EDID_MAX_RETRIES	(8)
 #define EDID_DELAY		(250) /* ms */
+#define HPD_DELAY		(100) /* ms */
 
 static const uint8_t adv7511_register_defaults[] = {
 	0x12, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 00 */
@@ -369,13 +370,40 @@ static void adv7511_edid_handler(struct work_struct *work)
 	}
 }
 
+static void adv7511_hpd_handler(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct adv7511 *adv7511 =
+		 container_of(dwork, struct adv7511, hpd_handler);
+
+	if (adv7511->encoder)
+		drm_helper_hpd_irq_event(adv7511->encoder->dev);
+}
+
 static irqreturn_t adv7511_irq_handler(int irq, void *devid)
 {
 	struct adv7511 *adv7511 = devid;
+	enum drm_connector_status status;
+	unsigned int val;
 
-	if (adv7511_hpd(adv7511) && adv7511->encoder) {
+	if (adv7511_hpd(adv7511)) {
 		cancel_delayed_work(&adv7511->edid_handler);
-		drm_helper_hpd_irq_event(adv7511->encoder->dev);
+
+		if (regmap_read(adv7511->regmap, ADV7511_REG_STATUS, &val) < 0)
+			status = connector_status_disconnected;
+		else if (val & ADV7511_STATUS_HPD)
+			status = connector_status_connected;
+		else
+			status = connector_status_disconnected;
+
+		if (!adv7511->connector_detect_disconnect &&
+			status == connector_status_disconnected) {
+			adv7511->connector_detect_disconnect = true;
+		}
+
+		queue_delayed_work(adv7511->work_queue,
+			   &adv7511->hpd_handler,
+			   msecs_to_jiffies(HPD_DELAY));
 	}
 
 	wake_up_all(&adv7511->wq);
@@ -990,6 +1018,7 @@ static int adv7511_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	INIT_DELAYED_WORK(&adv7511->edid_handler, adv7511_edid_handler);
+	INIT_DELAYED_WORK(&adv7511->hpd_handler, adv7511_hpd_handler);
 
 #if defined(CONFIG_DRM_RCAR_DU) || defined(CONFIG_DRM_RCAR_DU_MODULE)
 	/* HPD interrupt enable only */
@@ -1066,6 +1095,7 @@ static int adv7511_remove(struct i2c_client *i2c)
 {
 	struct adv7511 *adv7511 = i2c_get_clientdata(i2c);
 
+	cancel_delayed_work_sync(&adv7511->hpd_handler);
 	cancel_delayed_work_sync(&adv7511->edid_handler);
 	i2c_unregister_device(adv7511->i2c_edid);
 

@@ -456,6 +456,7 @@ struct adv7511 {
 
 	struct workqueue_struct *work_queue;
 	struct delayed_work edid_handler;
+	struct delayed_work hpd_handler;
 	unsigned int edid_read_retries;
 	bool connector_detect_disconnect;
 };
