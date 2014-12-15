@@ -145,8 +145,10 @@ void __init shmobile_smp_apmu_prepare_cpus(unsigned int max_cpus,
 					   struct rcar_apmu_config *apmu_config,
 					   int num)
 {
+#if defined(CONFIG_SUSPEND)
 	/* pass physical address of cpu_resume() to assembly resume code */
 	cpu_resume_phys_addr = virt_to_phys(cpu_resume);
+#endif
 
 	/* install boot code shared by all CPUs */
 	shmobile_boot_fn = virt_to_phys(shmobile_smp_boot);
