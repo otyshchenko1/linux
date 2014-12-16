@@ -603,6 +603,8 @@ static struct usbhs_private usbhs_priv __initdata = {
 			.pipe_size	= ARRAY_SIZE(koelsch_usbhs_pipe_type),
 			.d0_rx_id	= USB_DMAC_SLAVE_USBHS_RX,
 			.d1_tx_id	= USB_DMAC_SLAVE_USBHS_TX,
+			.d2_rx_id	= USB_DMAC1_SLAVE_USBHS_RX,
+			.d3_tx_id	= USB_DMAC1_SLAVE_USBHS_TX,
 			.usb_dmac_xfer_size = 32,
 		},
 	}
