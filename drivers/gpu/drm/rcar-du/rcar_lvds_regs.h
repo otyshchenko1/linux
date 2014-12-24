@@ -16,8 +16,10 @@
 #define LVDCR0				0x0000
 #define LVDCR0_DUSEL			(1 << 15)
 #define LVDCR0_DMD			(1 << 12)
-#define LVDCR0_LVMD_MASK		(0xf << 8)
 #define LVDCR0_LVMD_SHIFT		8
+#define LVDCR0_LVMD_MASK		(0xf << LVDCR0_LVMD_SHIFT)
+#define LVDCR0_LVMD(x)			((x << LVDCR0_LVMD_SHIFT) \
+						 & LVDCR0_LVMD_MASK)
 #define LVDCR0_PLLEN			(1 << 4)
 #define LVDCR0_BEN			(1 << 2)
 #define LVDCR0_LVEN			(1 << 1)

@@ -37,6 +37,7 @@ enum rcar_du_encoder_type {
 struct rcar_du_panel_data {
 	unsigned int width_mm;		/* Panel width in mm */
 	unsigned int height_mm;		/* Panel height in mm */
+	unsigned int lvds_mode;
 	struct drm_mode_modeinfo mode;
 };
 

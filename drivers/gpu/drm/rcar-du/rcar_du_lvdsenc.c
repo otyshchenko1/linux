@@ -34,6 +34,7 @@ struct rcar_du_lvdsenc {
 	void __iomem *mmio;
 	struct clk *clock;
 	int dpms;
+	int mode;
 
 	enum rcar_lvds_input input;
 };
@@ -120,6 +121,7 @@ int rcar_du_lvdsenc_start(struct rcar_du_lvdsenc *lvds,
 	 * bias circuitry on.
 	 */
 	lvdcr0 = LVDCR0_BEN | LVDCR0_LVEN;
+	lvdcr0 |= LVDCR0_LVMD(lvds->mode);
 	if (rcrtc->index == 2)
 		lvdcr0 |= LVDCR0_DUSEL;
 	rcar_lvds_write(lvds, LVDCR0, lvdcr0);
@@ -290,8 +292,9 @@ static int rcar_du_lvdsenc_get_resources(struct rcar_du_lvdsenc *lvds,
 int rcar_du_lvdsenc_init(struct rcar_du_device *rcdu)
 {
 	struct platform_device *pdev = to_platform_device(rcdu->dev);
+	const struct rcar_du_platform_data *pdata = rcdu->pdata;
 	struct rcar_du_lvdsenc *lvds;
-	unsigned int i;
+	unsigned int i, j;
 	int ret;
 
 	for (i = 0; i < rcdu->info->num_lvds; ++i) {
@@ -306,6 +309,12 @@ int rcar_du_lvdsenc_init(struct rcar_du_device *rcdu)
 		lvds->input = i ? RCAR_LVDS_INPUT_DU1 : RCAR_LVDS_INPUT_DU0;
 		lvds->dpms = DRM_MODE_DPMS_OFF;
 
+		for (j = 0; j < pdata->num_encoders; j++) {
+			if (pdata->encoders[j].output ==
+				RCAR_DU_OUTPUT_LVDS0 + i)
+				lvds->mode = pdata->encoders[j].connector
+						.lvds.panel.lvds_mode;
+		}
 		ret = rcar_du_lvdsenc_get_resources(lvds, pdev);
 		if (ret < 0)
 			return ret;
