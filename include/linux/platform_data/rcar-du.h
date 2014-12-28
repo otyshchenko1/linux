@@ -31,6 +31,7 @@ enum rcar_du_encoder_type {
 	RCAR_DU_ENCODER_NONE,
 	RCAR_DU_ENCODER_VGA,
 	RCAR_DU_ENCODER_LVDS,
+	RCAR_DU_ENCODER_RGB,
 	RCAR_DU_ENCODER_HDMI,
 };
 
@@ -53,6 +54,10 @@ struct rcar_du_panel_data {
 };
 
 struct rcar_du_connector_lvds_data {
+	struct rcar_du_panel_data panel;
+};
+
+struct rcar_du_connector_rgb_data {
 	struct rcar_du_panel_data panel;
 };
 
@@ -80,6 +85,7 @@ struct rcar_du_encoder_data {
 
 	union {
 		struct rcar_du_connector_lvds_data lvds;
+		struct rcar_du_connector_rgb_data rgb;
 		struct rcar_du_connector_vga_data vga;
 		struct rcar_du_connector_hdmi_data hdmi;
 	} connector;

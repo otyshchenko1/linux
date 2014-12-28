@@ -24,6 +24,7 @@
 #include "rcar_du_encoder.h"
 #include "rcar_du_kms.h"
 #include "rcar_du_lvdscon.h"
+#include "rcar_du_rgbcon.h"
 #include "rcar_du_lvdsenc.h"
 #include "rcar_du_vgacon.h"
 #include "rcar_du_hdmicon.h"
@@ -235,6 +236,9 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	case RCAR_DU_ENCODER_LVDS:
 		encoder_type = DRM_MODE_ENCODER_LVDS;
 		break;
+	case RCAR_DU_ENCODER_RGB:
+		encoder_type = DRM_MODE_ENCODER_NONE;
+		break;
 	case RCAR_DU_ENCODER_HDMI:
 		encoder_type = DRM_MODE_ENCODER_TMDS;
 		break;
@@ -277,6 +281,11 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	case DRM_MODE_ENCODER_DAC:
 		return rcar_du_vga_connector_init(rcdu, renc);
 
+	case DRM_MODE_ENCODER_NONE:
+		if (type == RCAR_DU_ENCODER_RGB)
+			return rcar_du_rgb_connector_init(rcdu, renc,
+						&data->connector.rgb.panel);
+		/* fallthrough */
 	default:
 		return -EINVAL;
 	}
