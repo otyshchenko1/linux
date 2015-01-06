@@ -2067,6 +2067,13 @@ static const unsigned int intc_irq3_pins[] = {
 static const unsigned int intc_irq3_mux[] = {
 	IRQ3_MARK,
 };
+static const unsigned int intc_irq8_pins[] = {
+	/* IRQ */
+	RCAR_GP_PIN(5, 0),
+};
+static const unsigned int intc_irq8_mux[] = {
+	IRQ8_MARK,
+};
 /* - MMCIF ------------------------------------------------------------------ */
 static const unsigned int mmc_data1_pins[] = {
 	/* D[0] */
@@ -3170,6 +3177,7 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(intc_irq1),
 	SH_PFC_PIN_GROUP(intc_irq2),
 	SH_PFC_PIN_GROUP(intc_irq3),
+	SH_PFC_PIN_GROUP(intc_irq8),
 	SH_PFC_PIN_GROUP(mmc_data1),
 	SH_PFC_PIN_GROUP(mmc_data4),
 	SH_PFC_PIN_GROUP(mmc_data8),
@@ -3415,6 +3423,7 @@ static const char * const intc_groups[] = {
 	"intc_irq1",
 	"intc_irq2",
 	"intc_irq3",
+	"intc_irq8",
 };
 
 static const char * const mmc_groups[] = {
