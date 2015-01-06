@@ -259,6 +259,11 @@
 		renesas,function = "eth";
 	};
 
+	ether_b_pins: ether {
+		renesas,groups = "eth_link_b", "eth_mdio_b", "eth_rmii_b";
+		renesas,function = "eth";
+	};
+
 	avb_pins: avb {
 		renesas,groups = "avb_mdio", "avb_gmii";
 		renesas,function = "avb";
