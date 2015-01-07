@@ -1,7 +1,7 @@
 /*
  * Gose board support - Reference DT implementation
  *
- * Copyright (C) 2014  Renesas Electronics Corporation
+ * Copyright (C) 2014-2015  Renesas Electronics Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -550,7 +550,7 @@ static struct usbhs_private usbhs_priv __initdata = {
 			.get_vbus	= usbhs_get_vbus,
 		},
 		.driver_param = {
-			.buswait_bwait	= 4,
+			.buswait_bwait	= 9,
 			.pipe_type	= gose_usbhs_pipe_type,
 			.pipe_size	= ARRAY_SIZE(gose_usbhs_pipe_type),
 			.d0_rx_id	= USB_DMAC_SLAVE_USBHS_RX,
