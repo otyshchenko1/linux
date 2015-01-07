@@ -1,7 +1,7 @@
 /*
  * Koelsch board support - Reference DT implementation
  *
- * Copyright (C) 2013-2014  Renesas Electronics Corporation
+ * Copyright (C) 2013-2015  Renesas Electronics Corporation
  * Copyright (C) 2013  Renesas Solutions Corp.
  * Copyright (C) 2013  Magnus Damm
  *
@@ -553,7 +553,7 @@ static struct usbhs_private usbhs_priv __initdata = {
 			.get_vbus	= usbhs_get_vbus,
 		},
 		.driver_param = {
-			.buswait_bwait	= 4,
+			.buswait_bwait	= 9,
 			.pipe_type	= koelsch_usbhs_pipe_type,
 			.pipe_size	= ARRAY_SIZE(koelsch_usbhs_pipe_type),
 			.d0_rx_id	= USB_DMAC_SLAVE_USBHS_RX,
