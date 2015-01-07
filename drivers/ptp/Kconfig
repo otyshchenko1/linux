@@ -86,15 +86,4 @@ config PTP_1588_CLOCK_PCH
 	  To compile this driver as a module, choose M here: the module
 	  will be called ptp_pch.
 
-config PTP_1588_CLOCK_RAVB
-	tristate "Renesas Ethernet AVB as PTP clock"
-	depends on RAVB
-	select PTP_1588_CLOCK
-	default y
-	help
-	  This driver adds support for using the Renesas Ethernet
-	  AVB as a PTP clock. This clock is only useful if your PTP
-	  programs are getting hardware time stamps on the PTP
-	  Ethernet packets using the SO_TIMESTAMPING API.
-
 endmenu

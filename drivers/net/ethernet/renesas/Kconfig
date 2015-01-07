@@ -28,3 +28,19 @@ config RAVB
 	  Renesas Ethernet AVB device driver.
 	  This driver supporting CPUs are:
 		- R8A779x.
+
+if RAVB
+
+config RAVB_PTP_1588_CLOCK
+	bool "Renesas Ethernet AVB as PTP clock"
+	depends on RAVB
+	select PTP_1588_CLOCK
+	default y
+	help
+	  This driver adds support for using the Renesas Ethernet
+	  AVB as a PTP clock. This clock is only useful if your PTP
+	  programs are getting hardware time stamps on the PTP
+	  Ethernet packets using the SO_TIMESTAMPING API.
+
+endif # CONFIG_RAVB
+

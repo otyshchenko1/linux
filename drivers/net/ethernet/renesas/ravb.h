@@ -964,7 +964,7 @@ static inline unsigned long ravb_read(struct net_device *ndev,
 	return ioread32(mdp->addr + mdp->reg_offset[enum_index]);
 }
 
-#if defined(CONFIG_PTP_1588_CLOCK_RAVB)
+#if defined(CONFIG_RAVB_PTP_1588_CLOCK)
 extern int ravb_ptp_init(struct net_device *ndev,
 			 struct platform_device *pdev);
 extern int ravb_ptp_stop(struct net_device *ndev,
