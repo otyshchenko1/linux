@@ -633,7 +633,7 @@ static int usbhs_get_vbus(struct platform_device *pdev)
 	return 0;
 }
 
-static u32 lager_usbhs_pipe_type[] = {
+static u32 alt_usbhs_pipe_type[] = {
 	USB_ENDPOINT_XFER_CONTROL,
 	USB_ENDPOINT_XFER_ISOC,
 	USB_ENDPOINT_XFER_ISOC,
@@ -663,8 +663,8 @@ static struct usbhs_private usbhs_priv __initdata = {
 		},
 		.driver_param = {
 			.buswait_bwait	= 9,
-			.pipe_type = lager_usbhs_pipe_type,
-			.pipe_size = ARRAY_SIZE(lager_usbhs_pipe_type),
+			.pipe_type = alt_usbhs_pipe_type,
+			.pipe_size = ARRAY_SIZE(alt_usbhs_pipe_type),
 			.d0_rx_id	= USB_DMAC_SLAVE_USBHS_RX,
 			.d1_tx_id	= USB_DMAC_SLAVE_USBHS_TX,
 			.d2_rx_id	= USB_DMAC1_SLAVE_USBHS_RX,
