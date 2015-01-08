@@ -1,7 +1,7 @@
 /*
  * vsp1_rpf.c  --  R-Car VSP1 Read Pixel Formatter
  *
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -21,6 +21,38 @@
 
 #define RPF_MAX_WIDTH				8190
 #define RPF_MAX_HEIGHT				8190
+
+struct vsp1_plane_scale {
+	unsigned int scale_width;
+	unsigned int scale_height;
+};
+
+/* -----------------------------------------------------------------------------
+ * Helper funtion
+ */
+
+static void rpf_get_planescale(unsigned int hwfmt,
+			       struct vsp1_plane_scale *scale)
+{
+	switch (hwfmt) {
+	case VI6_FMT_Y_UV_420:
+		scale->scale_width  = 2;
+		scale->scale_height = 2;
+		break;
+	case VI6_FMT_Y_UV_422:
+		scale->scale_width  = 2;
+		scale->scale_height = 1;
+		break;
+	case VI6_FMT_Y_U_V_420:
+		scale->scale_width  = 2;
+		scale->scale_height = 2;
+		break;
+	default:
+		scale->scale_width  = 1;
+		scale->scale_height = 1;
+		break;
+	}
+}
 
 /* -----------------------------------------------------------------------------
  * Device Access
@@ -123,8 +155,10 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 		       rpf->buf_addr[0] + rpf->offsets[0]);
 
 	if (format->num_planes > 1) {
-		rpf->offsets[1] = crop->top * stride_c
-				+ crop->left * fmtinfo->bpp[1] / 8;
+		struct vsp1_plane_scale scale;
+		rpf_get_planescale(fmtinfo->hwfmt, &scale);
+		rpf->offsets[1] = (crop->top / scale.scale_height) * stride_c
+		    + (crop->left / scale.scale_width) * fmtinfo->bpp[1] / 8;
 		pstride |= stride_c << VI6_RPF_SRCM_PSTRIDE_C_SHIFT;
 
 		vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C0,
