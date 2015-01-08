@@ -221,35 +221,33 @@ static void ravb_set_duplex(struct net_device *ndev)
 }
 
 /* There is CPU dependent code */
-static int ravb_wait_status(struct net_device *ndev, u32 reg, u32 status)
+static int ravb_wait_clear(struct net_device *ndev, u16 reg, u32 bits)
 {
 	int i, ret = 0;
 
 	for (i = 0; i < 100; i++) {
-		if (!(ravb_read(ndev, reg) & status))
+		if (!(ravb_read(ndev, reg) & bits))
 			break;
 		mdelay(1);
 	}
 	if (i >= 100)
-		return -ETIMEDOUT;
+		ret = -ETIMEDOUT;
+
 	return ret;
 }
 
-static int ravb_check_reset(struct net_device *ndev)
+static int ravb_wait_setting(struct net_device *ndev, u16 reg, u32 bits)
 {
-	int ret = 0;
-	int cnt = 100;
+	int i, ret = 0;
 
-	while (cnt > 0) {
-		if (ravb_read(ndev, CSR) & 0x2)
+	for (i = 0; i < 100; i++) {
+		if (ravb_read(ndev, reg) & bits)
 			break;
 		mdelay(1);
-		cnt--;
 	}
-	if (cnt <= 0) {
-		netdev_err(ndev, "Device reset failed\n");
+	if (i >= 100)
 		ret = -ETIMEDOUT;
-	}
+
 	return ret;
 }
 
@@ -257,9 +255,13 @@ static int ravb_reset(struct net_device *ndev)
 {
 	int ret = 0;
 
+	/* set config mode */
 	ravb_write(ndev,
 		(ravb_read(ndev, CCC) & ~CCC_OPC) | 0x1, CCC);
-	ret = ravb_check_reset(ndev);
+	/* check the operating mode is changed to the config mode */
+	ret = ravb_wait_setting(ndev, CSR, 0x2);
+	if (ret < 0)
+		netdev_err(ndev, "Device reset failed\n");
 
 	return ret;
 }
@@ -984,6 +986,25 @@ static void ravb_rcv_snd_enable(struct net_device *ndev)
 		(ECMR_RE | ECMR_TE), ECMR);
 }
 
+/* function for waiting dma process finished */
+static void ravb_wait_stop_dma(struct net_device *ndev)
+{
+	/* wait stopping the hardware tx process */
+	ravb_wait_clear(ndev, TCCR,
+			TCCR_TSRQ0 | TCCR_TSRQ1 |
+			TCCR_TSRQ2 | TCCR_TSRQ3);
+
+	ravb_wait_clear(ndev, CSR,
+			CSR_TPO0 | CSR_TPO1 |
+			CSR_TPO2 | CSR_TPO3);
+
+	/* Stop the E-MAC's Rx processes. */
+	ravb_write(ndev, ravb_read(ndev, ECMR) & ~ECMR_RE, ECMR);
+
+	/* wait stopping the rx dma process */
+	ravb_wait_clear(ndev, CSR, CSR_RPO);
+}
+
 /* error control function */
 static void ravb_error(struct net_device *ndev, int intr_status)
 {
@@ -1510,23 +1531,11 @@ static int ravb_set_ringparam(struct net_device *ndev,
 
 	if (netif_running(ndev)) {
 		netif_tx_disable(ndev);
-		ravb_wait_status(ndev, TCCR,
-				TCCR_TSRQ0 | TCCR_TSRQ1 |
-				TCCR_TSRQ2 | TCCR_TSRQ3);
+		/* wait for dma stopping */
+		ravb_wait_stop_dma(ndev);
 
-		ravb_wait_status(ndev, CSR,
-				CSR_TPO0 | CSR_TPO1 |
-				CSR_TPO2 | CSR_TPO3);
-
-		ravb_write(ndev,
-			ravb_read(ndev, ECMR) & ~ECMR_RE, ECMR);
-
-		ravb_wait_status(ndev, CSR, CSR_RPO);
-
-		ravb_write(ndev,
-			(ravb_read(ndev, CCC) & ~CCC_OPC) | 0x1, CCC);
-
-		ret = ravb_check_reset(ndev);
+		/* stop AVB-DMAC process */
+		ret = ravb_reset(ndev);
 		if (ret < 0) {
 				netdev_err(ndev,
 					   "Cannot reset ringparam! any AVB"
@@ -1862,26 +1871,11 @@ static int ravb_close(struct net_device *ndev)
 	ravb_write(ndev, 0, RIC2);
 	ravb_write(ndev, 0, TIC);
 
-	/* wait stopping the hardware tx process */
-	ravb_wait_status(ndev, TCCR,
-			TCCR_TSRQ0 | TCCR_TSRQ1 |
-			TCCR_TSRQ2 | TCCR_TSRQ3);
+	/* wait dma stopping */
+	ravb_wait_stop_dma(ndev);
 
-	ravb_wait_status(ndev, CSR,
-			CSR_TPO0 | CSR_TPO1 |
-			CSR_TPO2 | CSR_TPO3);
-
-	/* Stop the E-MAC's Rx processes. */
-	ravb_write(ndev, ravb_read(ndev, ECMR) & ~ECMR_RE, ECMR);
-
-	/* wait stopping the rx dma process */
-	ravb_wait_status(ndev, CSR, CSR_RPO);
-
-	/* Stop the AVB-DMAC's processes. */
-	ravb_write(ndev,
-		(ravb_read(ndev, CCC) & ~CCC_OPC) | 0x1, CCC);
-
-	if (ravb_check_reset(ndev) < 0)
+	/* set the config mode to stop the AVB-DMAC's processes. */
+	if (ravb_reset(ndev) < 0)
 		netdev_err(ndev,
 		      "Device will be stopped, after HW processes are done.\n");
 
