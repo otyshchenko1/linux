@@ -1,7 +1,7 @@
 /*
  * vsp1_video.h  --  R-Car VSP1 Video Node
  *
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -161,5 +161,8 @@ void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe);
 void vsp1_pipeline_propagate_alpha(struct vsp1_pipeline *pipe,
 				   struct vsp1_entity *input,
 				   unsigned int alpha);
+
+int vsp1_pipeline_suspend(struct vsp1_pipeline *pipe);
+void vsp1_pipeline_resume(struct vsp1_pipeline *pipe);
 
 #endif /* __VSP1_VIDEO_H__ */

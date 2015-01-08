@@ -1,7 +1,7 @@
 /*
  * vsp1_video.c  --  R-Car VSP1 Video Node
  *
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -752,6 +752,35 @@ void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe)
 
 done:
 	spin_unlock_irqrestore(&pipe->irqlock, flags);
+}
+
+int vsp1_pipeline_suspend(struct vsp1_pipeline *pipe)
+{
+	unsigned long flags;
+	int ret;
+
+	if (pipe == NULL)
+		return 0;
+
+	spin_lock_irqsave(&pipe->irqlock, flags);
+	if (pipe->state == VSP1_PIPELINE_RUNNING)
+		pipe->state = VSP1_PIPELINE_STOPPING;
+	spin_unlock_irqrestore(&pipe->irqlock, flags);
+
+	ret = wait_event_timeout(pipe->wq, pipe->state == VSP1_PIPELINE_STOPPED,
+				 msecs_to_jiffies(500));
+	ret = ret == 0 ? -ETIMEDOUT : 0;
+
+	return ret;
+}
+
+void vsp1_pipeline_resume(struct vsp1_pipeline *pipe)
+{
+	if (pipe == NULL)
+		return;
+
+	if (vsp1_pipeline_ready(pipe))
+		vsp1_pipeline_run(pipe);
 }
 
 /*

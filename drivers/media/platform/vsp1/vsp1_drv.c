@@ -1,7 +1,7 @@
 /*
  * vsp1_drv.c  --  R-Car VSP1 Driver
  *
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -407,26 +407,57 @@ void vsp1_device_put(struct vsp1_device *vsp1)
 static int vsp1_pm_suspend(struct device *dev)
 {
 	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
+	unsigned int i = 0;
+	int ret;
 
 	WARN_ON(mutex_is_locked(&vsp1->lock));
 
 	if (vsp1->ref_count == 0)
 		return 0;
 
+	/* Suspend pipeline */
+	for (i = 0; i < vsp1->pdata->wpf_count; ++i) {
+		struct vsp1_rwpf *wpf = vsp1->wpf[i];
+		struct vsp1_pipeline *pipe;
+
+		if (wpf == NULL)
+			continue;
+
+		pipe = to_vsp1_pipeline(&wpf->entity.subdev.entity);
+		ret = vsp1_pipeline_suspend(pipe);
+		if (ret < 0)
+			break;
+	}
+
 	clk_disable_unprepare(vsp1->clock);
-	return 0;
+	return ret;
 }
 
 static int vsp1_pm_resume(struct device *dev)
 {
 	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
+	unsigned int i = 0;
 
 	WARN_ON(mutex_is_locked(&vsp1->lock));
 
-	if (vsp1->ref_count)
+	if (vsp1->ref_count == 0)
 		return 0;
 
-	return clk_prepare_enable(vsp1->clock);
+	clk_prepare_enable(vsp1->clock);
+
+	/* Resume pipeline */
+	for (i = 0; i < vsp1->pdata->wpf_count; ++i) {
+		struct vsp1_rwpf *wpf = vsp1->wpf[i];
+		struct vsp1_pipeline *pipe;
+
+		if (wpf == NULL)
+			continue;
+
+		pipe = to_vsp1_pipeline(&wpf->entity.subdev.entity);
+		vsp1_pipeline_resume(pipe);
+	}
+
+	return 0;
 }
 #endif
 
