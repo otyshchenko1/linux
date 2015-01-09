@@ -91,8 +91,11 @@
 /* Bit definitions for the GCT2 register */
 #define GCT2_CTV_MASK	(0x0000ffff)
 
+#define U32_MAX		((u32)~0U)
+
 #define DRIVER		"ravb_ptp"
 #define N_EXT_TS	1
+#define N_PER_OUT	1
 
 static inline void ravb_ptp_tcr_request(struct ravb_ptp *ravb_ptp,
 		int request)
@@ -191,11 +194,38 @@ static void ravb_ptp_select_counter(struct ravb_ptp *ravb_ptp, u16 sel)
 static void ravb_ptp_update_addend(struct ravb_ptp *ravb_ptp, u32 addend)
 {
 	struct net_device *ndev = ravb_ptp->ndev;
+
+	ravb_ptp->current_addend = addend;
+
 	ravb_write(ndev, addend & TIV_MASK, GTI);
 	ravb_write(ndev,
 			ravb_read(ndev, GCCR) | LTI, GCCR);
 	if ((ravb_read(ndev, CSR) & OPS_MASK) & OPS_OPERATION)
 		while (ravb_read(ndev, GCCR) & LTI)
+			;
+}
+
+/* Caller must hold lock */
+static void ravb_ptp_update_compare(struct ravb_ptp *ravb_ptp, u32 ns)
+{
+	struct net_device *ndev = ravb_ptp->ndev;
+
+	/**
+	 * When the comparison value (GPTC.PTCV) is in range of
+	 * [x-1 to x+1] (x is the configured increment value in
+	 * GTI.TIV), it may happend that a comparison match is
+	 * not detected when Timer wraps around.
+	 */
+	u32 gti_ns_plus1 = (ravb_ptp->current_addend >> 20) + 1;
+	if (ns < gti_ns_plus1)
+		ns = gti_ns_plus1;
+	else if (ns > 0 - gti_ns_plus1)
+		ns = 0 - gti_ns_plus1;
+
+	ravb_write(ndev, ns, GPTC);
+	ravb_write(ndev, ravb_read(ndev, GCCR) | LPTC, GCCR);
+	if ((ravb_read(ndev, CSR) & OPS_MASK) & OPS_OPERATION)
+		while (ravb_read(ndev, GCCR) & LPTC)
 			;
 }
 
@@ -216,6 +246,17 @@ static irqreturn_t isr(int irq, void *priv)
 			event.index = 0;
 			event.timestamp = ravb_ptp_capture_cnt_read(ravb_ptp);
 			ptp_clock_event(ravb_ptp->clock, &event);
+		}
+		if (val & PTMF) {
+			struct ravb_ptp_perout *perout;
+
+			ack |= PTMF;
+			perout = &ravb_ptp->perout[0];
+			if (perout->period) {
+				perout->target += perout->period;
+				ravb_ptp_update_compare(ravb_ptp,
+						perout->target);
+			}
 		}
 	}
 
@@ -243,7 +284,7 @@ static int ravb_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 	addend = ravb_ptp->default_addend;
 	adj = addend;
 	adj *= ppb;
-	diff = div_u64(adj, 1000000000ULL);
+	diff = div_u64(adj, NSEC_PER_SEC);
 
 	addend = neg_adj ? addend - diff : addend + diff;
 
@@ -309,6 +350,65 @@ static int ravb_ptp_settime(struct ptp_clock_info *ptp,
 	return 0;
 }
 
+static int ravb_ptp_perout_enable(struct ptp_clock_info *ptp,
+			  struct ptp_clock_request *rq, int on)
+{
+	struct ravb_ptp *ravb_ptp = container_of(ptp,
+			struct ravb_ptp, caps);
+	struct net_device *ndev = ravb_ptp->ndev;
+	struct ravb_ptp_perout *perout;
+	unsigned long flags;
+	u32 mask;
+
+	if (on) {
+		u64 start_ns;
+		u64 period_ns;
+
+		start_ns = rq->perout.start.sec * NSEC_PER_SEC +
+			rq->perout.start.nsec;
+		period_ns = rq->perout.period.sec * NSEC_PER_SEC +
+			rq->perout.period.nsec;
+
+		if (start_ns > U32_MAX) {
+			netdev_warn(ndev,
+					"ptp: Start value (nsec) is over limit. Maximum size of start is only 32 bits\n");
+			return -ERANGE;
+		}
+
+		if (period_ns > U32_MAX) {
+			netdev_warn(ndev,
+					"ptp: Period value (nsec) is over limit. Maximum size of period is only 32 bits\n");
+			return -ERANGE;
+		}
+
+		spin_lock_irqsave(&ravb_ptp->lock, flags);
+		perout = &ravb_ptp->perout[rq->perout.index];
+		perout->target = (u32)start_ns;
+		perout->period = (u32)period_ns;
+		ravb_ptp_update_compare(ravb_ptp, (u32)start_ns);
+
+		/* interrupt unmask */
+		mask = ravb_read(ndev, GIC);
+		mask |= PTME;
+		ravb_write(ndev, mask, GIC);
+
+		spin_unlock_irqrestore(&ravb_ptp->lock, flags);
+	} else {
+		spin_lock_irqsave(&ravb_ptp->lock, flags);
+		perout = &ravb_ptp->perout[rq->perout.index];
+		perout->period = 0;
+
+		/* interrupt mask */
+		mask = ravb_read(ndev, GIC);
+		mask &= ~PTME;
+		ravb_write(ndev, mask, GIC);
+
+		spin_unlock_irqrestore(&ravb_ptp->lock, flags);
+	}
+
+	return 0;
+}
+
 static int ravb_ptp_enable(struct ptp_clock_info *ptp,
 			  struct ptp_clock_request *rq, int on)
 {
@@ -342,6 +442,9 @@ static int ravb_ptp_enable(struct ptp_clock_info *ptp,
 		spin_unlock_irqrestore(&ravb_ptp->lock, flags);
 		return 0;
 
+	case PTP_CLK_REQ_PEROUT:
+		return ravb_ptp_perout_enable(ptp, rq, on);
+
 	default:
 		break;
 	}
@@ -354,6 +457,7 @@ static struct ptp_clock_info ravb_ptp_caps = {
 	.name		= "ravb clock",
 	.max_adj	= 50000000,
 	.n_ext_ts	= N_EXT_TS,
+	.n_per_out	= N_PER_OUT,
 	.adjfreq	= ravb_ptp_adjfreq,
 	.adjtime	= ravb_ptp_adjtime,
 	.gettime	= ravb_ptp_gettime,
@@ -378,7 +482,7 @@ int ravb_ptp_init(struct net_device *ndev,
 	ravb_ptp->ndev = ndev;
 	ravb_ptp->caps = ravb_ptp_caps;
 
-	if (N_EXT_TS) {
+	if (N_EXT_TS+N_PER_OUT) {
 		ravb_ptp->irq = platform_get_irq(pdev, 0);
 
 		if (ravb_ptp->irq == NO_IRQ) {
@@ -393,6 +497,7 @@ int ravb_ptp_init(struct net_device *ndev,
 	}
 
 	ravb_ptp->default_addend = ravb_read(ndev, GTI);
+	ravb_ptp->current_addend = ravb_ptp->default_addend;
 
 	spin_lock_init(&ravb_ptp->lock);
 

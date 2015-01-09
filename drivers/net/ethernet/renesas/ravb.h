@@ -846,14 +846,21 @@ struct ravb_tstamp_skb {
 	struct list_head list;
 };
 
+struct ravb_ptp_perout {
+	u32 target;
+	u32 period;
+};
+
 struct ravb_ptp {
 	struct net_device *ndev;
 	spinlock_t lock; /* protects regs */
 	struct ptp_clock *clock;
 	struct ptp_clock_info caps;
 	u32 default_addend;
+	u32 current_addend;
 	int irq;
 	int extts[1];
+	struct ravb_ptp_perout perout[1];
 };
 
 /* This structure is used by each CPU dependency handling. */
