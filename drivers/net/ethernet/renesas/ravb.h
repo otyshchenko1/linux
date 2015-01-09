@@ -1,6 +1,6 @@
 /*  SuperH Ethernet device driver
  *
- *  Copyright (C) 2014  Renesas Electronics Corporation
+ *  Copyright (C) 2014-2015 Renesas Electronics Corporation
  *  Copyright (C) 2006-2012 Nobuhiro Iwamatsu
  *  Copyright (C) 2008-2012 Renesas Solutions Corp.
  *
@@ -853,6 +853,7 @@ struct ravb_ptp {
 	struct ptp_clock_info caps;
 	u32 default_addend;
 	int irq;
+	int extts[1];
 };
 
 /* This structure is used by each CPU dependency handling. */

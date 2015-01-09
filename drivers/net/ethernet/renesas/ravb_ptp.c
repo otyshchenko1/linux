@@ -2,7 +2,7 @@
  * PTP 1588 clock using the Renesas Ethernet AVB
  *
  * Copyright (C) 2010 OMICRON electronics GmbH
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -92,11 +92,7 @@
 #define GCT2_CTV_MASK	(0x0000ffff)
 
 #define DRIVER		"ravb_ptp"
-#if defined(CONFIG_ARCH_R8A7790)
-#define N_EXT_TS	0
-#else
 #define N_EXT_TS	1
-#endif
 
 static inline void ravb_ptp_tcr_request(struct ravb_ptp *ravb_ptp,
 		int request)
@@ -121,6 +117,11 @@ static inline bool ravb_ptp_is_config(struct ravb_ptp *ravb_ptp)
 		return true;
 	else
 		return false;
+}
+
+static u64 ravb_ptp_capture_cnt_read(struct ravb_ptp *ravb_ptp)
+{
+	return ravb_read(ravb_ptp->ndev, GCPT);
 }
 
 /* Caller must hold lock */
@@ -199,7 +200,6 @@ static void ravb_ptp_update_addend(struct ravb_ptp *ravb_ptp, u32 addend)
 }
 
 /* Interrupt service routine */
-#if N_EXT_TS
 static irqreturn_t isr(int irq, void *priv)
 {
 	struct ravb_ptp *ravb_ptp = priv;
@@ -209,23 +209,22 @@ static irqreturn_t isr(int irq, void *priv)
 
 	val = ravb_read(ndev, ISS);
 	if (val & CGIS) {
-		val = ravb_read(ndev, GIS);
+		val = ravb_read(ndev, GIS) & ravb_read(ndev, GIC);
 		if (val & PTCF) {
 			ack |= PTCF;
 			event.type = PTP_CLOCK_EXTTS;
 			event.index = 0;
-			event.timestamp = ravb_ptp_cnt_read(ravb_ptp);
+			event.timestamp = ravb_ptp_capture_cnt_read(ravb_ptp);
 			ptp_clock_event(ravb_ptp->clock, &event);
 		}
 	}
 
 	if (ack) {
-		ravb_write(ndev, ack, GIS);
+		ravb_write(ndev, ~ack, GIS);
 		return IRQ_HANDLED;
 	} else
 		return IRQ_NONE;
 }
-#endif
 
 /* PTP clock operations */
 static int ravb_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
@@ -313,7 +312,6 @@ static int ravb_ptp_settime(struct ptp_clock_info *ptp,
 static int ravb_ptp_enable(struct ptp_clock_info *ptp,
 			  struct ptp_clock_request *rq, int on)
 {
-#if N_EXT_TS
 	struct ravb_ptp *ravb_ptp = container_of(ptp,
 			struct ravb_ptp, caps);
 	struct net_device *ndev = ravb_ptp->ndev;
@@ -322,6 +320,10 @@ static int ravb_ptp_enable(struct ptp_clock_info *ptp,
 
 	switch (rq->type) {
 	case PTP_CLK_REQ_EXTTS:
+		if (ravb_ptp->extts[rq->extts.index] == on)
+			return 0;
+		ravb_ptp->extts[rq->extts.index] = on;
+
 		switch (rq->extts.index) {
 		case 0:
 			bit = PTCE;
@@ -331,7 +333,7 @@ static int ravb_ptp_enable(struct ptp_clock_info *ptp,
 		}
 
 		spin_lock_irqsave(&ravb_ptp->lock, flags);
-		mask = ravb_ptp_read(ravb_ptp, GIC);
+		mask = ravb_read(ndev, GIC);
 		if (on)
 			mask |= bit;
 		else
@@ -343,7 +345,6 @@ static int ravb_ptp_enable(struct ptp_clock_info *ptp,
 	default:
 		break;
 	}
-#endif
 
 	return -EOPNOTSUPP;
 }
@@ -377,19 +378,20 @@ int ravb_ptp_init(struct net_device *ndev,
 	ravb_ptp->ndev = ndev;
 	ravb_ptp->caps = ravb_ptp_caps;
 
-#if N_EXT_TS
-	ravb_ptp->irq = platform_get_irq(pdev, 0);
+	if (N_EXT_TS) {
+		ravb_ptp->irq = platform_get_irq(pdev, 0);
 
-	if (ravb_ptp->irq == NO_IRQ) {
-		pr_err("irq not in platfrom\n");
-		goto no_node;
+		if (ravb_ptp->irq == NO_IRQ) {
+			dev_err(&pdev->dev, "ptp: irq not in platfrom\n");
+			goto no_node;
+		}
+		if (request_irq(ravb_ptp->irq, isr, IRQF_SHARED,
+					DRIVER, ravb_ptp)) {
+			dev_err(&pdev->dev, "ptp: request_irq failed\n");
+			goto no_node;
+		}
 	}
-	if (request_irq(ravb_ptp->irq, isr, IRQF_SHARED,
-				DRIVER, ravb_ptp)) {
-		pr_err("request_irq failed\n");
-		goto no_node;
-	}
-#endif
+
 	ravb_ptp->default_addend = ravb_read(ndev, GTI);
 
 	spin_lock_init(&ravb_ptp->lock);
@@ -409,10 +411,9 @@ int ravb_ptp_init(struct net_device *ndev,
 	return 0;
 
 no_clock:
-#if N_EXT_TS
-	free_irq(ravb_ptp->irq, ravb_ptp);
+	if (ravb_ptp->irq)
+		free_irq(ravb_ptp->irq, ravb_ptp);
 no_node:
-#endif
 	kfree(ravb_ptp);
 no_memory:
 	return err;
@@ -428,9 +429,8 @@ int ravb_ptp_stop(struct net_device *ndev,
 	ravb_write(ndev, 0, GIS);
 
 	ptp_clock_unregister(ravb_ptp->clock);
-#if N_EXT_TS
-	free_irq(ravb_ptp->irq, ravb_ptp);
-#endif
+	if (ravb_ptp->irq)
+		free_irq(ravb_ptp->irq, ravb_ptp);
 	kfree(ravb_ptp);
 	return 0;
 }
