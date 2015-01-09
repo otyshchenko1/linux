@@ -861,6 +861,7 @@ struct ravb_ptp {
 	int irq;
 	int extts[1];
 	struct ravb_ptp_perout perout[1];
+	int avtp_capture_gpio;
 };
 
 /* This structure is used by each CPU dependency handling. */

@@ -31,6 +31,8 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
 
 #include <linux/ptp_clock_kernel.h>
 
@@ -120,6 +122,22 @@ static inline bool ravb_ptp_is_config(struct ravb_ptp *ravb_ptp)
 		return true;
 	else
 		return false;
+}
+
+static int ravb_ptp_avtp_capture_gpio_irq_control(struct ravb_ptp *ravb_ptp,
+		int on)
+{
+	int gpio = ravb_ptp->avtp_capture_gpio;
+
+	if (!gpio)
+		return -1;
+
+	if (on)
+		enable_irq(gpio_to_irq(gpio));
+	else
+		disable_irq(gpio_to_irq(gpio));
+
+	return 0;
 }
 
 static u64 ravb_ptp_capture_cnt_read(struct ravb_ptp *ravb_ptp)
@@ -265,6 +283,19 @@ static irqreturn_t isr(int irq, void *priv)
 		return IRQ_HANDLED;
 	} else
 		return IRQ_NONE;
+}
+
+static irqreturn_t isr_avtp_capture_gpio(int irq, void *priv)
+{
+	struct ravb_ptp *ravb_ptp = priv;
+	struct ptp_clock_event event;
+
+	event.type = PTP_CLOCK_EXTTS;
+	event.index = 0;
+	event.timestamp = ravb_ptp_cnt_read(ravb_ptp);
+	ptp_clock_event(ravb_ptp->clock, &event);
+
+	return IRQ_HANDLED;
 }
 
 /* PTP clock operations */
@@ -427,6 +458,7 @@ static int ravb_ptp_enable(struct ptp_clock_info *ptp,
 		switch (rq->extts.index) {
 		case 0:
 			bit = PTCE;
+			ravb_ptp_avtp_capture_gpio_irq_control(ravb_ptp, on);
 			break;
 		default:
 			return -EINVAL;
@@ -465,6 +497,33 @@ static struct ptp_clock_info ravb_ptp_caps = {
 	.enable		= ravb_ptp_enable,
 };
 
+#ifdef CONFIG_OF
+static void ravb_ptp_parse_dt(struct device *dev, struct ravb_ptp *ravb_ptp)
+{
+	struct device_node *np = dev->of_node;
+	int gpio;
+
+	gpio = of_get_named_gpio(np, "avtp-capture-gpio", 0);
+	if (gpio_is_valid(gpio)) {
+		gpio_request_one(gpio,
+				 GPIOF_DIR_IN | GPIOF_EXPORT_DIR_FIXED,
+				 "avtp_capture_gpio");
+		ravb_ptp->avtp_capture_gpio = gpio;
+		dev_info(dev, "ptp: use GPIO%d instead of avtp_capture.\n",
+				gpio);
+	}
+
+	return;
+}
+
+#else
+static inline void ravb_plat_data *ravb_ptp_parse_dt(struct device *dev,
+		struct ravb_ptp *ravb_ptp)
+{
+	return;
+}
+#endif
+
 int ravb_ptp_init(struct net_device *ndev,
 			   struct platform_device *pdev)
 {
@@ -482,6 +541,9 @@ int ravb_ptp_init(struct net_device *ndev,
 	ravb_ptp->ndev = ndev;
 	ravb_ptp->caps = ravb_ptp_caps;
 
+	if (pdev->dev.of_node)
+		ravb_ptp_parse_dt(&pdev->dev, ravb_ptp);
+
 	if (N_EXT_TS+N_PER_OUT) {
 		ravb_ptp->irq = platform_get_irq(pdev, 0);
 
@@ -493,6 +555,14 @@ int ravb_ptp_init(struct net_device *ndev,
 					DRIVER, ravb_ptp)) {
 			dev_err(&pdev->dev, "ptp: request_irq failed\n");
 			goto no_node;
+		}
+
+		if (ravb_ptp->avtp_capture_gpio) {
+			request_irq(gpio_to_irq(ravb_ptp->avtp_capture_gpio),
+					isr_avtp_capture_gpio,
+					IRQ_TYPE_EDGE_RISING,
+					"avtp_capture", ravb_ptp);
+			disable_irq(gpio_to_irq(ravb_ptp->avtp_capture_gpio));
 		}
 	}
 
@@ -516,6 +586,10 @@ int ravb_ptp_init(struct net_device *ndev,
 	return 0;
 
 no_clock:
+	if (ravb_ptp->avtp_capture_gpio) {
+		free_irq(gpio_to_irq(ravb_ptp->avtp_capture_gpio), ravb_ptp);
+		gpio_free(ravb_ptp->avtp_capture_gpio);
+	}
 	if (ravb_ptp->irq)
 		free_irq(ravb_ptp->irq, ravb_ptp);
 no_node:
@@ -534,6 +608,10 @@ int ravb_ptp_stop(struct net_device *ndev,
 	ravb_write(ndev, 0, GIS);
 
 	ptp_clock_unregister(ravb_ptp->clock);
+	if (ravb_ptp->avtp_capture_gpio) {
+		free_irq(gpio_to_irq(ravb_ptp->avtp_capture_gpio), ravb_ptp);
+		gpio_free(ravb_ptp->avtp_capture_gpio);
+	}
 	if (ravb_ptp->irq)
 		free_irq(ravb_ptp->irq, ravb_ptp);
 	kfree(ravb_ptp);
