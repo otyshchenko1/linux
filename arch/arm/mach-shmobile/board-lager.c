@@ -861,6 +861,8 @@ static const struct pinctrl_map lager_pinctrl_map[] = {
 				  "avb_mdio", "avb"),
 	PIN_MAP_MUX_GROUP_DEFAULT("r8a7790-gether", "pfc-r8a7790",
 				  "avb_gmii", "avb"),
+	PIN_MAP_MUX_GROUP_DEFAULT("r8a7790-gether", "pfc-r8a7790",
+				  "avb_avtp_match", "avb"),
 	/* Following pins can be enabled if you need */
 	/*
 		PIN_MAP_MUX_GROUP_DEFAULT("r8a779x-gether", "pfc-r8a7790",

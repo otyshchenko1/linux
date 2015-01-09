@@ -68,7 +68,7 @@ enum {
 	FN_IP7_28_27, FN_IP7_30_29, FN_IP8_1_0, FN_IP8_3_2, FN_IP8_5_4,
 	FN_IP8_7_6, FN_IP8_9_8, FN_IP8_11_10, FN_IP8_13_12, FN_IP8_15_14,
 	FN_IP8_17_16, FN_IP8_19_18, FN_IP8_21_20, FN_IP8_23_22,
-	FN_IP8_25_24, FN_IP8_26, FN_IP8_27, FN_VI1_DATA7_VI1_B7,
+	FN_IP8_25_24, FN_IP8_26, FN_IP8_27, FN_IP8_31,
 	FN_IP6_16_14, FN_IP6_19_17, FN_IP6_22_20, FN_IP6_25_23,
 	FN_IP6_28_26, FN_IP6_31_29, FN_IP7_2_0, FN_IP7_5_3, FN_IP7_7_6,
 	FN_IP7_9_8, FN_IP7_12_10, FN_IP7_15_13,
@@ -243,6 +243,7 @@ enum {
 	FN_VI0_DATA0_VI0_B0, FN_ATACS10_N, FN_AVB_RXD2,
 
 	/* IPSR8 */
+	FN_VI1_DATA7_VI1_B7, FN_AVB_AVTP_MATCH,
 	FN_VI0_DATA1_VI0_B1, FN_ATARD0_N, FN_AVB_RXD3,
 	FN_VI0_DATA2_VI0_B2, FN_ATAWR0_N,
 	FN_AVB_RXD4, FN_VI0_DATA3_VI0_B3, FN_ATADIR0_N,
@@ -474,8 +475,6 @@ enum {
 
 	PINMUX_MARK_BEGIN,
 
-	VI1_DATA7_VI1_B7_MARK,
-
 	USB0_PWEN_MARK, USB0_OVC_VBUS_MARK,
 	USB2_PWEN_MARK, USB2_OVC_MARK, AVS1_MARK, AVS2_MARK,
 	DU_DOTCLKIN0_MARK, DU_DOTCLKIN2_MARK,
@@ -632,6 +631,7 @@ enum {
 	AVB_PHY_INT_MARK, VI1_DATA6_VI1_B6_MARK, AVB_GTXREFCLK_MARK,
 	SD0_CLK_MARK, VI1_DATA0_VI1_B0_B_MARK, SD0_CMD_MARK,
 	SCIFB1_SCK_B_MARK, VI1_DATA1_VI1_B1_B_MARK,
+	VI1_DATA7_VI1_B7_MARK, AVB_AVTP_MATCH_MARK,
 
 	SD0_DAT0_MARK, SCIFB1_RXD_B_MARK, VI1_DATA2_VI1_B2_B_MARK,
 	SD0_DAT1_MARK, SCIFB1_TXD_B_MARK, VI1_DATA3_VI1_B3_B_MARK,
@@ -790,7 +790,6 @@ enum {
 static const u16 pinmux_data[] = {
 	PINMUX_DATA_GP_ALL(), /* PINMUX_DATA(GP_M_N_DATA, GP_M_N_FN...), */
 
-	PINMUX_DATA(VI1_DATA7_VI1_B7_MARK, FN_VI1_DATA7_VI1_B7),
 	PINMUX_DATA(USB0_PWEN_MARK, FN_USB0_PWEN),
 	PINMUX_DATA(USB0_OVC_VBUS_MARK, FN_USB0_OVC_VBUS),
 	PINMUX_DATA(USB2_PWEN_MARK, FN_USB2_PWEN),
@@ -1272,6 +1271,8 @@ static const u16 pinmux_data[] = {
 	PINMUX_IPSR_DATA(IP8_30_29, SD0_CMD),
 	PINMUX_IPSR_MODSEL_DATA(IP8_30_29, SCIFB1_SCK_B, SEL_SCIFB1_1),
 	PINMUX_IPSR_MODSEL_DATA(IP8_30_29, VI1_DATA1_VI1_B1_B, SEL_VI1_1),
+	PINMUX_IPSR_MODSEL_DATA(IP8_31, VI1_DATA7_VI1_B7, SEL_VI1_1),
+	PINMUX_IPSR_DATA(IP8_31, AVB_AVTP_MATCH),
 
 	PINMUX_IPSR_DATA(IP9_1_0, SD0_DAT0),
 	PINMUX_IPSR_MODSEL_DATA(IP9_1_0, SCIFB1_RXD_B, SEL_SCIFB1_1),
@@ -1981,6 +1982,12 @@ static const unsigned int avb_gmii_mux[] = {
 	AVB_CRS_MARK, AVB_GTX_CLK_MARK, AVB_GTXREFCLK_MARK,
 	AVB_TX_EN_MARK, AVB_TX_ER_MARK, AVB_TX_CLK_MARK,
 	AVB_COL_MARK,
+};
+static const unsigned int avb_avtp_match_pins[] = {
+	RCAR_GP_PIN(2, 17),
+};
+static const unsigned int avb_avtp_match_mux[] = {
+	AVB_AVTP_MATCH_MARK,
 };
 /* - HSCIF0 ----------------------------------------------------------------- */
 static const unsigned int hscif0_data_pins[] = {
@@ -3904,6 +3911,7 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(avb_phy_int),
 	SH_PFC_PIN_GROUP(avb_mdio),
 	SH_PFC_PIN_GROUP(avb_gmii),
+	SH_PFC_PIN_GROUP(avb_avtp_match),
 	SH_PFC_PIN_GROUP(hscif0_data),
 	SH_PFC_PIN_GROUP(hscif0_clk),
 	SH_PFC_PIN_GROUP(hscif0_ctrl),
@@ -4203,6 +4211,7 @@ static const char * const avb_groups[] = {
 	"avb_phy_int",
 	"avb_mdio",
 	"avb_gmii",
+	"avb_avtp_match",
 };
 
 static const char * const hscif0_groups[] = {
@@ -4715,7 +4724,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		GP_2_20_FN, FN_IP6_22_20,
 		GP_2_19_FN, FN_IP6_19_17,
 		GP_2_18_FN, FN_IP6_16_14,
-		GP_2_17_FN, FN_VI1_DATA7_VI1_B7,
+		GP_2_17_FN, FN_IP8_31,
 		GP_2_16_FN, FN_IP8_27,
 		GP_2_15_FN, FN_IP8_26,
 		GP_2_14_FN, FN_IP8_25_24,
@@ -5116,7 +5125,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 			     1, 2, 1, 1, 1, 2, 2, 2, 2, 2, 2,
 			     2, 2, 2, 2, 2, 2, 2) {
 		/* IP8_31 [1] */
-		0, 0,
+		FN_VI1_DATA7_VI1_B7, FN_AVB_AVTP_MATCH,
 		/* IP8_30_29 [2] */
 		FN_SD0_CMD, FN_SCIFB1_SCK_B, FN_VI1_DATA1_VI1_B1_B, 0,
 		/* IP8_28 [1] */
