@@ -1351,11 +1351,13 @@ static int ravb_get_settings(struct net_device *ndev,
 {
 	struct ravb_private *mdp = netdev_priv(ndev);
 	unsigned long flags;
-	int ret;
+	int ret = -ENODEV;
 
-	spin_lock_irqsave(&mdp->lock, flags);
-	ret = phy_ethtool_gset(mdp->phydev, ecmd);
-	spin_unlock_irqrestore(&mdp->lock, flags);
+	if (mdp->phydev) {
+		spin_lock_irqsave(&mdp->lock, flags);
+		ret = phy_ethtool_gset(mdp->phydev, ecmd);
+		spin_unlock_irqrestore(&mdp->lock, flags);
+	}
 
 	return ret;
 }
@@ -1366,6 +1368,9 @@ static int ravb_set_settings(struct net_device *ndev,
 	struct ravb_private *mdp = netdev_priv(ndev);
 	unsigned long flags;
 	int ret;
+
+	if (!mdp->phydev)
+		return -ENODEV;
 
 	spin_lock_irqsave(&mdp->lock, flags);
 
@@ -1399,11 +1404,13 @@ static int ravb_nway_reset(struct net_device *ndev)
 {
 	struct ravb_private *mdp = netdev_priv(ndev);
 	unsigned long flags;
-	int ret;
+	int ret = -ENODEV;
 
-	spin_lock_irqsave(&mdp->lock, flags);
-	ret = phy_start_aneg(mdp->phydev);
-	spin_unlock_irqrestore(&mdp->lock, flags);
+	if (mdp->phydev) {
+		spin_lock_irqsave(&mdp->lock, flags);
+		ret = phy_start_aneg(mdp->phydev);
+		spin_unlock_irqrestore(&mdp->lock, flags);
+	}
 
 	return ret;
 }
@@ -1889,6 +1896,7 @@ static int ravb_close(struct net_device *ndev)
 	if (mdp->phydev) {
 		phy_stop(mdp->phydev);
 		phy_disconnect(mdp->phydev);
+		mdp->phydev = NULL;
 	}
 
 	free_irq(ndev->irq, ndev);
