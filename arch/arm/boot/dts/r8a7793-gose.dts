@@ -472,14 +472,6 @@
 	pinctrl-names = "default";
 
 	status = "okay";
-
-	pmic: pmic@0 {
-		compatible = "renesas,r2a11302ft";
-		reg = <0>;
-		spi-max-frequency = <6000000>;
-		spi-cpol;
-		spi-cpha;
-	};
 };
 
 &msiof1 {
