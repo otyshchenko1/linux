@@ -717,7 +717,7 @@
 			compatible = "fixed-factor-clock";
 			clocks = <&cpg_clocks R8A7793_CLK_PLL1>;
 			#clock-cells = <0>;
-			clock-div = <3>;
+			clock-div = <5>;
 			clock-mult = <1>;
 			clock-output-names = "zg";
 		};
