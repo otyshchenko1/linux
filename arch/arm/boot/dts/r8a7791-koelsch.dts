@@ -1,7 +1,7 @@
 /*
  * Device Tree Source for the Koelsch board
  *
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  * Copyright (C) 2013-2014 Renesas Solutions Corp.
  * Copyright (C) 2014 Cogent Embedded, Inc.
  *
@@ -490,14 +490,6 @@
 	pinctrl-names = "default";
 
 	status = "okay";
-
-	pmic: pmic@0 {
-		compatible = "renesas,r2a11302ft";
-		reg = <0>;
-		spi-max-frequency = <6000000>;
-		spi-cpol;
-		spi-cpha;
-	};
 };
 
 &msiof1 {
