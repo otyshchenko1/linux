@@ -1,7 +1,7 @@
 /*
  * Device Tree Source for the Gose board
  *
- * Copyright (C) 2014 Renesas Electronics Corporation
+ * Copyright (C) 2014-2015 Renesas Electronics Corporation
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2.  This program is licensed "as is" without any warranty of any
@@ -343,11 +343,6 @@
 		renesas,function = "audio_clk";
 	};
 
-	i2c6_pins: i2c6 {
-		renesas,groups = "i2c6";
-		renesas,function = "i2c6";
-	};
-
 	vin0_pins: vin0 {
 		renesas,groups = "vin0_data24", "vin0_sync", "vin0_field",
 				 "vin0_clkenb", "vin0_clk";
@@ -515,8 +510,6 @@
 };
 
 &i2c6 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c6_pins>;
 	status = "okay";
 	clock-frequency = <100000>;
 
