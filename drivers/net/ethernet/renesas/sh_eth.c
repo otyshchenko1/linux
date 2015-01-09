@@ -1,6 +1,6 @@
 /*  SuperH Ethernet device driver
  *
- *  Copyright (C) 2014  Renesas Electronics Corporation
+ *  Copyright (C) 2014-2015 Renesas Electronics Corporation
  *  Copyright (C) 2006-2012 Nobuhiro Iwamatsu
  *  Copyright (C) 2008-2014 Renesas Solutions Corp.
  *  Copyright (C) 2013-2014 Cogent Embedded, Inc.
@@ -1836,11 +1836,13 @@ static int sh_eth_get_settings(struct net_device *ndev,
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	unsigned long flags;
-	int ret;
+	int ret = -ENODEV;
 
-	spin_lock_irqsave(&mdp->lock, flags);
-	ret = phy_ethtool_gset(mdp->phydev, ecmd);
-	spin_unlock_irqrestore(&mdp->lock, flags);
+	if (mdp->phydev != NULL) {
+		spin_lock_irqsave(&mdp->lock, flags);
+		ret = phy_ethtool_gset(mdp->phydev, ecmd);
+		spin_unlock_irqrestore(&mdp->lock, flags);
+	}
 
 	return ret;
 }
@@ -1887,11 +1889,13 @@ static int sh_eth_nway_reset(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	unsigned long flags;
-	int ret;
+	int ret = -ENODEV;
 
-	spin_lock_irqsave(&mdp->lock, flags);
-	ret = phy_start_aneg(mdp->phydev);
-	spin_unlock_irqrestore(&mdp->lock, flags);
+	if (mdp->phydev != NULL) {
+		spin_lock_irqsave(&mdp->lock, flags);
+		ret = phy_start_aneg(mdp->phydev);
+		spin_unlock_irqrestore(&mdp->lock, flags);
+	}
 
 	return ret;
 }
@@ -2210,6 +2214,7 @@ static int sh_eth_close(struct net_device *ndev)
 	if (mdp->phydev) {
 		phy_stop(mdp->phydev);
 		phy_disconnect(mdp->phydev);
+		mdp->phydev = NULL;
 	}
 
 	free_irq(ndev->irq, ndev);
