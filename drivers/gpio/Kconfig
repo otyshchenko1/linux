@@ -204,7 +204,7 @@ config GPIO_PXA
 	  Say yes here to support the PXA GPIO device
 
 config GPIO_RCAR
-	tristate "Renesas R-Car GPIO"
+	bool "Renesas R-Car GPIO"
 	depends on ARM
 	help
 	  Say yes here to support GPIO on Renesas R-Car SoCs.
