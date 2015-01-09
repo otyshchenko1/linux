@@ -226,7 +226,7 @@
 	};
 
 	avb_pins: avb {
-		renesas,groups = "avb_mdio", "avb_gmii";
+		renesas,groups = "avb_mdio", "avb_gmii", "avb_avtp_match";
 		renesas,function = "avb";
 	};
 
