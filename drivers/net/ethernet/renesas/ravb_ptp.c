@@ -247,6 +247,18 @@ static void ravb_ptp_update_compare(struct ravb_ptp *ravb_ptp, u32 ns)
 			;
 }
 
+/* Caller must hold lock */
+static void ravb_ptp_toggle_avtp_match_gpio(struct ravb_ptp *ravb_ptp)
+{
+	int gpio = ravb_ptp->avtp_match_gpio;
+
+	if (!gpio)
+		return;
+
+	gpio_set_value(gpio, 1);
+	gpio_set_value(gpio, 0);
+}
+
 /* Interrupt service routine */
 static irqreturn_t isr(int irq, void *priv)
 {
@@ -274,6 +286,7 @@ static irqreturn_t isr(int irq, void *priv)
 				perout->target += perout->period;
 				ravb_ptp_update_compare(ravb_ptp,
 						perout->target);
+				ravb_ptp_toggle_avtp_match_gpio(ravb_ptp);
 			}
 		}
 	}
@@ -512,6 +525,14 @@ static void ravb_ptp_parse_dt(struct device *dev, struct ravb_ptp *ravb_ptp)
 		dev_info(dev, "ptp: use GPIO%d instead of avtp_capture.\n",
 				gpio);
 	}
+	gpio = of_get_named_gpio(np, "avtp-match-gpio", 0);
+	if (gpio_is_valid(gpio)) {
+		gpio_request_one(gpio,
+				 GPIOF_OUT_INIT_LOW | GPIOF_EXPORT_DIR_FIXED,
+				 "avtp_match_gpio");
+		ravb_ptp->avtp_match_gpio = gpio;
+		dev_info(dev, "ptp: use GPIO%d instead of avtp_match.\n", gpio);
+	}
 
 	return;
 }
@@ -590,6 +611,8 @@ no_clock:
 		free_irq(gpio_to_irq(ravb_ptp->avtp_capture_gpio), ravb_ptp);
 		gpio_free(ravb_ptp->avtp_capture_gpio);
 	}
+	if (ravb_ptp->avtp_match_gpio)
+		gpio_free(ravb_ptp->avtp_match_gpio);
 	if (ravb_ptp->irq)
 		free_irq(ravb_ptp->irq, ravb_ptp);
 no_node:
@@ -612,6 +635,8 @@ int ravb_ptp_stop(struct net_device *ndev,
 		free_irq(gpio_to_irq(ravb_ptp->avtp_capture_gpio), ravb_ptp);
 		gpio_free(ravb_ptp->avtp_capture_gpio);
 	}
+	if (ravb_ptp->avtp_match_gpio)
+		gpio_free(ravb_ptp->avtp_match_gpio);
 	if (ravb_ptp->irq)
 		free_irq(ravb_ptp->irq, ravb_ptp);
 	kfree(ravb_ptp);
