@@ -1,7 +1,7 @@
 /*
  * Device Tree Source for the Alt board
  *
- * Copyright (C) 2014 Renesas Electronics Corporation
+ * Copyright (C) 2014-2015 Renesas Electronics Corporation
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2.  This program is licensed "as is" without any warranty of any
@@ -373,17 +373,17 @@
 
 		partition@0 {
 			label = "loader";
-			reg = <0x00000000 0x00040000>;
+			reg = <0x00000000 0x00080000>;
 			read-only;
 		};
 		partition@40000 {
 			label = "user";
-			reg = <0x00040000 0x00400000>;
+			reg = <0x00080000 0x00580000>;
 			read-only;
 		};
 		partition@440000 {
 			label = "flash";
-			reg = <0x00440000 0x03bc0000>;
+			reg = <0x00600000 0x03a00000>;
 		};
 	};
 };
