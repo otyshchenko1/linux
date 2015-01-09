@@ -3,6 +3,7 @@
  *
  * base is drivers/dma/flsdma.c
  *
+ * Copyright (C) 2015 Renesas Electronics Corporation
  * Copyright (C) 2011-2012 Guennadi Liakhovetski <g.liakhovetski@gmx.de>
  * Copyright (C) 2009 Nobuhiro Iwamatsu <iwamatsu.nobuhiro@renesas.com>
  * Copyright (C) 2009 Renesas Solutions, Inc. All rights reserved.
@@ -45,6 +46,7 @@
 #define FIXSAR  0x10
 #define FIXDAR  0x14
 #define DMAOR	0x40
+#define DMABUFCR	0x48
 
 #define SWR	0x08 /* USB-DMAC */
 #define TEND	0x18 /* USB-DMAC */
@@ -61,6 +63,9 @@
 #define LOG2_DEFAULT_XFER_SIZE	2
 #define SH_DMA_SLAVE_NUMBER 256
 #define SH_DMA_TCR_MAX (16 * 1024 * 1024 - 1)
+
+#define MBU 0x080
+#define ULB 0x200
 
 /*
  * Used for write-side mutual exclusion for the global device list,
@@ -291,6 +296,8 @@ static void dmae_init(struct sh_dmae_chan *sh_chan)
 						   LOG2_DEFAULT_XFER_SIZE);
 	sh_chan->xmit_shift = calc_xmit_shift(sh_chan, chcr);
 	chcr_write(sh_chan, chcr);
+
+	sh_dmae_writel(sh_chan, (MBU << 16) | ULB, DMABUFCR);
 }
 
 static int dmae_set_chcr(struct sh_dmae_chan *sh_chan, u32 val)
