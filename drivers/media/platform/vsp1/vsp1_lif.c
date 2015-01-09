@@ -1,7 +1,7 @@
 /*
  * vsp1_lif.c  --  R-Car VSP1 LCD Controller Interface
  *
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -44,9 +44,9 @@ static int lif_s_stream(struct v4l2_subdev *subdev, int enable)
 {
 	const struct v4l2_mbus_framefmt *format;
 	struct vsp1_lif *lif = to_lif(subdev);
-	unsigned int hbth = 1300;
-	unsigned int obth = 400;
-	unsigned int lbth = 200;
+	unsigned int hbth = 1536;
+	unsigned int obth = 128;
+	unsigned int lbth = 1520;
 
 	if (!enable) {
 		vsp1_lif_write(lif, VI6_LIF_CTRL, 0);
