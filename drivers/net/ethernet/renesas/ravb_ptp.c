@@ -39,59 +39,27 @@
 #include "ravb.h"
 
 /* ravb ptp registers */
-/* Bit definitions for the CCC register */
-#define CSEL_SHIFT	(16)
-#define CSEL_MASK	(0x3)
-#define CSEL_DISABLE	(0) /* clock disable */
-#define CSEL_PBUSCLK	(1) /* peripheral bus clock */
-#define CSEL_TXCLK	(2) /* ethernet Tx clock */
-#define CSEL_EXCLK	(3) /* external provided clock */
-
-/* Bit definitions for the CSR register */
-#define OPS_MASK	(0xf)
+/* Bit definitions for the CSR.OPS */
 #define OPS_RESET	(1<<0)
 #define OPS_CONFIG	(1<<1)
 #define OPS_OPERATION	(1<<2)
 #define OPS_STANDBY	(1<<3)
 
-/* Bit definitions for the ISS register */
-#define CGIS		(1<<13)	/* Combined Gptp Interrupt Summary */
-
-/* Bit definitions for the GCCR register */
+/* Bit definitions for the GCCR.TCSS */
 #define TCSS_SHIFT	(8)
-#define TCSS_MASK	(0x3)
 #define TCSS_GPTP	(0) /* gPTP timer value */
 #define TCSS_CORR_GPTP	(1) /* Corrected gPTP timer value */
 #define TCSS_AVTP	(2) /* AVTP presentation time value */
-#define LMTT		(1<<5) /* Load Max Transit Time */
-#define LPTC		(1<<4) /* Load Presentation Time Comparison */
-#define LTI		(1<<3) /* Load Timer Increement */
-#define LTO		(1<<2) /* Load Timer Offset */
-#define TCR_MASK	(0x3)
+
+/* Bit definitions for the GCCR.TCR */
 #define TCR_NOREQ	(0) /* No request */
-#define TCR_RESET	(1) /* Rset gPTP and AVTP presentation timer */
+#define TCR_RESET	(1) /* Reset gPTP and AVTP presentation timer */
 #define TCR_CAPTURE	(3) /* Capture values as selected
 			     * by GCCR.TCSS to GCTt.CTV
 			     */
 
 /* Bit definitions for the GTI register */
-#define TIV_MASK	(0x0fffffff)
-
-/* Bit definitions for the GTO2 register */
-#define GTO2_TOV_MASK	(0x0000ffff)
-
-/* Bit definitions for the GIC register */
-#define PTME		(1<<2)
-#define PTOE		(1<<1)
-#define PTCE		(1<<0)
-
-/* Bit definitions for the GIS register */
-#define PTMF		(1<<2)
-#define PTOF		(1<<1)
-#define PTCF		(1<<0)
-
-/* Bit definitions for the GCT2 register */
-#define GCT2_CTV_MASK	(0x0000ffff)
+#define GTI_TIV		(0x0fffffff)
 
 #define U32_MAX		((u32)~0U)
 
@@ -104,12 +72,12 @@ static inline void ravb_ptp_tcr_request(struct ravb_ptp *ravb_ptp,
 {
 	struct net_device *ndev = ravb_ptp->ndev;
 
-	if ((ravb_read(ndev, CSR) & OPS_MASK) & OPS_OPERATION) {
-		while ((ravb_read(ndev, GCCR) & TCR_MASK) != TCR_NOREQ)
+	if ((ravb_read(ndev, CSR) & CSR_OPS) & OPS_OPERATION) {
+		while ((ravb_read(ndev, GCCR) & GCCR_TCR) != TCR_NOREQ)
 			;
 		ravb_write(ndev,
 			ravb_read(ndev, GCCR) | request, GCCR);
-		while ((ravb_read(ndev, GCCR) & TCR_MASK) != TCR_NOREQ)
+		while ((ravb_read(ndev, GCCR) & GCCR_TCR) != TCR_NOREQ)
 			;
 	}
 }
@@ -118,7 +86,7 @@ static inline bool ravb_ptp_is_config(struct ravb_ptp *ravb_ptp)
 {
 	struct net_device *ndev = ravb_ptp->ndev;
 
-	if ((ravb_read(ndev, CSR) & OPS_MASK) & OPS_CONFIG)
+	if ((ravb_read(ndev, CSR) & CSR_OPS) & OPS_CONFIG)
 		return true;
 	else
 		return false;
@@ -180,9 +148,9 @@ static void ravb_ptp_time_write(struct ravb_ptp *ravb_ptp,
 	ravb_write(ndev, ts->tv_nsec, GTO0);
 	ravb_write(ndev, ts->tv_sec, GTO1);
 	ravb_write(ndev,
-			ravb_read(ndev, GCCR) | LTO, GCCR);
-	if ((ravb_read(ndev, CSR) & OPS_MASK) & OPS_OPERATION)
-		while (ravb_read(ndev, GCCR) & LTO)
+			ravb_read(ndev, GCCR) | GCCR_LTO, GCCR);
+	if ((ravb_read(ndev, CSR) & CSR_OPS) & OPS_OPERATION)
+		while (ravb_read(ndev, GCCR) & GCCR_LTO)
 			;
 }
 
@@ -202,9 +170,9 @@ static void ravb_ptp_select_counter(struct ravb_ptp *ravb_ptp, u16 sel)
 	struct net_device *ndev = ravb_ptp->ndev;
 	u32 val;
 
-	while ((ravb_read(ndev, GCCR) & TCR_MASK) != TCR_NOREQ)
+	while ((ravb_read(ndev, GCCR) & GCCR_TCR) != TCR_NOREQ)
 		;
-	val = ravb_read(ndev, GCCR) & ~(TCSS_MASK<<TCSS_SHIFT);
+	val = ravb_read(ndev, GCCR) & ~GCCR_TCSS;
 	ravb_write(ndev, val | (sel<<TCSS_SHIFT), GCCR);
 }
 
@@ -215,11 +183,11 @@ static void ravb_ptp_update_addend(struct ravb_ptp *ravb_ptp, u32 addend)
 
 	ravb_ptp->current_addend = addend;
 
-	ravb_write(ndev, addend & TIV_MASK, GTI);
+	ravb_write(ndev, addend & GTI_TIV, GTI);
 	ravb_write(ndev,
-			ravb_read(ndev, GCCR) | LTI, GCCR);
-	if ((ravb_read(ndev, CSR) & OPS_MASK) & OPS_OPERATION)
-		while (ravb_read(ndev, GCCR) & LTI)
+			ravb_read(ndev, GCCR) | GCCR_LTI, GCCR);
+	if ((ravb_read(ndev, CSR) & CSR_OPS) & OPS_OPERATION)
+		while (ravb_read(ndev, GCCR) & GCCR_LTI)
 			;
 }
 
@@ -241,9 +209,9 @@ static void ravb_ptp_update_compare(struct ravb_ptp *ravb_ptp, u32 ns)
 		ns = 0 - gti_ns_plus1;
 
 	ravb_write(ndev, ns, GPTC);
-	ravb_write(ndev, ravb_read(ndev, GCCR) | LPTC, GCCR);
-	if ((ravb_read(ndev, CSR) & OPS_MASK) & OPS_OPERATION)
-		while (ravb_read(ndev, GCCR) & LPTC)
+	ravb_write(ndev, ravb_read(ndev, GCCR) | GCCR_LPTC, GCCR);
+	if ((ravb_read(ndev, CSR) & CSR_OPS) & OPS_OPERATION)
+		while (ravb_read(ndev, GCCR) & GCCR_LPTC)
 			;
 }
 
@@ -268,19 +236,19 @@ static irqreturn_t isr(int irq, void *priv)
 	u32 ack = 0, val;
 
 	val = ravb_read(ndev, ISS);
-	if (val & CGIS) {
+	if (val & ISS_CGIS) {
 		val = ravb_read(ndev, GIS) & ravb_read(ndev, GIC);
-		if (val & PTCF) {
-			ack |= PTCF;
+		if (val & GIS_PTCF) {
+			ack |= GIS_PTCF;
 			event.type = PTP_CLOCK_EXTTS;
 			event.index = 0;
 			event.timestamp = ravb_ptp_capture_cnt_read(ravb_ptp);
 			ptp_clock_event(ravb_ptp->clock, &event);
 		}
-		if (val & PTMF) {
+		if (val & GIS_PTMF) {
 			struct ravb_ptp_perout *perout;
 
-			ack |= PTMF;
+			ack |= GIS_PTMF;
 			perout = &ravb_ptp->perout[0];
 			if (perout->period) {
 				perout->target += perout->period;
@@ -433,7 +401,7 @@ static int ravb_ptp_perout_enable(struct ptp_clock_info *ptp,
 
 		/* interrupt unmask */
 		mask = ravb_read(ndev, GIC);
-		mask |= PTME;
+		mask |= GIC_PTME;
 		ravb_write(ndev, mask, GIC);
 
 		spin_unlock_irqrestore(&ravb_ptp->lock, flags);
@@ -444,7 +412,7 @@ static int ravb_ptp_perout_enable(struct ptp_clock_info *ptp,
 
 		/* interrupt mask */
 		mask = ravb_read(ndev, GIC);
-		mask &= ~PTME;
+		mask &= ~GIC_PTME;
 		ravb_write(ndev, mask, GIC);
 
 		spin_unlock_irqrestore(&ravb_ptp->lock, flags);
@@ -470,7 +438,7 @@ static int ravb_ptp_enable(struct ptp_clock_info *ptp,
 
 		switch (rq->extts.index) {
 		case 0:
-			bit = PTCE;
+			bit = GIC_PTCE;
 			ravb_ptp_avtp_capture_gpio_irq_control(ravb_ptp, on);
 			break;
 		default:
