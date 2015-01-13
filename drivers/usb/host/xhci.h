@@ -1,6 +1,7 @@
 /*
  * xHCI host controller driver
  *
+ * Copyright (C) 2015 Renesas Electronics Corporation
  * Copyright (C) 2008 Intel Corp.
  *
  * Author: Sarah Sharp
@@ -1565,6 +1566,7 @@ struct xhci_hcd {
 #define XHCI_AVOID_BEI		(1 << 15)
 #define XHCI_PLAT		(1 << 16)
 #define XHCI_SLOW_SUSPEND	(1 << 17)
+#define XHCI_NO_64BIT		(1 << 18)
 	unsigned int		num_active_eps;
 	unsigned int		limit_active_eps;
 	/* There are two roothubs to keep track of bus suspend info for */
