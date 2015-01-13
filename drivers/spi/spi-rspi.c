@@ -999,11 +999,10 @@ static struct dma_chan *rspi_request_dma_chan(struct device *dev,
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	chan = dma_request_slave_channel_compat(mask, shdma_chan_filter,
-				(void *)(unsigned long)id, dev,
-				dir == DMA_MEM_TO_DEV ? "tx" : "rx");
+	chan = dma_request_channel(mask, shdma_chan_filter,
+				   (void *)(unsigned long)id);
 	if (!chan) {
-		dev_warn(dev, "dma_request_slave_channel_compat failed\n");
+		dev_warn(dev, "dma_request_channel failed\n");
 		return NULL;
 	}
 
@@ -1032,30 +1031,22 @@ static int rspi_request_dma(struct device *dev, struct spi_master *master,
 			    const struct resource *res)
 {
 	const struct rspi_plat_data *rspi_pd = dev_get_platdata(dev);
-	unsigned int dma_tx_id, dma_rx_id;
 
-	if (dev->of_node) {
-		/* In the OF case we will get the slave IDs from the DT */
-		dma_tx_id = 0;
-		dma_rx_id = 0;
-	} else if (rspi_pd && rspi_pd->dma_tx_id && rspi_pd->dma_rx_id) {
-		dma_tx_id = rspi_pd->dma_tx_id;
-		dma_rx_id = rspi_pd->dma_rx_id;
-	} else {
-		/* The driver assumes no error. */
-		return 0;
-	}
+	if (!rspi_pd || !rspi_pd->dma_rx_id || !rspi_pd->dma_tx_id)
+		return 0;	/* The driver assumes no error. */
 
-	master->dma_tx = rspi_request_dma_chan(dev, DMA_MEM_TO_DEV, dma_tx_id,
+	master->dma_rx = rspi_request_dma_chan(dev, DMA_DEV_TO_MEM,
+					       rspi_pd->dma_rx_id,
 					       res->start + RSPI_SPDR);
-	if (!master->dma_tx)
+	if (!master->dma_rx)
 		return -ENODEV;
 
-	master->dma_rx = rspi_request_dma_chan(dev, DMA_DEV_TO_MEM, dma_rx_id,
+	master->dma_tx = rspi_request_dma_chan(dev, DMA_MEM_TO_DEV,
+					       rspi_pd->dma_tx_id,
 					       res->start + RSPI_SPDR);
-	if (!master->dma_rx) {
-		dma_release_channel(master->dma_tx);
-		master->dma_tx = NULL;
+	if (!master->dma_tx) {
+		dma_release_channel(master->dma_rx);
+		master->dma_rx = NULL;
 		return -ENODEV;
 	}
 
