@@ -1,6 +1,7 @@
 /*
  * xhci-plat.c - xHCI host controller driver platform Bus Glue.
  *
+ * Copyright (C) 2015 Renesas Electronics Corporation
  * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com
  * Author: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
  *
@@ -35,7 +36,7 @@ static void xhci_plat_quirks(struct device *dev, struct xhci_hcd *xhci)
 	/* QUIRK: R-Car xHCI must be suspended extra slowly */
 	if (of_device_is_compatible(of_node, "renesas,xhci-r8a7790") ||
 	    of_device_is_compatible(of_node, "renesas,xhci-r8a7791"))
-		xhci->quirks |= XHCI_SLOW_SUSPEND;
+		xhci->quirks |= XHCI_SLOW_SUSPEND | XHCI_NO_64BIT;
 }
 
 /* called during probe() after chip reset completes */
