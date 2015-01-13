@@ -1,6 +1,7 @@
 /*
  * Renesas USB driver
  *
+ * Copyright (C) 2015 Renesas Electronics Corporation
  * Copyright (C) 2011 Renesas Solutions Corp.
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  *
@@ -943,9 +944,25 @@ static int usbhsg_set_selfpowered(struct usb_gadget *gadget, int is_self)
 	return 0;
 }
 
+static int usbhsg_vbus_session(struct usb_gadget *gadget, int is_active)
+{
+	struct usbhsg_gpriv *gpriv = usbhsg_gadget_to_gpriv(gadget);
+	struct usbhs_priv *priv = usbhsg_gpriv_to_priv(gpriv);
+	struct device *dev = usbhs_priv_to_dev(priv);
+	struct platform_device *pdev = usbhs_priv_to_pdev(priv);
+
+	dev_dbg(dev, "is_active = %d\n", is_active);
+	priv->vbus_is_indirect = 1;
+	priv->vbus_indirect_value = !!is_active;
+	renesas_usbhs_call_notify_hotplug(pdev);
+
+	return 0;
+}
+
 static const struct usb_gadget_ops usbhsg_gadget_ops = {
 	.get_frame		= usbhsg_get_frame,
 	.set_selfpowered	= usbhsg_set_selfpowered,
+	.vbus_session	= usbhsg_vbus_session,
 	.udc_start		= usbhsg_gadget_start,
 	.udc_stop		= usbhsg_gadget_stop,
 	.pullup			= usbhsg_pullup,

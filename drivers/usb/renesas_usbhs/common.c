@@ -1,6 +1,7 @@
 /*
  * Renesas USB driver
  *
+ * Copyright (C) 2015 Renesas Electronics Corporation
  * Copyright (C) 2011 Renesas Solutions Corp.
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  *
@@ -380,6 +381,9 @@ static void usbhsc_hotplug(struct usbhs_priv *priv)
 	 * get vbus status from platform
 	 */
 	enable = usbhs_platform_call(priv, get_vbus, pdev);
+
+	if (priv->vbus_is_indirect)
+		enable = priv->vbus_indirect_value;
 
 	/*
 	 * get id from platform
