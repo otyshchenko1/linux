@@ -112,7 +112,7 @@ static struct sh_mobile_sdhi_scc rcar_gen2_scc_taps[] = {
 
 static const struct sh_mobile_sdhi_of_data of_rcar_gen2_compatible = {
 	.tmio_flags	= TMIO_MMC_CLK_ACTUAL | TMIO_MMC_CLK_NO_SLEEP |
-			  TMIO_MMC_HAS_IDLE_WAIT |
+			  TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_WRPROTECT_DISABLE |
 			  TMIO_MMC_SDIO_STATUS_QUIRK,
 	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ,
 	.capabilities2	= MMC_CAP2_NO_2BLKS_READ,
