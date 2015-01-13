@@ -1,6 +1,7 @@
 /*
  * Renesas USB driver
  *
+ * Copyright (C) 2015 Renesas Electronics Corporation
  * Copyright (C) 2011 Renesas Solutions Corp.
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  *
@@ -254,6 +255,8 @@ struct usbhs_priv {
 	struct renesas_usbhs_driver_param	dparam;
 
 	struct delayed_work notify_hotplug_work;
+	int vbus_is_indirect;
+	int vbus_indirect_value;
 	struct platform_device *pdev;
 
 	spinlock_t		lock;
