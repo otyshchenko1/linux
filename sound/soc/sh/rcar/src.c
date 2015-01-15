@@ -25,7 +25,6 @@ module_param(sync_src, uint, S_IRUGO);
 struct rsnd_src {
 	struct rsnd_src_platform_info *info; /* rcar_snd.h */
 	struct rsnd_mod mod;
-	struct clk *clk;
 	struct rsnd_dai *rdai;
 	int    err_uf_srco, err_of_srco, err_of_srci, err_uf_srci;
 	long   reconvert_rate;
@@ -407,9 +406,7 @@ static void rsnd_src_set_reconvert_rate(struct rsnd_mod *mod)
 static int rsnd_src_init(struct rsnd_mod *mod,
 			 struct rsnd_dai *rdai)
 {
-	struct rsnd_src *src = rsnd_mod_to_src(mod);
-
-	clk_prepare_enable(src->clk);
+	rsnd_mod_hw_start(mod);
 
 	return 0;
 }
@@ -421,7 +418,7 @@ static int rsnd_src_quit(struct rsnd_mod *mod,
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 
-	clk_disable_unprepare(src->clk);
+	rsnd_mod_hw_stop(mod);
 
 	if (src->err_uf_srco > 0)
 		dev_warn(dev, "src uf_srco err = %d\n", src->err_uf_srco);
@@ -1195,9 +1192,8 @@ int rsnd_src_probe(struct platform_device *pdev,
 			return PTR_ERR(clk);
 
 		src->info = &info->src_info[i];
-		src->clk = clk;
 
-		rsnd_mod_init(priv, &src->mod, ops, RSND_MOD_SRC, i);
+		rsnd_mod_init(priv, &src->mod, ops, clk, RSND_MOD_SRC, i);
 
 		dev_dbg(dev, "SRC%d probed\n", i);
 	}

@@ -60,7 +60,6 @@
 #define SSI_NAME "ssi"
 
 struct rsnd_ssi {
-	struct clk *clk;
 	struct rsnd_ssi_platform_info *info; /* rcar_snd.h */
 	struct rsnd_ssi *parent;
 	struct rsnd_mod mod;
@@ -192,7 +191,7 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 	u32 cr;
 
 	if (0 == ssi->usrcnt) {
-		clk_prepare_enable(ssi->clk);
+		rsnd_mod_hw_start(&ssi->mod);
 
 		if (rsnd_dai_is_clk_master(rdai)) {
 			if (rsnd_ssi_clk_from_parent(ssi))
@@ -254,14 +253,14 @@ static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi,
 			if (rsnd_ssi_clk_from_parent(ssi)) {
 				if (0 == --(ssi->parent->usrcnt)) {
 					rsnd_ssi_master_clk_stop(ssi->parent);
-					clk_disable_unprepare(ssi->parent->clk);
+					rsnd_mod_hw_stop(&ssi->parent->mod);
 				}
 			} else {
 				rsnd_ssi_master_clk_stop(ssi);
 			}
 		}
 
-		clk_disable_unprepare(ssi->clk);
+		rsnd_mod_hw_stop(&ssi->mod);
 	}
 
 	dev_dbg(dev, "ssi%d hw stopped\n", rsnd_mod_id(&ssi->mod));
@@ -885,7 +884,6 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 			return PTR_ERR(clk);
 
 		ssi->info	= pinfo;
-		ssi->clk	= clk;
 
 		ops = &rsnd_ssi_non_ops;
 		if (pinfo->dma_id > 0)
@@ -893,7 +891,7 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 		else if (rsnd_ssi_pio_available(ssi))
 			ops = &rsnd_ssi_pio_ops;
 
-		rsnd_mod_init(priv, &ssi->mod, ops, RSND_MOD_SSI, i);
+		rsnd_mod_init(priv, &ssi->mod, ops, clk, RSND_MOD_SSI, i);
 
 		rsnd_ssi_parent_clk_setup(priv, ssi);
 	}
