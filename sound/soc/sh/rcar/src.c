@@ -318,7 +318,7 @@ static int rsnd_src_set_convert_rate(struct rsnd_mod *mod,
 		convert_rate = src->reconvert_rate;
 
 	if (convert_rate) {
-		if (rsnd_dai_is_play(rdai, io)) {
+		if (rsnd_io_is_play(io)) {
 			fsrate = muldiv32(0x0400000, runtime->rate,
 					  convert_rate, &remain);
 		} else {
@@ -463,7 +463,7 @@ static int rsnd_src_set_route_gen1(struct rsnd_mod *mod,
 	/*
 	 * SRC_ROUTE_SELECT
 	 */
-	val = rsnd_dai_is_play(rdai, io) ? 0x1 : 0x2;
+	val = rsnd_io_is_play(io) ? 0x1 : 0x2;
 	val = val		<< routes[id].shift;
 	mask = routes[id].mask	<< routes[id].shift;
 
@@ -963,7 +963,7 @@ static int rsnd_src_stop_gen2(struct rsnd_mod *mod,
 	if (!status)
 		return 0;
 
-	if (rsnd_dai_is_play(rdai, io)) {
+	if (rsnd_io_is_play(io)) {
 		/* is playback */
 		rsnd_src_irq_disable(mod, rdai);
 		rsnd_mod_write(mod, SRC_CTRL, 0);
@@ -1062,7 +1062,7 @@ static int rsnd_src_pcm_new_gen2(struct rsnd_mod *mod,
 	};
 	int ret;
 
-	if (rsnd_dai_is_play(rdai, io))
+	if (rsnd_io_is_play(io))
 		knew.name = "Playback ReConvert Rate";
 	else
 		knew.name = "Capture ReConvert Rate";

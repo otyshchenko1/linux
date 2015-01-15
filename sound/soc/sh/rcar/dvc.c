@@ -226,11 +226,12 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 {
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
+	int is_play = rsnd_io_is_play(io);
 	int ret;
 
 	/* Volume */
 	ret = __rsnd_dvc_pcm_new(mod, rdai, rtd,
-			rsnd_dai_is_play(rdai, io) ?
+			is_play ?
 			"DVC Out Playback Volume" : "DVC In Capture Volume",
 			dvc->volume);
 	if (ret < 0)
@@ -238,7 +239,7 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 
 	/* Mute */
 	ret = __rsnd_dvc_pcm_new(mod, rdai, rtd,
-			rsnd_dai_is_play(rdai, io) ?
+			is_play ?
 			"DVC Out Mute Switch" : "DVC In Mute Switch",
 			dvc->mute);
 	if (ret < 0)

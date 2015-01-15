@@ -294,6 +294,7 @@ struct rsnd_dai_stream {
 #define rsnd_io_to_mod_src(io)	((io)->mod[RSND_MOD_SRC])
 #define rsnd_io_to_mod_dvc(io)	((io)->mod[RSND_MOD_DVC])
 #define rsnd_io_to_rdai(io)	((io)->rdai)
+#define rsnd_io_is_play(io)	(&rsnd_io_to_rdai(io)->playback == io)
 #define rsnd_io_has_cmd(io)	(!!((io)->mod[RSND_MOD_DVC])) /* add more */
 
 int rsnd_io_is_working(struct rsnd_dai_stream *io);
@@ -319,7 +320,6 @@ struct rsnd_dai {
 	     i++)
 
 struct rsnd_dai *rsnd_dai_get(struct rsnd_priv *priv, int id);
-int rsnd_dai_is_play(struct rsnd_dai *rdai, struct rsnd_dai_stream *io);
 int rsnd_dai_id(struct rsnd_priv *priv, struct rsnd_dai *rdai);
 #define rsnd_dai_get_platform_info(rdai) ((rdai)->info)
 #define rsnd_io_to_runtime(io) ((io)->substream->runtime)

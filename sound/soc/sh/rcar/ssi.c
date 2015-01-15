@@ -246,7 +246,7 @@ static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi,
 		ssi->cr_clk;
 
 	rsnd_mod_write(&ssi->mod, SSICR, cr | EN);
-	if (rsnd_dai_is_play(rdai, io))
+	if (rsnd_io_is_play(io))
 		rsnd_ssi_status_check(&ssi->mod, DIRQ);
 
 	/*
@@ -341,7 +341,7 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 		cr |= SDTA;
 	if (rdai->sys_delay)
 		cr |= DEL;
-	if (rsnd_dai_is_play(rdai, io))
+	if (rsnd_io_is_play(io))
 		cr |= TRMD;
 
 	/*
@@ -417,7 +417,7 @@ static int rsnd_ssi_init_irq(struct rsnd_mod *mod,
 		cr |= SDTA;
 	if (rdai->sys_delay)
 		cr |= DEL;
-	if (rsnd_dai_is_play(rdai, io))
+	if (rsnd_io_is_play(io))
 		cr |= TRMD;
 
 	/*
@@ -497,7 +497,6 @@ static irqreturn_t rsnd_ssi_pio_interrupt(int irq, void *data)
 	}
 
 	if (io && (status & DIRQ)) {
-		struct rsnd_dai *rdai = ssi->rdai;
 		struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 		u32 *buf = (u32 *)(runtime->dma_area +
 				   rsnd_dai_pointer_offset(io, 0));
@@ -507,7 +506,7 @@ static irqreturn_t rsnd_ssi_pio_interrupt(int irq, void *data)
 		 * directly as 32bit data
 		 * see rsnd_ssi_init()
 		 */
-		if (rsnd_dai_is_play(rdai, io))
+		if (rsnd_io_is_play(io))
 			rsnd_mod_write(mod, SSITDR, *buf);
 		else
 			*buf = rsnd_mod_read(mod, SSIRDR);
@@ -705,7 +704,7 @@ static int rsnd_ssi_start(struct rsnd_mod *mod,
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 
-	if (rsnd_dai_is_play(rdai, io)) {
+	if (rsnd_io_is_play(io)) {
 		/* enable DMA transfer */
 		ssi->cr_etc = DMEN;
 
@@ -753,7 +752,7 @@ static int rsnd_ssi_stop(struct rsnd_mod *mod,
 
 	rsnd_src_disable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
 
-	if (rsnd_dai_is_play(rdai, io)) {
+	if (rsnd_io_is_play(io)) {
 		rsnd_ssi_hw_stop(ssi, rdai);
 		rsnd_src_ssiu_stop(mod, rdai, 1);
 	} else {
@@ -770,7 +769,7 @@ static int rsnd_ssi_dma_stop_start_irq(struct rsnd_mod *mod,
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 
-	if (rsnd_dai_is_play(rdai, io)) {
+	if (rsnd_io_is_play(io)) {
 		/* STOP */
 		rsnd_src_disable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
 		rsnd_ssi_hw_stop(ssi, rdai);

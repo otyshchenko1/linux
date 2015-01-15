@@ -623,11 +623,6 @@ static struct rsnd_dai *rsnd_dai_to_rdai(struct snd_soc_dai *dai)
 	return rsnd_dai_get(priv, dai->id);
 }
 
-int rsnd_dai_is_play(struct rsnd_dai *rdai, struct rsnd_dai_stream *io)
-{
-	return &rdai->playback == io;
-}
-
 /*
  *	rsnd_soc_dai functions
  */
@@ -729,7 +724,7 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	int ssi_id = rsnd_mod_id(ssi);
 	int ret;
 	unsigned long flags;
-	int is_play = rsnd_dai_is_play(rdai, io);
+	int is_play = rsnd_io_is_play(io);
 
 	rsnd_lock(priv, flags);
 
