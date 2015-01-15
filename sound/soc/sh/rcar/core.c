@@ -1077,6 +1077,7 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 			drv[i].playback.channels_max	= 2;
 
 			rdai[i].playback.info = &info->dai_info[i].playback;
+			rdai[i].playback.rdai = rdai + i;
 			rsnd_path_init(priv, &rdai[i], &rdai[i].playback);
 		}
 		if (cmod) {
@@ -1086,6 +1087,7 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 			drv[i].capture.channels_max	= 2;
 
 			rdai[i].capture.info = &info->dai_info[i].capture;
+			rdai[i].capture.rdai = rdai + i;
 			rsnd_path_init(priv, &rdai[i], &rdai[i].capture);
 		}
 
