@@ -285,11 +285,6 @@
 		renesas,function = "audio_clk";
 	};
 
-	i2c1_pins: i2c1 {
-		renesas,groups = "i2c1";
-		renesas,function = "i2c1";
-	};
-
 	i2c2_pins: i2c2 {
 		renesas,groups = "i2c2";
 		renesas,function = "i2c2";
@@ -459,16 +454,6 @@
 
 &cpu0 {
 	cpu0-supply = <&vdd_dvfs>;
-};
-
-&i2c0	{
-	status = "ok";
-};
-
-&i2c1	{
-	status = "ok";
-	pinctrl-0 = <&i2c1_pins>;
-	pinctrl-names = "default";
 };
 
 &i2c2	{
