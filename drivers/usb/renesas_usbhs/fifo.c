@@ -1025,6 +1025,10 @@ static int usbhsf_dma_prepare_pop(struct usbhs_pkt *pkt, int *is_done)
 {
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pkt->pipe);
 
+	/* return at this time if the pipe is running */
+	if (usbhs_pipe_is_running(pkt->pipe))
+		return 0;
+
 	if (usbhs_get_dparam(priv, usb_dmac_xfer_size))
 		return usbhsf_dma_prepare_pop_with_usb_dmac(pkt, is_done);
 	else
@@ -1172,6 +1176,7 @@ static int usbhsf_dma_pop_done_with_usb_dmac(struct usbhs_pkt *pkt,
 
 	/* The driver can assume the rx transaction is always "done" */
 	*is_done = 1;
+	usbhs_pipe_running(pipe, 0);
 
 	return 0;
 }
