@@ -229,32 +229,36 @@ static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi,
 
 	ssi->usrcnt--;
 
+	/*
+	 * disable all IRQ,
+	 * and, wait all data was sent
+	 */
+	cr  =	ssi->cr_own	|
+		ssi->cr_clk;
+
+	rsnd_mod_write(&ssi->mod, SSICR, cr | EN);
+	rsnd_ssi_status_check(&ssi->mod, DIRQ);
+
+	/*
+	 * disable SSI,
+	 * and, wait idle state
+	 */
+	rsnd_mod_write(&ssi->mod, SSICR, cr);	/* disabled all */
+	rsnd_ssi_status_check(&ssi->mod, IIRQ);
+
+	/* clear error status */
+	rsnd_mod_write(&ssi->mod, SSISR, 0);
+
 	if (0 == ssi->usrcnt) {
-		/*
-		 * disable all IRQ,
-		 * and, wait all data was sent
-		 */
-		cr  =	ssi->cr_own	|
-			ssi->cr_clk;
-
-		rsnd_mod_write(&ssi->mod, SSICR, cr | EN);
-		rsnd_ssi_status_check(&ssi->mod, DIRQ);
-
-		/*
-		 * disable SSI,
-		 * and, wait idle state
-		 */
-		rsnd_mod_write(&ssi->mod, SSICR, cr);	/* disabled all */
-		rsnd_ssi_status_check(&ssi->mod, IIRQ);
-
-		/* clear error status */
-		rsnd_mod_write(&ssi->mod, SSISR, 0);
-
 		if (rsnd_dai_is_clk_master(rdai)) {
-			if (rsnd_ssi_clk_from_parent(ssi))
-				rsnd_ssi_hw_stop(ssi->parent, rdai);
-			else
+			if (rsnd_ssi_clk_from_parent(ssi)) {
+				if (0 == --(ssi->parent->usrcnt)) {
+					rsnd_ssi_master_clk_stop(ssi->parent);
+					clk_disable_unprepare(ssi->parent->clk);
+				}
+			} else {
 				rsnd_ssi_master_clk_stop(ssi);
+			}
 		}
 
 		clk_disable_unprepare(ssi->clk);
