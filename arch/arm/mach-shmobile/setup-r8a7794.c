@@ -1,7 +1,7 @@
 /*
  * r8a7794 processor support
  *
- * Copyright (C) 2014  Renesas Electronics Corporation
+ * Copyright (C) 2014-2015  Renesas Electronics Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -184,10 +184,26 @@ static const struct resource powervr_resources[] __initconst = {
 	DEFINE_RES_IRQ(gic_spi(119)),
 };
 
-#define r8a7794_register_pvrsrvkm()					\
+#define __r8a7794_register_pvrsrvkm()					\
 	platform_device_register_simple("pvrsrvkm", -1,			\
 					powervr_resources,		\
 					ARRAY_SIZE(powervr_resources))
+
+#define CPG_BASE	0xe6150000
+#define CPG_LEN		0x1000
+#define RGXCR		0x0B4
+
+void __init r8a7794_register_pvrsrvkm(void)
+{
+	void __iomem *cpg_base;
+	unsigned int val;
+
+	cpg_base = ioremap(CPG_BASE, CPG_LEN);
+	val = ioread32(cpg_base + RGXCR);
+	iowrite32(val | (1 << 16), cpg_base + RGXCR);
+	iounmap(cpg_base);
+	__r8a7794_register_pvrsrvkm();
+}
 
 void __init r8a7794_add_dt_devices(void)
 {
