@@ -712,12 +712,14 @@ static void __init alt_add_usb0_device(void)
 static const struct rcar_gen2_phy_platform_data usbhs_phy_pdata __initconst = {
 #if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 	.chan0_pci = 0,	/* Channel 0 is USBHS */
-#else
-	.chan0_pci = 1,	/* Channel 0 is PCI USB */
-#endif
-	.chan2_pci = 1,	/* Channel 2 is PCI USB */
 	.gpio_vbus = 857,
 	.wakeup = true,
+#else
+	.chan0_pci = 1,	/* Channel 0 is PCI USB */
+	.gpio_vbus = -1,
+	.wakeup = false,
+#endif
+	.chan2_pci = 1,	/* Channel 2 is PCI USB */
 };
 
 static const struct resource usbhs_phy_resources[] __initconst = {
