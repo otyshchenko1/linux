@@ -90,10 +90,16 @@ static struct rcar_du_crtc_data alt_du_crtcs[] = {
 	{
 		.exclk = 148500000,
 		.init_conn_type = DRM_MODE_CONNECTOR_HDMIA,
+#ifdef RCAR_DU_CONNECT_VSP
+		.vsp = RCAR_DU_VSPD_0,
+#endif
 	},
 	{
 		.exclk = 74250000,
 		.init_conn_type = DRM_MODE_CONNECTOR_VGA,
+#ifdef RCAR_DU_CONNECT_VSP
+		.vsp = RCAR_DU_VSPD_UNUSED,
+#endif
 	},
 };
 
@@ -215,7 +221,9 @@ static const struct clk_name clk_names[] __initconst = {
 	{ "vin0", NULL, "r8a7794-vin.0" },
 	{ "vsps", NULL, NULL },
 #if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1)
+#ifndef RCAR_DU_CONNECT_VSP
 	{ "vsp1-du0", NULL, "vsp1.2" },
+#endif
 #else
 	{ "vsp1-du0", NULL, NULL },
 #endif
