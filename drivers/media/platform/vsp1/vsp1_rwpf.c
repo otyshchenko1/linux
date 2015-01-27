@@ -196,11 +196,21 @@ int vsp1_rwpf_set_selection(struct v4l2_subdev *subdev,
 	 */
 	format = vsp1_entity_get_pad_format(&rwpf->entity, fh, RWPF_PAD_SINK,
 					    sel->which);
+
+	if (format->code == V4L2_MBUS_FMT_AYUV8_1X32) {
+		sel->r.left = (sel->r.left + 1) & ~1;
+		sel->r.top = (sel->r.top + 1) & ~1;
+		sel->r.width = (sel->r.width) & ~1;
+		sel->r.height = (sel->r.height) & ~1;
+	}
+
 	sel->r.left = min_t(unsigned int, sel->r.left, format->width - 2);
 	sel->r.top = min_t(unsigned int, sel->r.top, format->height - 2);
 	if (rwpf->entity.type == VSP1_ENTITY_WPF) {
-		sel->r.left = min_t(unsigned int, sel->r.left, 255);
-		sel->r.top = min_t(unsigned int, sel->r.top, 255);
+		int maxcrop =
+			format->code == V4L2_MBUS_FMT_AYUV8_1X32 ? 254 : 255;
+		sel->r.left = min_t(unsigned int, sel->r.left, maxcrop);
+		sel->r.top = min_t(unsigned int, sel->r.top, maxcrop);
 	}
 	sel->r.width = min_t(unsigned int, sel->r.width,
 			     format->width - sel->r.left);
