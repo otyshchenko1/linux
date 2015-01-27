@@ -1,7 +1,7 @@
 /*
  * vsp1_rpf.c  --  R-Car VSP1 Read Pixel Formatter
  *
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -123,8 +123,9 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 		       rpf->buf_addr[0] + rpf->offsets[0]);
 
 	if (format->num_planes > 1) {
-		rpf->offsets[1] = crop->top * stride_c
-				+ crop->left * fmtinfo->bpp[1] / 8;
+		rpf->offsets[1] = crop->top * stride_c / fmtinfo->vsub
+				+ crop->left * fmtinfo->bpp[1] / fmtinfo->hsub
+				/ 8;
 		pstride |= stride_c << VI6_RPF_SRCM_PSTRIDE_C_SHIFT;
 
 		vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C0,
