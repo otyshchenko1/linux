@@ -315,7 +315,7 @@ static struct sh_mmcif_plat_data mmcif1_pdata = {
 	.slave_id_rx	= SYS_DMAC_SLAVE_MMCIF1_RX,
 };
 
-static struct sh_mobile_sdhi_info sdhi0_info __initdata = {
+static struct sh_mobile_sdhi_info sdhi0_info = {
 	.dma_slave_tx   = SYS_DMAC_SLAVE_SDHI0_TX,
 	.dma_slave_rx   = SYS_DMAC_SLAVE_SDHI0_RX,
 	.dma_rx_offset  = 0x2000,
@@ -326,7 +326,7 @@ static struct sh_mobile_sdhi_info sdhi0_info __initdata = {
 			  TMIO_MMC_WRPROTECT_DISABLE,
 };
 
-static struct sh_mobile_sdhi_info sdhi2_info __initdata = {
+static struct sh_mobile_sdhi_info sdhi2_info = {
 	.dma_slave_tx   = SYS_DMAC_SLAVE_SDHI2_TX,
 	.dma_slave_rx   = SYS_DMAC_SLAVE_SDHI2_RX,
 	.dma_rx_offset  = 0x2000,
