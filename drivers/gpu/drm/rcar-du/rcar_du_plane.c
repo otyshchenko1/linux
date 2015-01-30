@@ -961,11 +961,6 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 	}
 
 #ifdef RCAR_DU_CONNECT_VSP
-	planes->premultiplied =
-		drm_property_create_range(rcdu->ddev, 0, "premultiplied", 0, 1);
-	if (planes->premultiplied == NULL)
-		return -ENOMEM;
-
 	for (i = 0; i < VSPD_NUM_KMS_PLANES; ++i) {
 		int j;
 		for (j = 0; j < 2; j++) {
@@ -1057,11 +1052,17 @@ int rcar_du_planes_register(struct rcar_du_group *rgrp)
 {
 #ifdef RCAR_DU_CONNECT_VSP
 	struct rcar_du_device *rcdu = rgrp->dev;
+	struct rcar_du_planes *planes = &rgrp->planes;
 	unsigned int crtcs;
 	unsigned int i;
 	int ret;
 	const struct rcar_du_crtc_data *pdata =
 			rgrp->dev->pdata->crtcs;
+
+	planes->premultiplied =
+		drm_property_create_range(rcdu->ddev, 0, "premultiplied", 0, 1);
+	if (planes->premultiplied == NULL)
+		return -ENOMEM;
 
 	crtcs = ((1 << rcdu->num_crtcs) - 1) & (3 << (2 * rgrp->index));
 
