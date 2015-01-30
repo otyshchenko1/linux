@@ -583,7 +583,11 @@ static void rcar_du_plane_set_premultiplied(struct rcar_du_plane *plane,
 		return;
 
 	plane->premultiplied = premultiplied;
-	if ((!plane->enabled) || (plane->format->fourcc != DRM_FORMAT_ARGB8888))
+	if ((!plane->enabled) || (plane->format->fourcc == DRM_FORMAT_UYVY)
+			      || (plane->format->fourcc == DRM_FORMAT_YUYV)
+			      || (plane->format->fourcc == DRM_FORMAT_NV12)
+			      || (plane->format->fourcc == DRM_FORMAT_NV21)
+			      || (plane->format->fourcc == DRM_FORMAT_NV16))
 		return;
 
 	vsp_du_if_update_plane(rcrtc->vpsd_handle, plane->hwindex, plane, true);
