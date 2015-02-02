@@ -138,6 +138,9 @@ static void __init porter_add_du_device(void)
  * devices until they get moved to DT.
  */
 static const struct clk_name clk_names[] __initconst = {
+#if IS_ENABLED(CONFIG_RAVB)
+	{ "avb", NULL, "e6800000.ethernet" },
+#endif
 	{ "cmt0", NULL, "sh_cmt.0" },
 	{ "cmt0", "fck", "sh-cmt-48-gen2.0" },
 	{ "du0", "du.0", "rcar-du-r8a7791" },

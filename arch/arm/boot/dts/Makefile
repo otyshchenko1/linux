@@ -232,6 +232,7 @@ dtb-$(CONFIG_ARCH_ZYNQ) += zynq-zc702.dtb \
 # R-Car Gen2 AVB variants
 dtb-$(CONFIG_ARCH_SHMOBILE_MULTI) += \
 	r8a7791-koelsch-eavb.dtb \
+	r8a7791-porter-eavb.dtb \
 	r8a7790-lager-eavb.dtb
 
 targets += dtbs
