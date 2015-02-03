@@ -183,6 +183,7 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	if (rpf->entity.formats[RWPF_PAD_SINK].code !=
 	    rpf->entity.formats[RWPF_PAD_SOURCE].code)
 		infmt |= VI6_RPF_INFMT_CSC;
+	infmt |= VI6_RPF_INFMT_CEXT_EXT;
 
 	vsp1_rpf_write(rpf, VI6_RPF_INFMT, infmt);
 	vsp1_rpf_write(rpf, VI6_RPF_DSWAP, fmtinfo->swap);
