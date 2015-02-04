@@ -38,6 +38,7 @@ struct rcar_du_group;
 
 #ifdef RCAR_DU_CONNECT_VSP
 #define VSPD_NUM_KMS_PLANES	3
+#define VSPD_SCALING_NUM	1
 #endif
 
 #define DU_CH_0		0

@@ -438,6 +438,7 @@ static int rcar_du_plane_order_sort_update(struct rcar_du_plane *plane)
 	unsigned int ret, i, j, num_planes = 0, ch_index;
 	unsigned int planes_order[VSPD_NUM_KMS_PLANES];
 	bool blend;
+	int scaling = 0;
 
 	switch (rcrtc->index) {
 	case DU_CH_0:
@@ -464,6 +465,14 @@ static int rcar_du_plane_order_sort_update(struct rcar_du_plane *plane)
 			tmp_planes[j] = tmp_planes[j-1];
 		}
 		tmp_planes[j] = tmp_plane;
+
+		if ((tmp_plane->enabled) &&
+		     ((tmp_plane->width != tmp_plane->d_width) ||
+		      (tmp_plane->height != tmp_plane->d_height))) {
+			scaling++;
+			if (scaling > VSPD_SCALING_NUM)
+				return -EBUSY;
+		}
 	}
 
 	for (i = 0; i < VSPD_NUM_KMS_PLANES; ++i) {
@@ -505,12 +514,16 @@ rcar_du_plane_update_core(struct drm_plane *plane, struct drm_crtc *crtc,
 	struct rcar_du_plane *rplane = to_rcar_plane(plane);
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 	const struct rcar_du_format_info *format;
+	struct rcar_du_plane save_rplane;
+	int ret;
 
 	if (!rcrtc->lif_enable)
 		return -EINVAL;
 
 	if (!fb)
 		return -EINVAL;
+
+	save_rplane = *rplane;
 
 	format = rcar_du_format_info(fb->pixel_format);
 
@@ -535,9 +548,27 @@ rcar_du_plane_update_core(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	mutex_lock(&rplane->group->planes.lock);
 	rplane->enabled = true;
+	ret = rcar_du_plane_order_sort_update(rplane);
+	if (ret) {
+		/* parameter rollback */
+		rplane->crtc = save_rplane.crtc;
+		rplane->format = save_rplane.format;
+		rplane->pitch = save_rplane.pitch;
+		rplane->src_x = save_rplane.src_x;
+		rplane->src_y = save_rplane.src_y;
+		rplane->dst_x = save_rplane.dst_x;
+		rplane->dst_y = save_rplane.dst_y;
+		rplane->width = save_rplane.width;
+		rplane->height = save_rplane.height;
+		rplane->d_width = save_rplane.d_width;
+		rplane->d_height = save_rplane.d_height;
+		rplane->interlace_flag = save_rplane.interlace_flag;
+		rplane->enabled = save_rplane.enabled;
+	}
+
 	mutex_unlock(&rplane->group->planes.lock);
 
-	return rcar_du_plane_order_sort_update(rplane);
+	return ret;
 }
 
 static int
