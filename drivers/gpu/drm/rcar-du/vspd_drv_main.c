@@ -137,7 +137,7 @@ static int get_fmt_val(struct vspd_image *image, unsigned long *fmt)
 		break;
 
 	default:
-		return -1;
+		return -EINVAL;
 	}
 
 	*fmt = _fmt;
@@ -200,7 +200,7 @@ static int get_crop_addr(struct vspd_image *image,
 				image->stride_c * image->crop.y / 4;
 		break;
 	default:
-		return -1;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -780,12 +780,12 @@ int vspd_dl_mem_copy(struct vspd_private_data *vdata, struct vspd_blend *blend)
 
 	if (head == NULL) {
 		vspd_err(vdata, "Display List header busy\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	if (body == NULL) {
 		vspd_err(vdata, "Display List body busy\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	vspd_rpf_to_dl(vdata, blend, head);
@@ -852,7 +852,7 @@ free_dl_head:
 	for (i--; i >= 0; i++)
 		vspd_dl_free_header(vdata->dlmemory, heads[i]);
 
-	return -1;
+	return -ENOMEM;
 }
 
 int vspd_check_reg(struct vspd_private_data *vdata, unsigned long arg)
@@ -863,7 +863,7 @@ int vspd_check_reg(struct vspd_private_data *vdata, unsigned long arg)
 	char *clk_name;
 	char *vsp_name;
 	int i;
-	int ret = -1;
+	int ret = -EINVAL;
 
 #define  vsp1_read(reg) ioread32(vsp1_base + reg)
 #define  vsp1_write(data, reg) iowrite32(data, vsp1_base + reg)
@@ -884,7 +884,7 @@ int vspd_check_reg(struct vspd_private_data *vdata, unsigned long arg)
 		clk_name = VSPS_CLK_NAME;
 		vsp_name = "vsps";
 	} else {
-		return -1;
+		return -EINVAL;
 	}
 
 	/* get vsp1 clock and enable */
@@ -1125,13 +1125,14 @@ static int get_vspd_resource(struct vspd_private_data *vdata, int use_vsp)
 		vdata->res.clk_name = VSPS_CLK_NAME;
 		break;
 	default:
-		return -1;
+		return -EINVAL;
 	}
 
 	/* mapping VSPD */
 	vdata->res.base = ioremap_nocache(vdata->res.addr, vdata->res.size);
 	if (!vdata->res.base) {
 		vspd_err(vdata, "ioremap_nocache(VSPD%d)\n", use_vsp);
+		ret = -ENOMEM;
 		goto error_ioremap;
 	}
 
@@ -1139,6 +1140,7 @@ static int get_vspd_resource(struct vspd_private_data *vdata, int use_vsp)
 	vdata->res.clk = clk_get(NULL, vdata->res.clk_name);
 	if (IS_ERR(vdata->res.clk)) {
 		vspd_err(vdata, "clk_get(VSPD%d)\n", use_vsp);
+		ret = IS_ERR(vdata->res.clk);
 		goto error_clk_get;
 	}
 
@@ -1165,7 +1167,7 @@ error_clk_enable:
 error_clk_get:
 	iounmap(vdata->res.base);
 error_ioremap:
-	return -1;
+	return ret;
 }
 
 static void free_vspd_resource(struct vspd_private_data *vdata)
@@ -1480,7 +1482,7 @@ static int __init vspd_module_init(void)
 error2:
 	platform_device_unregister(&vspd_device);
 error1:
-	return -1;
+	return ret;
 }
 static void __exit vspd_module_exit(void)
 {

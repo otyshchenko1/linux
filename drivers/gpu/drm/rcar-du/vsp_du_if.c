@@ -136,7 +136,7 @@ static int set_plane_param(struct vsp_du_if *du_if, int vsp_plane,
 
 		default:
 			pr_err("[Error] %s : no support format\n", __func__);
-			return -1;
+			return -EINVAL;
 		}
 	}
 
@@ -151,13 +151,13 @@ int vsp_du_if_update_plane(void *handle, int vsp_plane,
 
 	if (!handle) {
 		pr_err("[Error] %s : handle is NULL\n", __func__);
-		return -1;
+		return -EINVAL;
 	}
 
 	if ((vsp_plane < 1) || (VSPD_INPUT_IMAGE_NUM < vsp_plane)) {
 		pr_err("[Error] %s : vspd plane invalid(%d)\n",
 				__func__, vsp_plane);
-		return -1;
+		return -ENOSPC;
 	}
 
 	mutex_lock(&du_if->lock);

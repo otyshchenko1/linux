@@ -147,7 +147,7 @@ unsigned long vspd_dl_start_setup(struct dl_memory *dlmemory,
 	if (dlmemory->active_header != NULL) {
 		pr_err("[Error] %s : vspd active\n",
 			__func__);
-		return 0;
+		return -EPERM;
 	}
 
 
@@ -196,12 +196,12 @@ int vspd_dl_next_setup(struct dl_memory *dlmemory,
 	if (dlmemory->active_header == NULL) {
 		pr_err("[Error] %s : vspd not active\n",
 			__func__);
-		return -1;
+		return -EPERM;
 	}
 
 	if (!(dlmemory->flag & (DL_FLAG_AUTO_REPEAT | DL_FLAG_MANUAL_REPEAT))) {
 		pr_err("[Error] %s : vspd busy(no repeat mode)\n", __func__);
-		return -1;
+		return -EPERM;
 	}
 
 	for (i = 0; i < (num - 1); i++) {
@@ -324,7 +324,7 @@ int vspd_dl_set_body(struct dl_head *head, struct dl_body *body, int module)
 		head->dl_body_list[module] = body;
 		break;
 	default:
-		return -1;
+		return -EINVAL;
 	}
 
 	return 0;
