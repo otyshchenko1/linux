@@ -398,6 +398,11 @@ static int rcar_i2c_irq_send(struct rcar_i2c_priv *priv, u32 msr)
 	if (!(msr & MDE))
 		return 0;
 
+	/* When sequence is recovered by HW auto restart after NACK,
+	 * flag should be cleared.
+	 */
+	rcar_i2c_flags_clr(priv, ID_NACK);
+
 	/*
 	 * If address transfer phase finished,
 	 * goto data phase.
@@ -458,6 +463,11 @@ static int rcar_i2c_irq_recv(struct rcar_i2c_priv *priv, u32 msr)
 	 */
 	if (!(msr & MDR))
 		return 0;
+
+	/* When sequence is recovered by HW auto restart after NACK,
+	 * flag should be cleared.
+	 */
+	rcar_i2c_flags_clr(priv, ID_NACK);
 
 	if (msr & MAT) {
 		/*
