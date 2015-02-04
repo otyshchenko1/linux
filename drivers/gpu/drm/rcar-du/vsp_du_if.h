@@ -13,6 +13,9 @@ int vsp_du_if_start(void *handle);
 void vsp_du_if_stop(void *handle);
 void *vsp_du_if_init(struct device *dev, int use_vsp);
 void vsp_du_if_deinit(void *handle);
+void vsp_du_if_set_callback(void *handle,
+			    void (*callback)(void *data),
+			    void *callback_data);
 
 void vsp_du_if_reg_debug(void *handle);
 

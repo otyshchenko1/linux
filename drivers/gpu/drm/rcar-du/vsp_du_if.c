@@ -327,6 +327,14 @@ void vsp_du_if_deinit(void *handle)
 	kfree(du_if);
 }
 
+void vsp_du_if_set_callback(void *handle,
+			    void (*callback)(void *data),
+			    void *callback_data)
+{
+	struct vsp_du_if *du_if = (struct vsp_du_if *)handle;
+
+	vspd_set_callback(du_if->pdata, callback, callback_data);
+}
 MODULE_ALIAS("vsp_du_if");
 MODULE_LICENSE("GPL");
 

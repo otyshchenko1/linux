@@ -18,5 +18,7 @@ int vspd_check_reg(struct vspd_private_data *vdata,
 			 unsigned long arg);
 struct vspd_private_data *vspd_init(struct device *dev, int use_vsp);
 void vspd_deinit(struct vspd_private_data *vdata);
-
+void vspd_set_callback(struct vspd_private_data *vdata,
+				void (*callback)(void *data),
+				void *callback_data);
 #endif /* VSPD_DRV_H */

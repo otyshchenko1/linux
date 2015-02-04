@@ -206,10 +206,20 @@ static int get_crop_addr(struct vspd_image *image,
 	return 0;
 }
 
+
+void vspd_set_callback(struct vspd_private_data *vdata,
+				void (*callback)(void *data),
+				void *callback_data)
+{
+	vdata->callback = callback;
+	vdata->callback_data = callback_data;
+}
+
 static irqreturn_t vspd_irq_handler(int irq, void *data)
 {
 	struct vspd_private_data *vdata = (struct vspd_private_data *)data;
 	unsigned long stat;
+	int callback_flag = 0;
 	int start_flag = 0;
 	unsigned long addr;
 
@@ -219,6 +229,7 @@ static irqreturn_t vspd_irq_handler(int irq, void *data)
 		if (stat & 0x02) {
 			vspd_dl_next_dl(vdata, &addr);
 			wake_up_interruptible(&vdata->event_wait);
+			callback_flag = 1;
 		} else {
 			addr = 0;
 		}
@@ -228,16 +239,22 @@ static irqreturn_t vspd_irq_handler(int irq, void *data)
 
 	}
 
+/*
 	stat = vspd_read(vdata, VI6_DISP_IRQ_STA);
 	if (stat)
 		vspd_write(vdata, VI6_DISP_IRQ_STA, 0);
+*/
 
 	if (start_flag) {
 		if (addr != 0)
 			vspd_write(vdata, VI6_DL_HDR_ADDRn(USE_WPF), addr);
 
 		vspd_write(vdata, VI6_CMDn(USE_WPF), 1);
+
 	}
+
+	if (callback_flag && vdata->callback)
+		vdata->callback(vdata->callback_data);
 
 	return IRQ_HANDLED;
 }
@@ -1197,6 +1214,8 @@ struct vspd_private_data *vspd_init(struct device *dev, int use_vsp)
 
 	init_waitqueue_head(&vdata->event_wait);
 	spin_lock_init(&vdata->lock);
+	vdata->callback = NULL;
+	vdata->callback_data = NULL;
 
 	return vdata;
 

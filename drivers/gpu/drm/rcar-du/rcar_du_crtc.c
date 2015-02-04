@@ -719,6 +719,17 @@ static void rcar_du_set_frmend(int frmend, unsigned int ch)
 	du_frmend[ch] = frmend;
 }
 
+
+#ifdef RCAR_DU_CONNECT_VSP
+static void rcar_du_crtc_irq_callback(void *data)
+{
+	struct rcar_du_crtc *rcrtc = data;
+
+	drm_handle_vblank(rcrtc->crtc.dev, rcrtc->index);
+	rcar_du_crtc_finish_page_flip(rcrtc);
+}
+#endif
+
 static irqreturn_t rcar_du_crtc_irq(int irq, void *arg)
 {
 	struct rcar_du_crtc *rcrtc = arg;
@@ -729,8 +740,13 @@ static irqreturn_t rcar_du_crtc_irq(int irq, void *arg)
 	rcar_du_crtc_write(rcrtc, DSRCR, status & DSRCR_MASK);
 
 	if (status & DSSR_FRM) {
+#ifdef RCAR_DU_CONNECT_VSP
+		if (!rcrtc->lif_enable)
+			rcar_du_crtc_irq_callback(rcrtc);
+#else
 		drm_handle_vblank(rcrtc->crtc.dev, rcrtc->index);
 		rcar_du_crtc_finish_page_flip(rcrtc);
+#endif
 		ret = IRQ_HANDLED;
 	}
 
@@ -935,6 +951,9 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 			rcrtc->group->dptsr_init_val &= ~plane_bit;
 		else
 			rcrtc->group->dptsr_init_val |= plane_bit;
+
+		vsp_du_if_set_callback(rcrtc->vpsd_handle,
+			    rcar_du_crtc_irq_callback, rcrtc);
 	}
 end:
 #endif

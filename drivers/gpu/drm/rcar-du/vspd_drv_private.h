@@ -269,6 +269,9 @@ struct vspd_private_data {
 	spinlock_t lock;
 
 	struct dl_memory *dlmemory;
+
+	void (*callback)(void *data);
+	void *callback_data;
 };
 
 int vspd_dl_create(struct vspd_private_data *vdata, struct device *dev);
