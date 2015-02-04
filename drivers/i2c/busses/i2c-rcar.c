@@ -1,7 +1,7 @@
 /*
  *  drivers/i2c/busses/i2c-rcar.c
  *
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Copyright (C) 2012 Renesas Solutions Corp.
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
@@ -523,7 +523,7 @@ static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 		/* go to stop phase */
 		rcar_i2c_bus_phase(priv, RCAR_BUS_PHASE_STOP);
 		rcar_i2c_flags_set(priv, ID_NACK);
-		rcar_i2c_status_bit_clear(priv, MNR);
+		rcar_i2c_status_bit_clear(priv, MNR | MDE | MAT);
 		goto out;
 	}
 
