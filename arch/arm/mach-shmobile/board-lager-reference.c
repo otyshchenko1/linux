@@ -651,16 +651,18 @@ static void __init lager_add_usb0_device(void)
 static const struct rcar_gen2_phy_platform_data usbhs_phy_pdata __initconst = {
 #if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 	.chan0_pci = 0,	/* Channel 0 is USBHS */
+	.gpio_vbus = 851,
+	.wakeup = true,
 #else
 	.chan0_pci = 1,	/* Channel 0 is PCI USB */
+	.gpio_vbus = -1,
+	.wakeup = false,
 #endif
 #if !IS_ENABLED(CONFIG_USB_XHCI_HCD)
 	.chan2_pci = 1,	/* Channel 2 is PCI USB */
 #else
 	.chan2_pci = 0,	/* Channel 2 is USB3.0 */
 #endif
-	.gpio_vbus = 851,
-	.wakeup = true,
 };
 
 static const struct resource usbhs_phy_resources[] __initconst = {
