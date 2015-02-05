@@ -34,6 +34,9 @@ struct vspd_drvdata {
 };
 struct vspd_drvdata *p_vdrv;
 
+
+#define ALIGN_ROUND_DOWN(X, Y)  ((X) & ~((Y)-1))
+
 static inline int is_scaling(struct vspd_image *image)
 {
 	if ((image->crop.width != image->dist.width) ||
@@ -129,69 +132,6 @@ static int get_fmt_val(struct vspd_image *image, unsigned long *fmt)
 	*fmt = _fmt;
 	return 0;
 }
-
-
-static int get_crop_addr(struct vspd_image *image,
-		     unsigned long *addr_y,
-		     unsigned long *addr_c0,
-		     unsigned long *addr_c1)
-{
-	*addr_y = *addr_c0 = *addr_c1 = 0;
-
-	switch (image->format) {
-	case VSPD_FMT_XRGB8888:
-	case VSPD_FMT_ARGB8888:
-		*addr_y = image->addr_y + 4 * image->crop.x +
-				image->stride_y * image->crop.y;
-		break;
-
-	case VSPD_FMT_RGB888:
-		*addr_y = image->addr_y + 3 * image->crop.x +
-				image->stride_y * image->crop.y;
-		break;
-
-	case VSPD_FMT_RGB565:
-		*addr_y = image->addr_y + 2 * image->crop.x +
-				image->stride_y * image->crop.y;
-		break;
-
-	case VSPD_FMT_YUV422I_UYVY:
-	case VSPD_FMT_YUV422I_YUYV:
-		*addr_y = image->addr_y + 2 * image->crop.x +
-				image->stride_y * image->crop.y;
-		break;
-
-	case VSPD_FMT_YUV420SP_NV12:
-	case VSPD_FMT_YUV420SP_NV21:
-		*addr_y = image->addr_y + image->crop.x +
-				image->stride_y * image->crop.y;
-		*addr_c0 = image->addr_c0 + image->crop.x / 2 +
-				image->stride_c * image->crop.y / 2;
-		break;
-
-	case VSPD_FMT_YUV422SP_NV61:
-	case VSPD_FMT_YUV422SP_NV16:
-		*addr_y = image->addr_y + image->crop.x +
-				image->stride_y * image->crop.y;
-		*addr_c0 = image->addr_c0 + image->crop.x +
-				image->stride_c * image->crop.y;
-		break;
-
-	case VSPD_FMT_YUV420P_YU12:
-		*addr_y = image->addr_y + image->crop.x +
-				image->stride_y * image->crop.y;
-		*addr_c0 = image->addr_c0 + image->crop.x / 4 +
-				image->stride_c * image->crop.y / 4;
-		*addr_c1 = image->addr_c1 + image->crop.x / 4 +
-				image->stride_c * image->crop.y / 4;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 
 void vspd_set_callback(struct vspd_private_data *vdata,
 				void (*callback)(void *data),
@@ -308,7 +248,7 @@ static inline void vspd_set_dl(struct vspd_private_data *vdata,
 }
 
 static int check_rpf_param(struct vspd_image *in, struct vspd_image *out,
-			   unsigned long *infmt)
+			   struct vspd_image *adjust, unsigned long *infmt)
 {
 	if (get_fmt_val(in, infmt))
 		return -EINVAL;
@@ -320,6 +260,89 @@ static int check_rpf_param(struct vspd_image *in, struct vspd_image *out,
 		*infmt |= (0 << 9);
 	}
 
+	adjust->addr_y = 0;
+	adjust->addr_c0 = 0;
+	adjust->addr_c1 = 0;
+
+	switch (in->format) {
+	case VSPD_FMT_XRGB8888:
+	case VSPD_FMT_ARGB8888:
+		adjust->crop.width = in->crop.width;
+		adjust->crop.height = in->crop.height;
+		adjust->crop.x = in->crop.x;
+		adjust->crop.y = in->crop.y;
+		adjust->addr_y = in->addr_y + 4 * adjust->crop.x +
+				in->stride_y * adjust->crop.y;
+		break;
+
+	case VSPD_FMT_RGB888:
+		adjust->crop.width = in->crop.width;
+		adjust->crop.height = in->crop.height;
+		adjust->crop.x = in->crop.x;
+		adjust->crop.y = in->crop.y;
+		adjust->addr_y = in->addr_y + 3 * adjust->crop.x +
+				in->stride_y * adjust->crop.y;
+		break;
+
+	case VSPD_FMT_RGB565:
+		adjust->crop.width = in->crop.width;
+		adjust->crop.height = in->crop.height;
+		adjust->crop.x = in->crop.x;
+		adjust->crop.y = in->crop.y;
+		adjust->addr_y = in->addr_y + 2 * adjust->crop.x +
+				in->stride_y * adjust->crop.y;
+		break;
+
+	case VSPD_FMT_YUV422I_UYVY:
+	case VSPD_FMT_YUV422I_YUYV:
+		adjust->crop.width = ALIGN_ROUND_DOWN(in->crop.width, 2);
+		adjust->crop.height = in->crop.height;
+		adjust->crop.x = ALIGN_ROUND_DOWN(in->crop.x, 2);
+		adjust->crop.y = in->crop.y;
+		adjust->addr_y = in->addr_y + 2 * adjust->crop.x +
+				in->stride_y * adjust->crop.y;
+		break;
+
+	case VSPD_FMT_YUV420SP_NV12:
+	case VSPD_FMT_YUV420SP_NV21:
+		adjust->crop.width = ALIGN_ROUND_DOWN(in->crop.width, 2);
+		adjust->crop.height = ALIGN_ROUND_DOWN(in->crop.height, 2);
+		adjust->crop.x = ALIGN_ROUND_DOWN(in->crop.x, 2);
+		adjust->crop.y = ALIGN_ROUND_DOWN(in->crop.y, 2);
+		adjust->addr_y = in->addr_y + adjust->crop.x +
+				in->stride_y * adjust->crop.y;
+		adjust->addr_c0 = in->addr_c0 + adjust->crop.x +
+				in->stride_c * adjust->crop.y / 2;
+		break;
+
+	case VSPD_FMT_YUV422SP_NV61:
+	case VSPD_FMT_YUV422SP_NV16:
+		adjust->crop.width = ALIGN_ROUND_DOWN(in->crop.width, 2);
+		adjust->crop.height = in->crop.height;
+		adjust->crop.x = ALIGN_ROUND_DOWN(in->crop.x, 2);
+		adjust->crop.y = in->crop.y;
+		adjust->addr_y = in->addr_y + adjust->crop.x +
+				in->stride_y * adjust->crop.y;
+		adjust->addr_c0 = in->addr_c0 + adjust->crop.x +
+				in->stride_c * adjust->crop.y;
+		break;
+
+	case VSPD_FMT_YUV420P_YU12:
+		adjust->crop.width = ALIGN_ROUND_DOWN(in->crop.width, 2);
+		adjust->crop.height = ALIGN_ROUND_DOWN(in->crop.height, 2);
+		adjust->crop.width = ALIGN_ROUND_DOWN(in->crop.width, 2);
+		adjust->crop.height = ALIGN_ROUND_DOWN(in->crop.height, 2);
+		adjust->addr_y = in->addr_y + adjust->crop.x +
+				in->stride_y * adjust->crop.y;
+		adjust->addr_c0 = in->addr_c0 + adjust->crop.x / 2 +
+				in->stride_c * adjust->crop.y / 2;
+		adjust->addr_c1 = in->addr_c1 + adjust->crop.x / 2 +
+				in->stride_c * adjust->crop.y / 2;
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -329,24 +352,24 @@ static int vspd_rpf_to_dl_core(struct vspd_private_data *vdata,
 			int rpf_index, int is_master,
 			struct dl_body *body)
 {
+	struct vspd_image adjust;
 	unsigned long infmt;
 	unsigned long alph_sel = (1 << 18);
 	unsigned long laya = 0;
-	unsigned long addr_y, addr_c0, addr_c1;
 
 	if (!in->enable)
 		return -1;
 
-	if (check_rpf_param(in, out, &infmt)) {
+	if (check_rpf_param(in, out, &adjust, &infmt)) {
 		vspd_err(vdata, "rpf %d parameter error\n", rpf_index);
 		return -1;
 	}
 
 	/* input image size (width/height) */
 	vspd_set_dl(vdata, VI6_RPFn_SRC_BSIZE(rpf_index),
-		in->crop.width << 16 | in->crop.height, body);
+		(adjust.crop.width << 16) | (adjust.crop.height << 0), body);
 	vspd_set_dl(vdata, VI6_RPFn_SRC_ESIZE(rpf_index),
-		in->crop.width << 16 | in->crop.height, body);
+		(adjust.crop.width << 16) | (adjust.crop.height << 0), body);
 
 	/* input image format */
 	vspd_set_dl(vdata, VI6_RPFn_INFMT(rpf_index), infmt, body);
@@ -388,20 +411,18 @@ static int vspd_rpf_to_dl_core(struct vspd_private_data *vdata,
 
 	/* input image stride */
 	vspd_set_dl(vdata, VI6_RPFn_SRCM_PSTRIDE(rpf_index),
-			in->stride_y << 16 | in->stride_c,
-			body);
+			in->stride_y << 16 | in->stride_c, body);
 
 	/* input image alpha plane stride */
 	vspd_set_dl(vdata, VI6_RPFn_SRCM_ASTRIDE(rpf_index), 0, body);
 
 	/* input image address */
-	get_crop_addr(in, &addr_y, &addr_c0, &addr_c1);
 	vspd_set_dl(vdata, VI6_RPFn_SRCM_ADDR_Y(rpf_index),
-			addr_y, body);
+			adjust.addr_y, body);
 	vspd_set_dl(vdata, VI6_RPFn_SRCM_ADDR_C0(rpf_index),
-			addr_c0, body);
+			adjust.addr_c0, body);
 	vspd_set_dl(vdata, VI6_RPFn_SRCM_ADDR_C1(rpf_index),
-			addr_c1, body);
+			adjust.addr_c1, body);
 
 	/* input image alpha plane address */
 	vspd_set_dl(vdata, VI6_RPFn_SRCM_ADDR_AI(rpf_index), 0, body);
