@@ -24,8 +24,6 @@
 #define VSPD1_IRQ_NUM	(247 + 32)
 #define VSPD1_CLK_NAME	"vsp1-du1"
 
-#define USE_WPF 0
-
 /* structure */
 struct vspd_drvdata {
 	/* for sysfs */
@@ -35,18 +33,6 @@ struct vspd_drvdata {
 	struct device *dev;
 };
 struct vspd_drvdata *p_vdrv;
-
-static inline unsigned long vspd_read(struct vspd_private_data *vdata,
-				unsigned long reg)
-{
-	return ioread32(vdata->res.base + reg);
-}
-
-static inline void vspd_write(struct vspd_private_data *vdata,
-			      unsigned long reg, unsigned long data)
-{
-	iowrite32(data, vdata->res.base + reg);
-}
 
 static inline int is_scaling(struct vspd_image *image)
 {
@@ -219,42 +205,31 @@ static irqreturn_t vspd_irq_handler(int irq, void *data)
 {
 	struct vspd_private_data *vdata = (struct vspd_private_data *)data;
 	unsigned long stat;
-	int callback_flag = 0;
-	int start_flag = 0;
-	unsigned long addr;
+	int frame_stat = 0;
 
-	stat = vspd_read(vdata, VI6_WPFn_IRQ_STA(USE_WPF));
+	stat = vspd_read(vdata, VI6_WPFn_IRQ_STA(USE_WPF)) & (VI6_WPFn_IRQ_DFE);
 	if (stat) {
-		vspd_write(vdata, VI6_WPFn_IRQ_STA(USE_WPF), 0);
-		if (stat & 0x02) {
-			vspd_dl_next_dl(vdata, &addr);
-			wake_up_interruptible(&vdata->event_wait);
-			callback_flag = 1;
-		} else {
-			addr = 0;
-		}
+		vspd_write(vdata, VI6_WPFn_IRQ_STA(USE_WPF), ~stat);
 
-		if (stat & 0x01)
-			start_flag = vspd_dl_need_cmd(vdata);
-
+		if (stat & VI6_WPFn_IRQ_DFE)
+			frame_stat = vspd_dl_irq_dl_frame_end(vdata);
+		else
+			frame_stat = vspd_dl_irq_frame_end(vdata);
 	}
 
-/*
-	stat = vspd_read(vdata, VI6_DISP_IRQ_STA);
-	if (stat)
-		vspd_write(vdata, VI6_DISP_IRQ_STA, 0);
-*/
-
-	if (start_flag) {
-		if (addr != 0)
-			vspd_write(vdata, VI6_DL_HDR_ADDRn(USE_WPF), addr);
-
-		vspd_write(vdata, VI6_CMDn(USE_WPF), 1);
-
+	stat = vspd_read(vdata, VI6_DISP_IRQ_STA) & VI6_DISP_IRQ_STA_DST;
+	if (stat) {
+		vspd_write(vdata, VI6_DISP_IRQ_STA, ~stat);
+		vspd_dl_irq_display_start(vdata);
 	}
 
-	if (callback_flag && vdata->callback)
-		vdata->callback(vdata->callback_data);
+	if (frame_stat & DL_IRQ_UPDATE_FRAME)
+		wake_up_interruptible(&vdata->event_wait);
+
+	if (frame_stat & DL_IRQ_FRAME_END) {
+		if (vdata->callback)
+			vdata->callback(vdata->callback_data);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -332,8 +307,6 @@ static inline void vspd_set_dl(struct vspd_private_data *vdata,
 	body->reg_count++;
 }
 
-
-
 static int check_rpf_param(struct vspd_image *in, struct vspd_image *out,
 			   unsigned long *infmt)
 {
@@ -350,98 +323,112 @@ static int check_rpf_param(struct vspd_image *in, struct vspd_image *out,
 	return 0;
 }
 
-int vspd_rpf_to_dl(struct vspd_private_data *vdata,
+static int vspd_rpf_to_dl_core(struct vspd_private_data *vdata,
+			struct vspd_image *in,
+			struct vspd_image *out,
+			int rpf_index, int is_master,
+			struct dl_body *body)
+{
+	unsigned long infmt;
+	unsigned long alph_sel = (1 << 18);
+	unsigned long laya = 0;
+	unsigned long addr_y, addr_c0, addr_c1;
+
+	if (!in->enable)
+		return -1;
+
+	if (check_rpf_param(in, out, &infmt)) {
+		vspd_err(vdata, "rpf %d parameter error\n", rpf_index);
+		return -1;
+	}
+
+	/* input image size (width/height) */
+	vspd_set_dl(vdata, VI6_RPFn_SRC_BSIZE(rpf_index),
+		in->crop.width << 16 | in->crop.height, body);
+	vspd_set_dl(vdata, VI6_RPFn_SRC_ESIZE(rpf_index),
+		in->crop.width << 16 | in->crop.height, body);
+
+	/* input image format */
+	vspd_set_dl(vdata, VI6_RPFn_INFMT(rpf_index), infmt, body);
+
+	/* input data swap */
+	vspd_set_dl(vdata, VI6_RPFn_DSWAP(rpf_index), in->swap, body);
+
+	/* input image position (master layer = 0.0) */
+	if (is_master) {
+		vspd_set_dl(vdata, VI6_RPFn_LOC(rpf_index), 0, body);
+	} else {
+		vspd_set_dl(vdata, VI6_RPFn_LOC(rpf_index),
+			(in->dist.x << 16) | (in->dist.y << 0), body);
+	}
+
+	/* alpha plane */
+	switch (in->format) {
+	case VSPD_FMT_ARGB8888:
+		/* none */
+		break;
+	default:
+		alph_sel |= (4 << 28);
+		laya = (in->alpha & 0xFF) << 24;
+		break;
+	}
+	vspd_set_dl(vdata, VI6_RPFn_ALPH_SEL(rpf_index),
+			alph_sel, body);
+	vspd_set_dl(vdata, VI6_RPFn_VRTCOL_SET(rpf_index),
+			laya, body);
+
+	vspd_set_dl(vdata, VI6_RPFn_MSKCTRL(rpf_index), 0, body);
+	vspd_set_dl(vdata, VI6_RPFn_MSKSET0(rpf_index), 0, body);
+	vspd_set_dl(vdata, VI6_RPFn_MSKSET1(rpf_index), 0, body);
+
+	/* key color */
+	vspd_set_dl(vdata, VI6_RPFn_CKEY_CTRL(rpf_index), 0, body);
+	vspd_set_dl(vdata, VI6_RPFn_CKEY_SET0(rpf_index), 0, body);
+	vspd_set_dl(vdata, VI6_RPFn_CKEY_SET1(rpf_index), 0, body);
+
+	/* input image stride */
+	vspd_set_dl(vdata, VI6_RPFn_SRCM_PSTRIDE(rpf_index),
+			in->stride_y << 16 | in->stride_c,
+			body);
+
+	/* input image alpha plane stride */
+	vspd_set_dl(vdata, VI6_RPFn_SRCM_ASTRIDE(rpf_index), 0, body);
+
+	/* input image address */
+	get_crop_addr(in, &addr_y, &addr_c0, &addr_c1);
+	vspd_set_dl(vdata, VI6_RPFn_SRCM_ADDR_Y(rpf_index),
+			addr_y, body);
+	vspd_set_dl(vdata, VI6_RPFn_SRCM_ADDR_C0(rpf_index),
+			addr_c0, body);
+	vspd_set_dl(vdata, VI6_RPFn_SRCM_ADDR_C1(rpf_index),
+			addr_c1, body);
+
+	/* input image alpha plane address */
+	vspd_set_dl(vdata, VI6_RPFn_SRCM_ADDR_AI(rpf_index), 0, body);
+
+	return 0;
+}
+
+int vspd_rpfs_to_dl(struct vspd_private_data *vdata,
 			  struct vspd_blend *blend,
 			  struct dl_head *head)
 {
 	int i;
 	int rpf_count = 0;
-	int is_master = 1;
 	struct dl_body *body;
-	struct vspd_image *out = &blend->out;
 
 	for (i = 0; i < VSPD_INPUT_IMAGE_NUM; i++) {
-		unsigned long infmt;
-		unsigned long alph_sel = (1 << 18);
-		unsigned long laya = 0;
 		struct vspd_image *in = &blend->in[i];
-		unsigned long addr_y, addr_c0, addr_c1;
-
-		if (!in->enable)
-			continue;
-
-		if (check_rpf_param(in, out, &infmt)) {
-			vspd_err(vdata, "rpf %d parameter error\n", i);
-			continue;
-		}
-
+		struct vspd_image *out = &blend->out;
 		body = vspd_dl_get_body(vdata->dlmemory,
 				DL_LIST_OFFSET_RPF0 + rpf_count);
 
-		/* input image size (width/height) */
-		vspd_set_dl(vdata, VI6_RPFn_SRC_BSIZE(rpf_count),
-			in->crop.width << 16 | in->crop.height, body);
-		vspd_set_dl(vdata, VI6_RPFn_SRC_ESIZE(rpf_count),
-			in->crop.width << 16 | in->crop.height, body);
-
-		/* input image format */
-		vspd_set_dl(vdata, VI6_RPFn_INFMT(rpf_count), infmt, body);
-
-		/* input data swap */
-		vspd_set_dl(vdata, VI6_RPFn_DSWAP(rpf_count), in->swap, body);
-
-		/* input image position (master layer = 0.0) */
-		if (is_master) {
-			vspd_set_dl(vdata, VI6_RPFn_LOC(rpf_count), 0, body);
-			is_master = 0;
-		} else {
-			vspd_set_dl(vdata, VI6_RPFn_LOC(rpf_count),
-				(in->dist.x << 16) | (in->dist.y << 0), body);
+		if (vspd_rpf_to_dl_core(vdata, in, out, rpf_count,
+			  rpf_count == 0, body)) {
+			vspd_dl_free_body(vdata->dlmemory, body);
+			body = NULL;
+			continue;
 		}
-
-		/* alpha plane */
-		switch (in->format) {
-		case VSPD_FMT_ARGB8888:
-			/* none */
-			break;
-		default:
-			alph_sel |= (4 << 28);
-			laya = (in->alpha & 0xFF) << 24;
-			break;
-		}
-		vspd_set_dl(vdata, VI6_RPFn_ALPH_SEL(rpf_count),
-				alph_sel, body);
-		vspd_set_dl(vdata, VI6_RPFn_VRTCOL_SET(rpf_count),
-				laya, body);
-
-		vspd_set_dl(vdata, VI6_RPFn_MSKCTRL(rpf_count), 0, body);
-		vspd_set_dl(vdata, VI6_RPFn_MSKSET0(rpf_count), 0, body);
-		vspd_set_dl(vdata, VI6_RPFn_MSKSET1(rpf_count), 0, body);
-
-		/* key color */
-		vspd_set_dl(vdata, VI6_RPFn_CKEY_CTRL(rpf_count), 0, body);
-		vspd_set_dl(vdata, VI6_RPFn_CKEY_SET0(rpf_count), 0, body);
-		vspd_set_dl(vdata, VI6_RPFn_CKEY_SET1(rpf_count), 0, body);
-
-		/* input image stride */
-		vspd_set_dl(vdata, VI6_RPFn_SRCM_PSTRIDE(rpf_count),
-				in->stride_y << 16 | in->stride_c,
-				body);
-
-		/* input image alpha plane stride */
-		vspd_set_dl(vdata, VI6_RPFn_SRCM_ASTRIDE(rpf_count), 0, body);
-
-		/* input image address */
-		get_crop_addr(in, &addr_y, &addr_c0, &addr_c1);
-		vspd_set_dl(vdata, VI6_RPFn_SRCM_ADDR_Y(rpf_count),
-				addr_y, body);
-		vspd_set_dl(vdata, VI6_RPFn_SRCM_ADDR_C0(rpf_count),
-				addr_c0, body);
-		vspd_set_dl(vdata, VI6_RPFn_SRCM_ADDR_C1(rpf_count),
-				addr_c1, body);
-
-		/* input image alpha plane address */
-		vspd_set_dl(vdata, VI6_RPFn_SRCM_ADDR_AI(rpf_count), 0, body);
 
 		vspd_dl_set_body(head, body, DL_LIST_OFFSET_RPF0 + rpf_count);
 
@@ -632,8 +619,14 @@ int vspd_uds_to_dl(struct vspd_private_data *vdata,
 		if (!in->enable)
 			continue;
 
-		if (!is_scaling(in))
+		if (is_scaling(in)) {
+			if (scal_count >= VSPD_SCALING_IMAGE_NUM) {
+				vspd_err(vdata, "Scaling layer too many\n");
+				return -EBUSY;
+			}
+		} else {
 			continue;
+		}
 
 		ratio_h = vspd_compute_ratio(in->crop.width,
 				in->dist.width);
@@ -653,8 +646,6 @@ int vspd_uds_to_dl(struct vspd_private_data *vdata,
 			   (in->dist.width << 16) | in->dist.height, body);
 
 		scal_count++;
-		if (scal_count >= VSPD_SCALING_IMAGE_NUM)
-			break;
 	}
 
 	return 0;
@@ -725,52 +716,38 @@ int vspd_drp_to_dl(struct vspd_private_data *vdata,
 }
 
 int vspd_run_dl(struct vspd_private_data *vdata,
-		struct dl_head *heads[], int num, int auto_flag, int use_sync)
+		void *dl, int num, int dl_mode, int use_sync)
 {
 	unsigned long flags;
 	int ret = 0;
 
 	if (vdata->active) {
 		spin_lock_irqsave(&vdata->lock, flags);
-		vspd_dl_next_setup(vdata->dlmemory, heads, num);
+		vspd_dl_swap(vdata, dl, num);
 		spin_unlock_irqrestore(&vdata->lock, flags);
 	} else {
-		unsigned long addr;
-
-		vspd_write(vdata, VI6_DL_CTRL,
-			VI6_DL_CTRL_AR_WAIT | VI6_DL_CTRL_DL_ENABLE);
-
-		/* DL LWORD swap */
-		vspd_write(vdata, VI6_DL_SWAP, VI6_DL_SWAP_LWS);
-
 		vspd_write(vdata, VI6_WPFn_IRQ_STA(USE_WPF), 0);
-		vspd_write(vdata, VI6_WPFn_IRQ_ENB(USE_WPF), 0x03);
-
 		vspd_write(vdata, VI6_DISP_IRQ_STA, 0);
 
 		spin_lock_irqsave(&vdata->lock, flags);
 		vdata->active = 1;
-		addr = vspd_dl_start_setup(vdata->dlmemory,
-						heads, num, auto_flag);
+		vspd_dl_start(vdata, dl, num, dl_mode);
 		spin_unlock_irqrestore(&vdata->lock, flags);
-
-		vspd_write(vdata, VI6_DL_HDR_ADDRn(USE_WPF), addr);
-		vspd_write(vdata, VI6_CMDn(USE_WPF), 1);
 	}
 
 	return ret;
 }
 
 
-
-
 /* connect rcar-du */
-int vspd_lif_to_dl(struct vspd_private_data *vdata,
-			  struct vspd_blend *blend,
-			  struct dl_body *body)
+int vspd_lif_set(struct vspd_private_data *vdata,
+		 struct vspd_blend *blend, struct dl_body *body)
 {
 	struct vspd_image *out = &blend->out;
 	unsigned long obth;
+
+	if (vdata->active)
+		return 0;
 
 #define OBTH 128
 #define HBTH 1536
@@ -780,10 +757,10 @@ int vspd_lif_to_dl(struct vspd_private_data *vdata,
 	if (obth >= OBTH)
 		obth = OBTH;
 
-	vspd_set_dl(vdata, VI6_LIF_CTRL,
-		(obth << 16) | (1 << 1) | (1 << 0), body);
-	vspd_set_dl(vdata, VI6_LIF_CSBTH,
-		(HBTH << 16) | (LBTH << 0), body);
+	vspd_write(vdata, VI6_LIF_CTRL,
+		(obth << 16) | (1 << 1) | (1 << 0));
+	vspd_write(vdata, VI6_LIF_CSBTH,
+		(HBTH << 16) | (LBTH << 0));
 
 	return 0;
 }
@@ -805,7 +782,7 @@ int vspd_dl_mem_copy(struct vspd_private_data *vdata, struct vspd_blend *blend)
 		return -ENOMEM;
 	}
 
-	vspd_rpf_to_dl(vdata, blend, head);
+	vspd_rpfs_to_dl(vdata, blend, head);
 
 	vspd_wpf_to_dl(vdata, blend, body);
 	vspd_bru_to_dl(vdata, blend, body);
@@ -814,12 +791,13 @@ int vspd_dl_mem_copy(struct vspd_private_data *vdata, struct vspd_blend *blend)
 	vspd_dl_set_body(head, body, DL_LIST_OFFSET_CTRL);
 
 	heads[0] = head;
-	vspd_run_dl(vdata, heads, 1, blend->dl_auto_start, VSPD_FENCE_NONE);
+	vspd_run_dl(vdata, heads, 1, DL_MODE_SINGLE, VSPD_FENCE_NONE);
 
 	return 0;
 }
 
-int vspd_dl_output_du(struct vspd_private_data *vdata,
+
+static int vspd_dl_output_du_head_mode(struct vspd_private_data *vdata,
 		struct vspd_blend blends[], int num, int use_sync)
 {
 	int i;
@@ -836,10 +814,11 @@ int vspd_dl_output_du(struct vspd_private_data *vdata,
 		body = vspd_dl_get_body(vdata->dlmemory, DL_LIST_OFFSET_CTRL);
 		if (body == NULL) {
 			vspd_err(vdata, "Display List body busy\n");
+			vspd_dl_free_header(vdata->dlmemory, heads[i]);
 			goto free_dl_head;
 		}
 
-		if (vspd_rpf_to_dl(vdata, &blends[i], heads[i]))
+		if (vspd_rpfs_to_dl(vdata, &blends[i], heads[i]))
 			goto free_dl_body;
 
 		if (vspd_wpf_to_dl(vdata, &blends[i], body))
@@ -854,22 +833,91 @@ int vspd_dl_output_du(struct vspd_private_data *vdata,
 		if (vspd_drp_to_dl(vdata, &blends[i], body))
 			goto free_dl_body;
 
-		if (vspd_lif_to_dl(vdata, &blends[i], body))
+		if (vspd_lif_set(vdata, &blends[i], body))
 			goto free_dl_body;
 
 		vspd_dl_set_body(heads[i], body, DL_LIST_OFFSET_CTRL);
 	}
 
 	return vspd_run_dl(vdata, heads, num,
-				blends[0].dl_auto_start, use_sync);
+				DL_MODE_MANUAL_REPEAT, use_sync);
 
 free_dl_body:
 	vspd_dl_free_body(vdata->dlmemory, body);
 free_dl_head:
-	for (i--; i >= 0; i++)
+	i--;
+	for (; i >= 0; i++)
 		vspd_dl_free_header(vdata->dlmemory, heads[i]);
 
 	return -ENOMEM;
+}
+
+static int vspd_dl_output_du_head_less(struct vspd_private_data *vdata,
+		struct vspd_blend blends[], int num, int use_sync)
+{
+	int i, j;
+	int ret;
+	int rpf_count;
+	struct dl_body *bodies[DISPLAY_LIST_NUM];
+
+	for (i = 0; i < num; i++) {
+		bodies[i] = vspd_dl_get_single_body(vdata->dlmemory);
+		if (bodies[i] == NULL) {
+			vspd_err(vdata, "Display List body busy\n");
+			ret = -ENOMEM;
+			goto error;
+		}
+
+		rpf_count = 0;
+		for (j = 0; j < VSPD_INPUT_IMAGE_NUM; j++) {
+			struct vspd_image *in = &blends[i].in[j];
+			struct vspd_image *out = &blends[i].out;
+			if (vspd_rpf_to_dl_core(vdata, in, out, rpf_count,
+				  rpf_count == 0, bodies[i])) {
+				continue;
+			}
+			rpf_count++;
+		}
+
+		if (vspd_wpf_to_dl(vdata, &blends[i], bodies[i]))
+			goto free_dl_body;
+
+		if (vspd_bru_to_dl(vdata, &blends[i], bodies[i]))
+			goto free_dl_body;
+
+		if (vspd_uds_to_dl(vdata, &blends[i], bodies[i]))
+			goto free_dl_body;
+
+		if (vspd_drp_to_dl(vdata, &blends[i], bodies[i]))
+			goto free_dl_body;
+
+		if (vspd_lif_set(vdata, &blends[i], bodies[i]))
+			goto free_dl_body;
+	}
+
+	return vspd_run_dl(vdata, bodies, num,
+		DL_MODE_HEADER_LESS_AUTO_REPEAT, use_sync);
+
+free_dl_body:
+	i--;
+error:
+	for (; i >= 0; i--)
+		vspd_dl_free_body(vdata->dlmemory, bodies[i]);
+
+	return ret;
+}
+
+int vspd_dl_output_du(struct vspd_private_data *vdata,
+		struct vspd_blend blends[], int num, int use_sync)
+{
+	int dl_mode = DL_MODE_HEADER_LESS_AUTO_REPEAT;
+
+	if (dl_mode == DL_MODE_HEADER_LESS_AUTO_REPEAT)
+		return vspd_dl_output_du_head_less(vdata,
+					blends, num, use_sync);
+	else
+		return vspd_dl_output_du_head_mode(vdata,
+					blends, num, use_sync);
 }
 
 int vspd_check_reg(struct vspd_private_data *vdata, unsigned long arg)

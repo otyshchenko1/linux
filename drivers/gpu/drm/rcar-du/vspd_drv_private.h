@@ -33,9 +33,14 @@
  #define VI6_STATUS_SYSn_ACT(index) (1 << (8 + index))
 #define VI6_WPFn_IRQ_ENB(index) (0x0048 + (index * 0x0c))
 #define VI6_WPFn_IRQ_STA(index) (0x004c + (index * 0x0c))
+ #define VI6_WPFn_IRQ_FRE		(1 << 0)
+ #define VI6_WPFn_IRQ_DFE		(1 << 1)
 
 #define VI6_DISP_IRQ_ENB		0x0078
 #define VI6_DISP_IRQ_STA		0x007C
+ #define VI6_DISP_IRQ_STA_DST		(1 << 8)
+ #define VI6_DISP_IRQ_STA_MAE		(1 << 5)
+ #define VI6_DISP_IRQ_STA_LNE(index)	(1 << index)
 
 
 /* Display List Control */
@@ -163,9 +168,24 @@
 #define VI6_LIF_CTRL	0x3b00
 #define VI6_LIF_CSBTH	0x3b04
 
+/* DL mode */
+enum {
+	DL_MODE_SINGLE = 0,
+	DL_MODE_MANUAL_REPEAT,
+	DL_MODE_AUTO_REPEAT,
+	DL_MODE_HEADER_LESS_MANUAL_REPEAT,
+	DL_MODE_HEADER_LESS_AUTO_REPEAT,
+};
+
+/* DL frame stat */
+#define DL_IRQ_FRAME_END	0x01
+#define DL_IRQ_UPDATE_FRAME	0x02
 
 
-#define DISPLAY_LIST_NUM 6
+
+#define USE_WPF 0
+
+#define DISPLAY_LIST_NUM 8
 #define DISPLAY_LIST_BODY_NUM 8
 
 
@@ -212,6 +232,8 @@ enum {
 	DL_LIST_OFFSET_CLUT,
 };
 
+struct dl_head;
+struct dl_body;
 
 struct dl_body {
 	int size;
@@ -220,9 +242,9 @@ struct dl_body {
 	dma_addr_t paddr;
 	struct display_list *dlist;
 	unsigned long dlist_offset;
+	int flag;
+	struct dl_body *next;
 };
-
-struct dl_head;
 
 struct dl_head {
 	int size;
@@ -239,12 +261,22 @@ struct dl_memory {
 	int size;
 	dma_addr_t paddr;
 	void *vaddr;
-	struct dl_head *active_header;
-	struct dl_head *next_header;
 	int flag;
 	spinlock_t lock;
+
+	/* header mode */
 	struct dl_head head[DISPLAY_LIST_NUM];
 	struct dl_body body[DISPLAY_LIST_NUM][DISPLAY_LIST_BODY_NUM];
+	struct dl_head *active_header;
+	struct dl_head *next_header;
+
+	/* header less mode */
+	struct dl_body single_body[DISPLAY_LIST_NUM];
+	struct dl_body *active_body;
+	struct dl_body *active_body_now;
+	struct dl_body *active_body_next_set;
+	struct dl_body *next_body;
+	struct dl_body *pending_body;
 };
 
 struct vspd_resource {
@@ -277,19 +309,23 @@ struct vspd_private_data {
 int vspd_dl_create(struct vspd_private_data *vdata, struct device *dev);
 void vspd_dl_destroy(struct vspd_private_data *vdata);
 void vspd_dl_reset(struct vspd_private_data *vdata);
-int vspd_dl_need_cmd(struct vspd_private_data *vdata);
 
-unsigned long vspd_dl_start_setup(struct dl_memory *dlmemory,
-			struct dl_head *head[], int num, int auto_flag);
-int vspd_dl_next_setup(struct dl_memory *dlmemory,
-			struct dl_head *head[], int num);
+int vspd_dl_start(struct vspd_private_data *vdata,
+			void *dl, int num, int dl_mode);
+int vspd_dl_swap(struct vspd_private_data *vdata, void *dl, int num);
 
-int vspd_dl_next_dl(struct vspd_private_data *vdata, unsigned long *addr);
+int vspd_dl_irq_frame_end(struct vspd_private_data *vdata);
+int vspd_dl_irq_dl_frame_end(struct vspd_private_data *vdata);
+int vspd_dl_irq_display_start(struct vspd_private_data *vdata);
+
 struct dl_head *vspd_dl_get_header(struct dl_memory *dlmemory);
 struct dl_body *vspd_dl_get_body(struct dl_memory *dlmemory, int module);
+struct dl_body *vspd_dl_get_single_body(struct dl_memory *dlmemory);
 int vspd_dl_set_body(struct dl_head *head, struct dl_body *body, int module);
 void vspd_dl_free_header(struct dl_memory *dlmemory, struct dl_head *head);
 void vspd_dl_free_body(struct dl_memory *dlmemory, struct dl_body *body);
+
+int vsp_du_if_du_info(void *callback_data);
 
 #define vspd_err(vdata, fmt, ...) \
 	dev_err(vdata->dev, "[Error] %s : " fmt, __func__, ##__VA_ARGS__)
@@ -297,6 +333,18 @@ void vspd_dl_free_body(struct dl_memory *dlmemory, struct dl_body *body);
 	dev_warn(vdata->dev, "[Warn] %s : " fmt, __func__, ##__VA_ARGS__)
 #define vspd_info(vdata, fmt, ...) \
 	dev_info(vdata->dev, "[Info] %s : " fmt, __func__, ##__VA_ARGS__)
+
+static inline unsigned long vspd_read(struct vspd_private_data *vdata,
+				unsigned long reg)
+{
+	return ioread32(vdata->res.base + reg);
+}
+
+static inline void vspd_write(struct vspd_private_data *vdata,
+			      unsigned long reg, unsigned long data)
+{
+	iowrite32(data, vdata->res.base + reg);
+}
 
 
 #endif /* _VSPD_PRIVATE_H_ */

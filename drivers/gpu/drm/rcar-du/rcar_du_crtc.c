@@ -408,6 +408,11 @@ static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 	rcar_du_group_start_stop(rcrtc->group, true);
 
 	rcrtc->started = true;
+
+#ifdef RCAR_DU_CONNECT_VSP
+	rcar_du_crtc_write(rcrtc, DSRCR, DSRCR_VBCL);
+	rcar_du_crtc_set(rcrtc, DIER, DIER_VBE);
+#endif
 }
 
 static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
@@ -417,6 +422,9 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 	if (!rcrtc->started)
 		return;
 
+#ifdef RCAR_DU_CONNECT_VSP
+	rcar_du_crtc_clr(rcrtc, DIER, DIER_VBE);
+#endif
 	mutex_lock(&rcrtc->group->planes.lock);
 	rcrtc->plane->enabled = false;
 	rcar_du_crtc_update_planes(crtc);

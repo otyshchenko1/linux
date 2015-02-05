@@ -78,7 +78,6 @@ struct vspd_image {
 struct vspd_blend {
 	struct vspd_image in[VSPD_INPUT_IMAGE_NUM];
 	struct vspd_image out;
-	int dl_auto_start;
 };
 
 #define VSPD_MEM_COPY		_IOW('d', 0, struct vspd_image)

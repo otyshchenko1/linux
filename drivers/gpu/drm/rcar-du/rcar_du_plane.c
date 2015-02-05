@@ -504,9 +504,10 @@ rcar_du_plane_update_core(struct drm_plane *plane, struct drm_crtc *crtc,
 		       int use_sync)
 {
 	struct rcar_du_plane *rplane = to_rcar_plane(plane);
+	struct rcar_du_plane save_rplane;
+	struct rcar_du_device *rcdu = rplane->group->dev;
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 	const struct rcar_du_format_info *format;
-	struct rcar_du_plane save_rplane;
 	int ret;
 
 	if (!rcrtc->lif_enable)
@@ -515,13 +516,17 @@ rcar_du_plane_update_core(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (!fb)
 		return -EINVAL;
 
-	save_rplane = *rplane;
-
 	format = rcar_du_format_info(fb->pixel_format);
+	if (format == NULL) {
+		dev_dbg(rcdu->dev, "%s: unsupported format %08x\n",
+			__func__, fb->pixel_format);
+		return -EINVAL;
+	}
+
+	save_rplane = *rplane;
 
 	rplane->crtc = crtc;
 	rplane->format = format;
-	rplane->pitch = fb->pitches[0];
 
 	rplane->src_x = src_x >> 16;
 	rplane->src_y = src_y >> 16;
@@ -539,6 +544,7 @@ rcar_du_plane_update_core(struct drm_plane *plane, struct drm_crtc *crtc,
 		rplane->interlace_flag = false;
 
 	mutex_lock(&rplane->group->planes.lock);
+
 	rplane->enabled = true;
 	ret = rcar_du_plane_order_sort_update(rplane);
 	if (ret) {
