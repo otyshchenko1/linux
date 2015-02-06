@@ -50,3 +50,37 @@ config DRM_RCAR_DU_OVERLAY_CH
 	  when the value of bit is set as "0".
 	  The initial channel of overlay layer is DU channel 1
 	  when the value of bit is set as "1".
+
+config DRM_RCAR_DU0_USE_VSPDU_CH
+	int "R-Car DU0 use VSPDU channel"
+	depends on DRM_RCAR_DU
+	default "0"
+	help
+	  Choose this option if DU0 select to use VSPDU channel.
+	  If you set value to 0 or 2, DU0 is connected with VSPDU0.
+	  If you set value to 1 or 3, DU0 is connected with VSPDU1.
+	  If you set value to -1, DU0 is not connected with any VSPD.
+	  When you set value to 2 or 3, VSPDU connection can be changed dynamically.
+
+config DRM_RCAR_DU1_USE_VSPDU_CH
+	int "R-Car DU1 use VSPDU channel"
+	depends on DRM_RCAR_DU
+	default "1"
+	help
+	  Choose this option if DU1 select to use VSPDU channel.
+	  R8A7794 does not support VSPDU1.
+	  If you set value to 0 or 2, DU1 is connected with VSPDU0.
+	  If you set value to 1 or 3, DU1 is connected with VSPDU1.
+	  If you set value to -1, DU1 is not connected with any VSPD.
+	  When you set value to 2 or 3, VSPDU connection can be changed dynamically.
+
+config DRM_RCAR_DU2_USE_VSPDU_CH
+	int "R-Car DU2 use VSPDU channel"
+	default "-1"
+	depends on DRM_RCAR_DU
+	help
+	  Choose this option if DU2 select to use VSPDU channel.
+	  Only R8A7790 can use DU2 connected by VSPDU1.
+	  If you set value to 1 or 3, DU2 is connected with VSPDU1.
+	  If you set value to -1, DU2 is not connected with any VSPD.
+	  When you set value to 3 , VSPDU connection can be changed dynamically.

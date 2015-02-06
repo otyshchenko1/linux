@@ -96,6 +96,9 @@ static int rcar_du_load(struct drm_device *dev, unsigned long flags)
 	rcdu->ddev = dev;
 	dev->dev_private = rcdu;
 	rcdu->dpad0_source = rcdu->info->drgbs_bit;
+#ifdef RCAR_DU_CONNECT_VSP
+	rcdu->vsp_reserve = rcdu->info->vspd_crtc;
+#endif
 
 #if defined(R8A7790_ES1_DU_LVDS_LANE_MISCONNECTION_WORKAROUND) || \
 	defined(R8A779X_ES2_DU_LVDS_CH_DATA_GAP_WORKAROUND) || \

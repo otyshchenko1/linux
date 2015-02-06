@@ -371,7 +371,8 @@ static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 		const struct rcar_du_crtc_data *pdata =
 			&rcrtc->group->dev->pdata->crtcs[rcrtc->index];
 
-		if (pdata->vsp == RCAR_DU_VSPD_1) {
+		if ((pdata->vsp == RCAR_DU_VSPD_1) ||
+			(pdata->vsp == RCAR_DU_VSPD_1_RGB)) {
 			struct rcar_du_plane *rplane = rcrtc->plane;
 			struct rcar_du_device *rcdu = rplane->group->dev;
 			unsigned int vspd1_sink =
@@ -557,7 +558,7 @@ static int rcar_du_crtc_mode_set(struct drm_crtc *crtc,
 	int ret;
 #ifdef RCAR_DU_CONNECT_VSP
 	enum rcar_du_plane_source source;
-	const struct rcar_du_crtc_data *pdata =
+	struct rcar_du_crtc_data *pdata =
 			&rcrtc->group->dev->pdata->crtcs[rcrtc->index];
 #endif
 
@@ -570,19 +571,31 @@ static int rcar_du_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 #ifdef RCAR_DU_CONNECT_VSP
-	switch (format->fourcc) {
-	case DRM_FORMAT_XRGB8888:
-	case DRM_FORMAT_ARGB8888:
+	if ((pdata->vsp == RCAR_DU_VSPD_0) || (pdata->vsp == RCAR_DU_VSPD_1)) {
 		if (rcrtc->vpsd_handle) {
 			source = pdata->vsp == RCAR_DU_VSPD_0 ?
 				RCAR_DU_PLANE_VSPD0 : RCAR_DU_PLANE_VSPD1;
 			rcrtc->lif_enable = 1;
+		}
+	} else if ((pdata->vsp == RCAR_DU_VSPD_0_RGB) ||
+		   (pdata->vsp == RCAR_DU_VSPD_1_RGB)) {
+		switch (format->fourcc) {
+		case DRM_FORMAT_XRGB8888:
+		case DRM_FORMAT_ARGB8888:
+			if (rcrtc->vpsd_handle) {
+				source = pdata->vsp == RCAR_DU_VSPD_0_RGB ?
+				      RCAR_DU_PLANE_VSPD0 : RCAR_DU_PLANE_VSPD1;
+				rcrtc->lif_enable = 1;
+				break;
+			}
+		default:
+			source = RCAR_DU_PLANE_MEMORY;
+			rcrtc->lif_enable = 0;
 			break;
 		}
-	default:
+	} else if (pdata->vsp == RCAR_DU_VSPD_UNUSED) {
 		source = RCAR_DU_PLANE_MEMORY;
 		rcrtc->lif_enable = 0;
-		break;
 	}
 	ret = rcar_du_plane_reserve_src(rcrtc->plane, format, source);
 #else
@@ -829,10 +842,12 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 	char *name;
 	int irq;
 	int ret;
-	const struct rcar_du_crtc_data *pdata =
+	struct rcar_du_crtc_data *pdata =
 			&rgrp->dev->pdata->crtcs[index];
 #ifdef RCAR_DU_CONNECT_VSP
 	int plane_bit;
+	unsigned int vsp_ch;
+	bool error = false;
 #endif
 
 	/* Get the CRTC clock. */
@@ -920,22 +935,56 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 		return ret;
 	}
 
-
 #ifdef RCAR_DU_CONNECT_VSP
+	/* Check configuration of VSPD channel used by DU */
+	if ((pdata->vsp >= RCAR_DU_VSPD_MAX) ||
+		(pdata->vsp < RCAR_DU_VSPD_UNUSED)) {
+		dev_err(rcdu->dev,
+		 "failed to set configuration value[%d] specified in DU%u\n"
+		 , pdata->vsp, index);
+		return -EINVAL;
+	}
+
+	if (pdata->vsp >= RCAR_DU_VSPD_0_RGB)
+		vsp_ch = pdata->vsp - RCAR_DU_VSPD_0_RGB;
+	else
+		vsp_ch = pdata->vsp;
+
+	if (vsp_ch != RCAR_DU_VSPD_UNUSED) {
+		/* R8A7794 is not supported VSPD1 */
+		if ((rcdu->info->chip == RCAR_E2) &&
+			((0x01 << vsp_ch) & BIT(1)))
+			vsp_ch = pdata->vsp = RCAR_DU_VSPD_UNUSED;
+		else if ((rcdu->info->chip == RCAR_H2) && (index == DU_CH_2) &&
+			((0x01 << vsp_ch) & BIT(0))) {
+			error = true;
+		} else if ((rcdu->vsp_reserve) & (0x01 << vsp_ch))
+			rcdu->vsp_reserve &= ~(0x01 << vsp_ch);
+		else {
+			error = true;
+		}
+	}
+	if (error) {
+		dev_err(rcdu->dev,
+		 "failed to set configuration DU%u->VSPD%u.\n"
+		 , index, vsp_ch);
+		return -EINVAL;
+	}
+
 	rcrtc->lif_enable = 0;
-	if (pdata->vsp == RCAR_DU_VSPD_UNUSED) {
+	if (vsp_ch == RCAR_DU_VSPD_UNUSED) {
 		rcrtc->vpsd_handle = NULL;
 		goto end;
 	} else if (DU_CH_2 <= rcrtc->index) {
-		if (pdata->vsp == RCAR_DU_VSPD_0) {
+		if (vsp_ch == RCAR_DU_VSPD_0) {
 			rcrtc->vpsd_handle = NULL;
 			goto end;
 		}
-		dev_info(rcdu->dev, "DU%d use VSPD%d\n", index, pdata->vsp - 1);
+		dev_info(rcdu->dev, "DU%d use VSPD%d\n", index, vsp_ch);
 		plane_bit = 0x01;
 	} else {
-		dev_info(rcdu->dev, "DU%d use VSPD%d\n", index, pdata->vsp - 1);
-		switch (pdata->vsp) {
+		dev_info(rcdu->dev, "DU%d use VSPD%d\n", index, vsp_ch);
+		switch (vsp_ch) {
 		case RCAR_DU_VSPD_0:
 			plane_bit = 0x01;
 			break;
@@ -951,7 +1000,7 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 	plane_bit = (plane_bit << DPTSR_DK_BIT_SHIFT) |
 		    (plane_bit << DPTSR_TS_BIT_SHIFT);
 
-	rcrtc->vpsd_handle = vsp_du_if_init(rcdu->dev, pdata->vsp);
+	rcrtc->vpsd_handle = vsp_du_if_init(rcdu->dev, vsp_ch);
 	if (rcrtc->vpsd_handle == NULL) {
 		dev_err(rcdu->dev, "[Error] vsp_du_if_init\n");
 	} else {

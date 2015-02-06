@@ -120,6 +120,9 @@ struct rcar_du_device {
 
 	struct rcar_du_lvdsenc *lvds[2];
 	unsigned int crtcs_connect_id[3];
+#ifdef RCAR_DU_CONNECT_VSP
+	unsigned int vsp_reserve;
+#endif
 };
 
 static inline bool rcar_du_has(struct rcar_du_device *rcdu,

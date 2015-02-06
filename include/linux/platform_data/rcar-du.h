@@ -38,9 +38,12 @@ enum rcar_du_encoder_type {
 
 #ifdef RCAR_DU_CONNECT_VSP
 enum rcar_du_connect_vsp {
-	RCAR_DU_VSPD_UNUSED = 0,
+	RCAR_DU_VSPD_UNUSED = -1,
 	RCAR_DU_VSPD_0,
 	RCAR_DU_VSPD_1,
+	RCAR_DU_VSPD_0_RGB,
+	RCAR_DU_VSPD_1_RGB,
+	RCAR_DU_VSPD_MAX,
 };
 #endif
 
