@@ -86,14 +86,14 @@ static struct rcar_du_crtc_data gose_du_crtcs[] = {
 		.exclk = 148500000,
 		.init_conn_type = DRM_MODE_CONNECTOR_LVDS,
 #ifdef RCAR_DU_CONNECT_VSP
-		.vsp = RCAR_DU_VSPD_UNUSED,
+		.vsp = CONFIG_DRM_RCAR_DU0_USE_VSPDU_CH,
 #endif
 	},
 	{
 		.exclk = 74250000,
 		.init_conn_type = DRM_MODE_CONNECTOR_HDMIA,
 #ifdef RCAR_DU_CONNECT_VSP
-		.vsp = RCAR_DU_VSPD_0,
+		.vsp = CONFIG_DRM_RCAR_DU1_USE_VSPDU_CH,
 #endif
 	},
 };
