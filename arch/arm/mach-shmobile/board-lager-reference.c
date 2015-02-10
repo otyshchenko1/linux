@@ -41,7 +41,8 @@
 #if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 #include <linux/usb/renesas_usbhs.h>
 #endif
-#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1)
+#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1) && \
+!defined(CONFIG_DRM_RCAR_DU_CONNECT_VSP)
 #include <linux/platform_data/vsp1.h>
 #endif
 #include <media/soc_camera.h>
@@ -90,21 +91,21 @@ static struct rcar_du_crtc_data lager_du_crtcs[] = {
 	{
 		.exclk = 148500000,
 		.init_conn_type = DRM_MODE_CONNECTOR_HDMIA,
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 		.vsp = CONFIG_DRM_RCAR_DU0_USE_VSPDU_CH,
 #endif
 	},
 	{
 		.exclk = 148500000,
 		.init_conn_type = DRM_MODE_CONNECTOR_LVDS,
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 		.vsp = CONFIG_DRM_RCAR_DU1_USE_VSPDU_CH,
 #endif
 	},
 	{
 		.exclk = 0,
 		.init_conn_type = DRM_MODE_CONNECTOR_VGA,
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 		.vsp = CONFIG_DRM_RCAR_DU2_USE_VSPDU_CH,
 #endif
 	},
@@ -161,11 +162,10 @@ static const struct clk_name clk_names[] __initconst = {
 	{ "vin1", NULL, "r8a7790-vin.1" },
 	{ "vspr", NULL, NULL },
 	{ "vsps", NULL, NULL },
-#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1)
- #ifndef RCAR_DU_CONNECT_VSP
+#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1) && \
+!defined(CONFIG_DRM_RCAR_DU_CONNECT_VSP)
 	{ "vsp1-du0", NULL, "vsp1.2" },
 	{ "vsp1-du1", NULL, "vsp1.3" },
- #endif
 #else
 	{ "vsp1-du0", NULL, NULL },
 	{ "vsp1-du1", NULL, NULL },
@@ -790,7 +790,8 @@ static void __init lager_add_camera1_device(void)
 }
 
 /* VSP1 */
-#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1)
+#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1) && \
+!defined(CONFIG_DRM_RCAR_DU_CONNECT_VSP)
 static const struct vsp1_platform_data lager_vspr_pdata __initconst = {
 	.features = VSP1_HAS_LUT | VSP1_HAS_SRU,
 	.rpf_count = 5,
@@ -980,7 +981,8 @@ static void __init lager_add_standard_devices(void)
 #endif
 	lager_add_camera0_device();
 	lager_add_camera1_device();
-#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1)
+#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1) && \
+!defined(CONFIG_DRM_RCAR_DU_CONNECT_VSP)
 	lager_add_vsp1_devices();
 #endif
 	lager_add_msiof_device(spi_bus, ARRAY_SIZE(spi_bus));
