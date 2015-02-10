@@ -30,7 +30,8 @@
 #include <linux/platform_data/camera-rcar.h>
 #include <linux/platform_data/rcar-du.h>
 #include <linux/platform_data/usb-rcar-gen2-phy.h>
-#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1)
+#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1) && \
+!defined(CONFIG_DRM_RCAR_DU_CONNECT_VSP)
 #include <linux/platform_data/vsp1.h>
 #endif
 #include <linux/serial_sci.h>
@@ -90,14 +91,14 @@ static struct rcar_du_crtc_data alt_du_crtcs[] = {
 	{
 		.exclk = 148500000,
 		.init_conn_type = DRM_MODE_CONNECTOR_HDMIA,
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 		.vsp = CONFIG_DRM_RCAR_DU0_USE_VSPDU_CH,
 #endif
 	},
 	{
 		.exclk = 74250000,
 		.init_conn_type = DRM_MODE_CONNECTOR_VGA,
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 		.vsp = CONFIG_DRM_RCAR_DU1_USE_VSPDU_CH,
 #endif
 	},
@@ -220,10 +221,9 @@ static const struct clk_name clk_names[] __initconst = {
 	{ "hsusb", NULL, "usb_phy_rcar_gen2" },
 	{ "vin0", NULL, "r8a7794-vin.0" },
 	{ "vsps", NULL, NULL },
-#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1)
-#ifndef RCAR_DU_CONNECT_VSP
+#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1) && \
+!defined(CONFIG_DRM_RCAR_DU_CONNECT_VSP)
 	{ "vsp1-du0", NULL, "vsp1.2" },
-#endif
 #else
 	{ "vsp1-du0", NULL, NULL },
 #endif
@@ -844,7 +844,8 @@ static void __init alt_add_camera0_device(void)
 }
 
 /* VSP1 */
-#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1)
+#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1) && \
+!defined(CONFIG_DRM_RCAR_DU_CONNECT_VSP)
 static const struct vsp1_platform_data alt_vsps_pdata __initconst = {
 	.features = 0,
 	.rpf_count = 5,
@@ -992,7 +993,8 @@ static void __init alt_add_standard_devices(void)
 #endif
 	alt_add_usb1_device();
 	alt_add_camera0_device();
-#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1)
+#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1) && \
+!defined(CONFIG_DRM_RCAR_DU_CONNECT_VSP)
 	alt_add_vsp1_devices();
 #endif
 	alt_add_msiof_device(spi_bus, ARRAY_SIZE(spi_bus));
