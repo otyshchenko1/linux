@@ -1,7 +1,7 @@
 /*
  * SuperH MSIOF SPI Master Interface
  *
- * Copyright (C) 2014 Renesas Electronics Corporation
+ * Copyright (C) 2014-2015 Renesas Electronics Corporation
  * Copyright (c) 2009 Magnus Damm
  * Copyright (C) 2014 Glider bvba
  *
@@ -1106,10 +1106,7 @@ static int sh_msiof_request_dma(struct sh_msiof_spi_priv *p)
 	if (!info || !info->dma_tx_id || !info->dma_rx_id)
 		return 0;	/* The driver assumes no error */
 
-	/* The DMA engine uses the second register set, if present */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!res)
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	master = p->master;
 	master->dma_tx = sh_msiof_request_dma_chan(dev, DMA_MEM_TO_DEV,
