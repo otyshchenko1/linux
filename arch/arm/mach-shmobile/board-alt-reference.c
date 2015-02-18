@@ -380,7 +380,7 @@ static struct sh_mmcif_plat_data mmcif0_pdata = {
 	.slave_id_rx	= SYS_DMAC_SLAVE_MMCIF0_RX,
 };
 
-static struct sh_mobile_sdhi_info sdhi0_info __initdata = {
+static struct sh_mobile_sdhi_info sdhi0_info = {
 	.dma_slave_tx   = SYS_DMAC_SLAVE_SDHI0_TX,
 	.dma_slave_rx   = SYS_DMAC_SLAVE_SDHI0_RX,
 	.dma_rx_offset  = 0x2000,
@@ -390,7 +390,7 @@ static struct sh_mobile_sdhi_info sdhi0_info __initdata = {
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
 };
 
-static struct sh_mobile_sdhi_info sdhi1_info __initdata = {
+static struct sh_mobile_sdhi_info sdhi1_info = {
 	.dma_slave_tx   = SYS_DMAC_SLAVE_SDHI1_TX,
 	.dma_slave_rx   = SYS_DMAC_SLAVE_SDHI1_RX,
 	.dma_rx_offset  = 0x2000,
