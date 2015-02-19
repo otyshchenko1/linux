@@ -450,6 +450,8 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 		   struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id);
 int rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod);
+void rsnd_ssi_access_enable(struct rsnd_mod *mod, struct rsnd_dai *rdai);
+void rsnd_ssi_access_disable(struct rsnd_mod *mod, struct rsnd_dai *rdai);
 
 /*
  *	R-Car DVC

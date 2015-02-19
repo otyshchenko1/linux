@@ -814,13 +814,16 @@ static int rsnd_src_set_convert_timing_gen2(struct rsnd_mod *mod,
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	u32 convert_rate = rsnd_src_convert_rate(src);
+	struct rsnd_mod *ssi_mod = rsnd_io_to_mod_ssi(io);
 	int ret;
 
-	if (convert_rate)
+	if (convert_rate) {
+		rsnd_ssi_access_enable(ssi_mod, rdai);
 		ret = rsnd_adg_set_convert_clk_gen2(mod, rdai, io,
 						    runtime->rate,
 						    convert_rate);
-	else
+		rsnd_ssi_access_disable(ssi_mod, rdai);
+	} else
 		ret = rsnd_adg_set_convert_timing_gen2(mod, rdai, io);
 
 	return ret;
@@ -1099,6 +1102,8 @@ static void rsnd_of_parse_src(struct platform_device *pdev,
 		src_info = info->src_info + i;
 
 		src_info->irq_id = irq_of_parse_and_map(np, 0);
+		of_property_read_u32(np, "convert-rate",
+					&src_info->convert_rate);
 	}
 
 rsnd_of_parse_src_end:

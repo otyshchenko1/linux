@@ -267,6 +267,25 @@ static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi,
 	dev_dbg(dev, "ssi%d hw stopped\n", rsnd_mod_id(&ssi->mod));
 }
 
+void rsnd_ssi_access_enable(struct rsnd_mod *mod, struct rsnd_dai *rdai)
+{
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
+
+	rsnd_ssi_hw_start(ssi, rdai, io);
+
+	return;
+}
+
+void rsnd_ssi_access_disable(struct rsnd_mod *mod, struct rsnd_dai *rdai)
+{
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+
+	rsnd_ssi_hw_stop(ssi, rdai);
+
+	return;
+}
+
 /*
  *	SSI mod common functions
  */
