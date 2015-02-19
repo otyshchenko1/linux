@@ -205,7 +205,7 @@
 		dma-channels = <13>;
 	};
 
-	audmapp: audio-dma-pp@0xec740000 {
+	audmapp: dma-controller@ec740000 {
 		compatible = "renesas,rcar-audmapp";
 		#dma-cells = <1>;
 
