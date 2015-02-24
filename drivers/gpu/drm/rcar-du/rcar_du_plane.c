@@ -525,6 +525,16 @@ rcar_du_plane_update_core(struct drm_plane *plane, struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
+	if (((crtc_w + crtc_x) > crtc->mode.hdisplay) ||
+		((crtc_h + crtc_y) > crtc->mode.vdisplay)) {
+		dev_dbg(rcdu->dev,
+			"%s: unspecified size(%dx%d) and position(%d, %d).\n"
+			"please specify less than size of (%dx%d).\n",
+			__func__, crtc_w, crtc_h, crtc_x, crtc_y,
+			crtc->mode.hdisplay, crtc->mode.vdisplay);
+		return -EINVAL;
+	}
+
 	save_rplane = *rplane;
 
 	rplane->crtc = crtc;
