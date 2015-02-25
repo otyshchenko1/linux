@@ -302,6 +302,23 @@ static int rsnd_src_use_syncsrc(struct rsnd_mod *mod)
 	return use_syncsrc;
 }
 
+static inline unsigned int muldiv32(unsigned int a, unsigned int b,
+				    unsigned int c, unsigned int *r)
+{
+	u_int64_t n = (u_int64_t) a * b;
+	if (c == 0) {
+		BUG_ON(!n);
+		*r = 0;
+		return UINT_MAX;
+	}
+	n = div_u64_rem(n, c, r);
+	if (n >= UINT_MAX) {
+		*r = 0;
+		return UINT_MAX;
+	}
+	return n;
+}
+
 static int rsnd_src_set_convert_rate(struct rsnd_mod *mod,
 				     struct rsnd_dai *rdai)
 {
@@ -310,10 +327,17 @@ static int rsnd_src_set_convert_rate(struct rsnd_mod *mod,
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	u32 convert_rate = rsnd_src_convert_rate(src);
 	u32 fsrate = 0;
+	u32 remain = 0;
 
-	if (convert_rate)
-		fsrate = 0x0400000 / convert_rate * runtime->rate;
-	else if (rsnd_src_use_syncsrc(mod))
+	if (convert_rate) {
+		if (rsnd_dai_is_play(rdai, io)) {
+			fsrate = muldiv32(0x0400000, runtime->rate,
+					  convert_rate, &remain);
+		} else {
+			fsrate = muldiv32(0x0400000, convert_rate,
+					  runtime->rate, &remain);
+		}
+	} else if (rsnd_src_use_syncsrc(mod))
 		fsrate = 0x0400000;
 
 	/* set/clear soft reset */
