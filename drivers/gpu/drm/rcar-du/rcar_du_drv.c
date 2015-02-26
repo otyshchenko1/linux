@@ -96,7 +96,7 @@ static int rcar_du_load(struct drm_device *dev, unsigned long flags)
 	rcdu->ddev = dev;
 	dev->dev_private = rcdu;
 	rcdu->dpad0_source = rcdu->info->drgbs_bit;
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	rcdu->vsp_reserve = rcdu->info->vspd_crtc;
 #endif
 
@@ -204,7 +204,7 @@ static void rcar_du_disable_vblank(struct drm_device *dev, int crtc)
 }
 
 
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 
 int rcar_du_debug_reg(struct drm_device *dev, void *data,
 		struct drm_file *file_priv)
@@ -317,7 +317,7 @@ static const struct drm_ioctl_desc rcar_du_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(RCAR_DU_DBG_VSP, rcar_du_debug_reg_vsp,
 		DRM_UNLOCKED | DRM_CONTROL_ALLOW),
 };
-#endif /* RCAR_DU_CONNECT_VSP */
+#endif /* CONFIG_DRM_RCAR_DU_CONNECT_VSP */
 
 
 static const struct file_operations rcar_du_fops = {
@@ -358,7 +358,7 @@ static struct drm_driver rcar_du_driver = {
 	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
 	.dumb_destroy		= drm_gem_dumb_destroy,
 	.fops			= &rcar_du_fops,
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	.ioctls			= rcar_du_ioctls,
 	.num_ioctls		= ARRAY_SIZE(rcar_du_ioctls),
 #endif

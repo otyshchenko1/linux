@@ -8,7 +8,9 @@ rcar-du-drm-y := rcar_du_crtc.o \
 		 rcar_du_plane.o \
 		 rcar_du_vgacon.o
 
-rcar-du-drm-y +=  vspd_drv_main.o vspd_dl.o vsp_du_if.o
+rcar-du-drm-$(CONFIG_DRM_RCAR_DU_CONNECT_VSP)	+= vspd_drv_main.o \
+						   vspd_dl.o \
+						   vsp_du_if.o
 
 rcar-du-drm-$(CONFIG_DRM_RCAR_LVDS)	+= rcar_du_lvdsenc.o
 

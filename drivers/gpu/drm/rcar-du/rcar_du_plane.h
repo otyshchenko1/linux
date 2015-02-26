@@ -36,7 +36,7 @@ struct rcar_du_group;
 #define RCAR_DU01_NUM_KMS_PLANES	6
 #define RCAR_DU2_NUM_KMS_PLANES		7
 
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 #define VSPD_NUM_KMS_PLANES	3
 #define VSPD_SCALING_NUM	1
 #endif
@@ -64,7 +64,7 @@ struct rcar_du_plane {
 	unsigned int colorkey;
 	unsigned int zpos;
 	unsigned int channel;
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	unsigned int premultiplied;
 #endif
 
@@ -75,7 +75,7 @@ struct rcar_du_plane {
 
 	unsigned int width;
 	unsigned int height;
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	unsigned int d_width;
 	unsigned int d_height;
 #endif
@@ -91,7 +91,7 @@ struct rcar_du_plane {
 
 struct rcar_du_planes {
 	struct rcar_du_plane planes[RCAR_DU_NUM_SW_PLANES];
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	struct rcar_du_plane vspd_planes[2][VSPD_NUM_KMS_PLANES];
 #endif
 	unsigned int free;
@@ -102,7 +102,7 @@ struct rcar_du_planes {
 	struct drm_property *colorkey;
 	struct drm_property *zpos;
 	struct drm_property *channel;
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	struct drm_property *premultiplied;
 #endif
 };
@@ -118,7 +118,7 @@ void rcar_du_plane_compute_base(struct rcar_du_plane *plane,
 				struct drm_framebuffer *fb);
 int rcar_du_plane_reserve(struct rcar_du_plane *plane,
 			  const struct rcar_du_format_info *format);
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 int rcar_du_plane_reserve_src(struct rcar_du_plane *plane,
 			  const struct rcar_du_format_info *format,
 			  enum rcar_du_plane_source source);

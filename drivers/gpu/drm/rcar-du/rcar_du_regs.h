@@ -496,6 +496,7 @@
 #define DPTSR_MASK		0x00FF00FF
 #define DPTSR_DK_BIT_SHIFT	(16)
 #define DPTSR_TS_BIT_SHIFT	(0)
+#define DPTSR_VSP_INIT_VAL	(0x3f << 0)
 
 #define DAPTSR			0x11008
 #define DAPTSR_APnDK(n)		(1 << ((n) + 16))

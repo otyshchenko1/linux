@@ -321,7 +321,7 @@ static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 	if (WARN_ON(rcrtc->plane->format == NULL))
 		return;
 
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	if (rcrtc->lif_enable)
 		vsp_du_if_start(rcrtc->vpsd_handle);
 #endif
@@ -332,7 +332,7 @@ static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 
 	/* Initialized DPTSR register */
 	if ((rcrtc->group->dptsr_init) && (rcrtc->index < DU_CH_2)) {
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 		dptsr = rcrtc->group->dptsr_init_val;
 #else
 		dptsr = ((CONFIG_DRM_RCAR_DU_OVERLAY_CH << DPTSR_DK_BIT_SHIFT) |
@@ -366,7 +366,7 @@ static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 			plane->interlace_flag = false;
 		rcar_du_plane_setup(plane);
 	}
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	if (rcrtc->lif_enable) {
 		const struct rcar_du_crtc_data *pdata =
 			&rcrtc->group->dev->pdata->crtcs[rcrtc->index];
@@ -410,7 +410,7 @@ static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 
 	rcrtc->started = true;
 
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	rcar_du_crtc_write(rcrtc, DSRCR, DSRCR_VBCL);
 	rcar_du_crtc_set(rcrtc, DIER, DIER_VBE);
 #endif
@@ -423,7 +423,7 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 	if (!rcrtc->started)
 		return;
 
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	rcar_du_crtc_clr(rcrtc, DIER, DIER_VBE);
 #endif
 	mutex_lock(&rcrtc->group->planes.lock);
@@ -448,7 +448,7 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 
 	rcrtc->started = false;
 
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	if (rcrtc->lif_enable)
 		vsp_du_if_stop(rcrtc->vpsd_handle);
 #endif
@@ -473,7 +473,7 @@ static void rcar_du_crtc_update_base(struct rcar_du_crtc *rcrtc)
 {
 	struct drm_crtc *crtc = &rcrtc->crtc;
 
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	rcar_du_plane_compute_base(rcrtc->plane, crtc->fb);
 
 	if (rcrtc->lif_enable)
@@ -556,7 +556,7 @@ static int rcar_du_crtc_mode_set(struct drm_crtc *crtc,
 	struct rcar_du_device *rcdu = rcrtc->group->dev;
 	const struct rcar_du_format_info *format;
 	int ret;
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	enum rcar_du_plane_source source;
 	struct rcar_du_crtc_data *pdata =
 			&rcrtc->group->dev->pdata->crtcs[rcrtc->index];
@@ -570,7 +570,7 @@ static int rcar_du_crtc_mode_set(struct drm_crtc *crtc,
 		goto error;
 	}
 
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	if ((pdata->vsp == RCAR_DU_VSPD_0) || (pdata->vsp == RCAR_DU_VSPD_1)) {
 		if (rcrtc->vpsd_handle) {
 			source = pdata->vsp == RCAR_DU_VSPD_0 ?
@@ -610,7 +610,7 @@ static int rcar_du_crtc_mode_set(struct drm_crtc *crtc,
 	rcrtc->plane->src_y = y;
 	rcrtc->plane->width = mode->hdisplay;
 	rcrtc->plane->height = mode->vdisplay;
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	rcrtc->plane->d_width = mode->hdisplay;
 	rcrtc->plane->d_height = mode->vdisplay;
 #endif
@@ -618,7 +618,7 @@ static int rcar_du_crtc_mode_set(struct drm_crtc *crtc,
 
 	rcrtc->outputs = 0;
 
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	if (rcrtc->lif_enable)
 		vsp_du_if_setup_base(rcrtc->vpsd_handle, rcrtc->plane,
 			rcrtc->crtc.mode.flags & DRM_MODE_FLAG_INTERLACE ?
@@ -741,7 +741,7 @@ static void rcar_du_set_frmend(int frmend, unsigned int ch)
 }
 
 
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 static void rcar_du_crtc_irq_callback(void *data)
 {
 	struct rcar_du_crtc *rcrtc = data;
@@ -761,7 +761,7 @@ static irqreturn_t rcar_du_crtc_irq(int irq, void *arg)
 	rcar_du_crtc_write(rcrtc, DSRCR, status & DSRCR_MASK);
 
 	if (status & DSSR_FRM) {
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 		if (!rcrtc->lif_enable)
 			rcar_du_crtc_irq_callback(rcrtc);
 #else
@@ -806,7 +806,7 @@ static int rcar_du_crtc_page_flip(struct drm_crtc *crtc,
 	return 0;
 }
 
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 void rcar_du_crtc_cleanup(struct drm_crtc *crtc)
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
@@ -818,7 +818,7 @@ void rcar_du_crtc_cleanup(struct drm_crtc *crtc)
 #endif
 
 static const struct drm_crtc_funcs crtc_funcs = {
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	.destroy = rcar_du_crtc_cleanup,
 #else
 	.destroy = drm_crtc_cleanup,
@@ -844,7 +844,7 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 	int ret;
 	struct rcar_du_crtc_data *pdata =
 			&rgrp->dev->pdata->crtcs[index];
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	int plane_bit;
 	unsigned int vsp_ch;
 	bool error = false;
@@ -935,7 +935,7 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 		return ret;
 	}
 
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	/* Check configuration of VSPD channel used by DU */
 	if ((pdata->vsp >= RCAR_DU_VSPD_MAX) ||
 		(pdata->vsp < RCAR_DU_VSPD_UNUSED)) {

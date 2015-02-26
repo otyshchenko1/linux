@@ -1,7 +1,7 @@
 
 #include "vspd_drv_private.h"
 
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 #define CONNECT_DU_MODE 1
 #else
 #define CONNECT_DU_MODE 0

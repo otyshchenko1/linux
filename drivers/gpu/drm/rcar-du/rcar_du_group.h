@@ -39,7 +39,7 @@ struct rcar_du_group {
 	bool interlace_grp;
 
 	bool dptsr_init;
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	unsigned int dptsr_init_val;
 #endif
 };

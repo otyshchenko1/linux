@@ -20,7 +20,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 #include "vsp_du_if.h"
 #endif
 
@@ -45,7 +45,7 @@ struct rcar_du_crtc {
 	unsigned int dptsr_read;
 	unsigned int use_count;
 
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	int lif_enable;
 	void *vpsd_handle;
 #endif

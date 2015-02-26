@@ -25,7 +25,7 @@
 #include "vspd_drv.h"
 #include "vsp_du_if.h"
 
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 struct vsp_du_if {
 	int active;
 	struct vspd_private_data *pdata;
@@ -408,5 +408,5 @@ int vsp_du_if_du_info(void *callback_data)
 MODULE_ALIAS("vsp_du_if");
 MODULE_LICENSE("GPL");
 
-#endif /* RCAR_DU_CONNECT_VSP */
+#endif /* CONFIG_DRM_RCAR_DU_CONNECT_VSP */
 

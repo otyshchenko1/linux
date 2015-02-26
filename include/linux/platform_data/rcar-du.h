@@ -16,8 +16,6 @@
 
 #include <drm/drm_mode.h>
 
-#define RCAR_DU_CONNECT_VSP 1
-
 enum rcar_du_output {
 	RCAR_DU_OUTPUT_DPAD0,
 	RCAR_DU_OUTPUT_DPAD1,
@@ -36,7 +34,7 @@ enum rcar_du_encoder_type {
 	RCAR_DU_ENCODER_HDMI,
 };
 
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 enum rcar_du_connect_vsp {
 	RCAR_DU_VSPD_UNUSED = -1,
 	RCAR_DU_VSPD_0,
@@ -90,7 +88,7 @@ struct rcar_du_encoder_data {
 struct rcar_du_crtc_data {
 	unsigned int exclk;
 	unsigned int init_conn_type;
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	enum rcar_du_connect_vsp vsp;
 #endif
 };

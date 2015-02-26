@@ -19,7 +19,7 @@ config DRM_RCAR_LVDS
 
 config DRM_RCAR_DESKTOP_TURN_OFF
 	bool "R-Car DU turn off desktop layer"
-	depends on DRM_RCAR_DU
+	depends on DRM_RCAR_DU && !DRM_RCAR_DU_CONNECT_VSP
 	default n
 	help
 	  Choose this option if you want to turn off desktop layer.
@@ -29,8 +29,9 @@ config DRM_RCAR_DESKTOP_TURN_OFF
 
 config DRM_RCAR_ALPHA_BIT_ARGB1555
 	int "R-Car DU alpha bit function of ARGB1555"
-	depends on DRM_RCAR_DU
+	depends on DRM_RCAR_DU && !DRM_RCAR_DU_CONNECT_VSP
 	range 0 1
+	default 0
 	help
 	  Choose this option if you select A bit function of ARGB1555.
 	  If you set value to 0, pixel alpha blending is performed
@@ -41,7 +42,8 @@ config DRM_RCAR_ALPHA_BIT_ARGB1555
 config DRM_RCAR_DU_OVERLAY_CH
 	hex "R-Car DU initial channel of overlay layers"
 	range 0 0x3f
-	depends on DRM_RCAR_DU
+	default 0x3f
+	depends on DRM_RCAR_DU && !DRM_RCAR_DU_CONNECT_VSP
 	help
 	  The value of configuration indicates initial channel of
 	  overlay layers. Bit 0 shows overlay0 layer and it can
@@ -51,9 +53,18 @@ config DRM_RCAR_DU_OVERLAY_CH
 	  The initial channel of overlay layer is DU channel 1
 	  when the value of bit is set as "1".
 
+config DRM_RCAR_DU_CONNECT_VSP
+	bool "R-Car DU VSP connection support"
+	depends on DRM_RCAR_DU
+	help
+	  Enable support VSP connection.
+
+	  If you want to connect VSP with DU, you select y.
+	  If you don't want to connect VSP with DU, you select n.
+
 config DRM_RCAR_DU0_USE_VSPDU_CH
 	int "R-Car DU0 use VSPDU channel"
-	depends on DRM_RCAR_DU
+	depends on DRM_RCAR_DU && DRM_RCAR_DU_CONNECT_VSP
 	default "0"
 	help
 	  Choose this option if DU0 select to use VSPDU channel.
@@ -64,7 +75,7 @@ config DRM_RCAR_DU0_USE_VSPDU_CH
 
 config DRM_RCAR_DU1_USE_VSPDU_CH
 	int "R-Car DU1 use VSPDU channel"
-	depends on DRM_RCAR_DU
+	depends on DRM_RCAR_DU && DRM_RCAR_DU_CONNECT_VSP
 	default "1"
 	help
 	  Choose this option if DU1 select to use VSPDU channel.
@@ -77,7 +88,7 @@ config DRM_RCAR_DU1_USE_VSPDU_CH
 config DRM_RCAR_DU2_USE_VSPDU_CH
 	int "R-Car DU2 use VSPDU channel"
 	default "-1"
-	depends on DRM_RCAR_DU
+	depends on DRM_RCAR_DU && DRM_RCAR_DU_CONNECT_VSP
 	help
 	  Choose this option if DU2 select to use VSPDU channel.
 	  Only R8A7790 can use DU2 connected by VSPDU1.

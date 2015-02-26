@@ -142,7 +142,7 @@ static int rcar_du_plane_find(struct rcar_du_group *rgrp, unsigned int count,
 	if (fixed >= 0)
 		return rgrp->planes.free & (1 << fixed) ? fixed : -EBUSY;
 
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	for (i = 2; i < (ARRAY_SIZE(rgrp->planes.planes) - 1); i++) {
 #else
 	for (i = ARRAY_SIZE(rgrp->planes.planes) - 1; i >= 0; --i) {
@@ -194,7 +194,7 @@ int rcar_du_plane_reserve(struct rcar_du_plane *plane,
 	return __rcar_du_plane_reserve(plane, format, RCAR_DU_PLANE_MEMORY);
 }
 
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 int rcar_du_plane_reserve_src(struct rcar_du_plane *plane,
 			  const struct rcar_du_format_info *format,
 			  enum rcar_du_plane_source source)
@@ -301,18 +301,20 @@ static void rcar_du_plane_setup_mode(struct rcar_du_plane *plane,
 	 * For XRGB, set the alpha value to the plane-wide alpha value and
 	 * enable alpha-blending regardless of the X bit value.
 	 */
+#ifndef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	if (CONFIG_DRM_RCAR_ALPHA_BIT_ARGB1555 == 1)
 		alpha_bit = PnALPHAR_ABIT_1;
 	else
 		alpha_bit = PnALPHAR_ABIT_0;
-
+#else
+	alpha_bit = PnALPHAR_ABIT_1;
+#endif
 	if (plane->format->fourcc == DRM_FORMAT_ARGB1555)
 		rcar_du_plane_write(rgrp, index, PnALPHAR,
 				    alpha_bit | plane->alpha);
 	else
 		rcar_du_plane_write(rgrp, index, PnALPHAR,
 				    PnALPHAR_ABIT_X | plane->alpha);
-
 	/* Disable alpha blending of lowest plane */
 	if (plane->fb_plane == true)
 		pnmr = PnMR_BM_MD | ((plane->format->pnmr) & ~PnMR_SPIM_MASK) |
@@ -428,7 +430,7 @@ void rcar_du_plane_setup(struct rcar_du_plane *plane)
 	rcar_du_plane_update_base(plane);
 }
 
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 static int rcar_du_plane_order_sort_update(struct rcar_du_plane *plane)
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(plane->crtc);
@@ -682,7 +684,7 @@ static const struct drm_plane_funcs rcar_du_plane_lif_funcs = {
 	.set_property = rcar_du_plane_set_property,
 };
 
-#else /* RCAR_DU_CONNECT_VSP */
+#else /* CONFIG_DRM_RCAR_DU_CONNECT_VSP */
 
 static int
 rcar_du_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
@@ -955,7 +957,7 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 	if (planes->colorkey == NULL)
 		return -ENOMEM;
 
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	planes->zpos =
 		drm_property_create_range(rcdu->ddev, 0, "zpos", 1, 3);
 #else
@@ -992,7 +994,7 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 		plane->zpos = 0;
 	}
 
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	for (i = 0; i < VSPD_NUM_KMS_PLANES; ++i) {
 		int j;
 		for (j = 0; j < 2; j++) {
@@ -1014,7 +1016,7 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 }
 
 
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 static int vpsd_planes_register(struct rcar_du_group *rgrp, int du_ch)
 {
 	struct rcar_du_planes *planes = &rgrp->planes;
@@ -1062,7 +1064,7 @@ static int vpsd_planes_register(struct rcar_du_group *rgrp, int du_ch)
 
 		drm_object_attach_property(&plane->plane.base,
 					   planes->alpha, 255);
-#ifndef RCAR_DU_CONNECT_VSP
+#ifndef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 		drm_object_attach_property(&plane->plane.base,
 					   planes->colorkey,
 					   RCAR_DU_COLORKEY_NONE);
@@ -1082,7 +1084,7 @@ static int vpsd_planes_register(struct rcar_du_group *rgrp, int du_ch)
 
 int rcar_du_planes_register(struct rcar_du_group *rgrp)
 {
-#ifdef RCAR_DU_CONNECT_VSP
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	struct rcar_du_device *rcdu = rgrp->dev;
 	struct rcar_du_planes *planes = &rgrp->planes;
 	unsigned int crtcs;
