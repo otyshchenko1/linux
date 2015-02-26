@@ -173,6 +173,48 @@ int vsp_du_if_update_plane(void *handle, int vsp_plane,
 	return ret;
 }
 
+int vsp_du_if_update_planes(void *handle,
+			   struct rcar_du_plane rplanes[], int num)
+{
+	struct vsp_du_if *du_if = (struct vsp_du_if *)handle;
+	int ret;
+	int i;
+
+	if (!handle) {
+		pr_err("[Error] %s : handle is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < num; i++) {
+		if ((rplanes[i].hwindex < 1) ||
+			(VSPD_INPUT_IMAGE_NUM < rplanes[i].hwindex)) {
+			pr_err("[Error] %s : vspd plane invalid\n",
+					__func__);
+			return -ENOSPC;
+		}
+	}
+
+	mutex_lock(&du_if->lock);
+
+	for (i = 0; i < num; i++) {
+		int vsp_plane = rplanes[i].hwindex;
+		struct rcar_du_plane *rplane =
+			rplanes[i].enabled ? &rplanes[i] : NULL;
+
+		ret = set_plane_param(du_if, vsp_plane, rplane);
+		if (ret)
+			goto end;
+	}
+	if (du_if->active) {
+		ret = vspd_dl_output_du(du_if->pdata,
+			du_if->blend, du_if->interlace, VSPD_FENCE_NONE);
+	}
+end:
+	mutex_unlock(&du_if->lock);
+
+	return ret;
+}
+
 int vsp_du_if_setup_base(void *handle, struct rcar_du_plane *rplane,
 				bool interlace)
 {

@@ -437,7 +437,6 @@ static int rcar_du_plane_order_sort_update(struct rcar_du_plane *plane)
 	struct rcar_du_plane *tmp_planes[VSPD_NUM_KMS_PLANES];
 	unsigned int ret, i, j, num_planes = 0, ch_index;
 	unsigned int planes_order[VSPD_NUM_KMS_PLANES];
-	bool blend;
 	int scaling = 0;
 
 	switch (rcrtc->index) {
@@ -485,19 +484,12 @@ static int rcar_du_plane_order_sort_update(struct rcar_du_plane *plane)
 		struct rcar_du_plane *tmp_plane =
 			&planes->vspd_planes[ch_index][i];
 
-		if (i == (VSPD_NUM_KMS_PLANES - 1))
-			blend = true;
-		else
-			blend = false;
 		tmp_plane->hwindex = planes_order[(tmp_plane->hwindex - 1)];
-		if (tmp_plane->enabled) {
-			ret = vsp_du_if_update_plane(rcrtc->vpsd_handle,
-					 tmp_plane->hwindex, tmp_plane, blend);
-		} else {
-			ret = vsp_du_if_update_plane(rcrtc->vpsd_handle,
-					 tmp_plane->hwindex, NULL, blend);
-		}
 	}
+
+	ret = vsp_du_if_update_planes(rcrtc->vpsd_handle,
+			planes->vspd_planes[ch_index], VSPD_NUM_KMS_PLANES);
+
 done:
 	return ret;
 }
@@ -593,10 +585,9 @@ static int rcar_du_plane_disable(struct drm_plane *plane)
 	if (!rplane->enabled)
 		return 0;
 
-	vsp_du_if_update_plane(rcrtc->vpsd_handle, rplane->hwindex, NULL, true);
-
 	mutex_lock(&rplane->group->planes.lock);
 	rplane->enabled = false;
+	vsp_du_if_update_plane(rcrtc->vpsd_handle, rplane->hwindex, NULL, true);
 	mutex_unlock(&rplane->group->planes.lock);
 
 	rplane->crtc = NULL;
