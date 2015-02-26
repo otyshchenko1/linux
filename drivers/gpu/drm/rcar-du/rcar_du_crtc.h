@@ -20,6 +20,10 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 
+#ifdef RCAR_DU_CONNECT_VSP
+#include "vsp_du_if.h"
+#endif
+
 struct rcar_du_group;
 struct rcar_du_plane;
 
@@ -40,6 +44,11 @@ struct rcar_du_crtc {
 	int lvds_ch;
 	unsigned int dptsr_read;
 	unsigned int use_count;
+
+#ifdef RCAR_DU_CONNECT_VSP
+	int lif_enable;
+	void *vpsd_handle;
+#endif
 };
 
 #define to_rcar_crtc(c)	container_of(c, struct rcar_du_crtc, crtc)

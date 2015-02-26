@@ -321,14 +321,23 @@ static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 	if (WARN_ON(rcrtc->plane->format == NULL))
 		return;
 
+#ifdef RCAR_DU_CONNECT_VSP
+	if (rcrtc->lif_enable)
+		vsp_du_if_start(rcrtc->vpsd_handle);
+#endif
+
 	/* Set display off and background to black */
 	rcar_du_crtc_write(rcrtc, DOOR, DOOR_RGB(0, 0, 0));
 	rcar_du_crtc_write(rcrtc, BPOR, BPOR_RGB(0, 0, 0));
 
 	/* Initialized DPTSR register */
 	if ((rcrtc->group->dptsr_init) && (rcrtc->index < DU_CH_2)) {
+#ifdef RCAR_DU_CONNECT_VSP
+		dptsr = rcrtc->group->dptsr_init_val;
+#else
 		dptsr = ((CONFIG_DRM_RCAR_DU_OVERLAY_CH << DPTSR_DK_BIT_SHIFT) |
 			(CONFIG_DRM_RCAR_DU_OVERLAY_CH << DPTSR_TS_BIT_SHIFT));
+#endif
 		rcar_du_group_write(rcrtc->group, DPTSR, DPTSR_MASK
 		     & (rcar_du_group_read(rcrtc->group, DPTSR) | dptsr));
 		rcar_du_group_restart(rcrtc->group);
@@ -357,6 +366,25 @@ static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 			plane->interlace_flag = false;
 		rcar_du_plane_setup(plane);
 	}
+#ifdef RCAR_DU_CONNECT_VSP
+	if (rcrtc->lif_enable) {
+		const struct rcar_du_crtc_data *pdata =
+			&rcrtc->group->dev->pdata->crtcs[rcrtc->index];
+
+		if (pdata->vsp == RCAR_DU_VSPD_1) {
+			struct rcar_du_plane *rplane = rcrtc->plane;
+			struct rcar_du_device *rcdu = rplane->group->dev;
+			unsigned int vspd1_sink =
+				rplane->group->index ? 2 : 0;
+
+			if (rcdu->vspd1_sink != vspd1_sink) {
+				rcdu->vspd1_sink = vspd1_sink;
+				rcar_du_set_dpad0_vsp1_routing(rcdu);
+			}
+		}
+		rcar_du_group_restart(rcrtc->group);
+	}
+#endif
 
 	/* Select master sync mode. This enables display operation in master
 	 * sync mode (with the HSYNC and VSYNC signals configured as outputs and
@@ -410,6 +438,11 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 	rcar_du_group_start_stop(rcrtc->group, false);
 
 	rcrtc->started = false;
+
+#ifdef RCAR_DU_CONNECT_VSP
+	if (rcrtc->lif_enable)
+		vsp_du_if_stop(rcrtc->vpsd_handle);
+#endif
 }
 
 void rcar_du_crtc_suspend(struct rcar_du_crtc *rcrtc)
@@ -431,11 +464,22 @@ static void rcar_du_crtc_update_base(struct rcar_du_crtc *rcrtc)
 {
 	struct drm_crtc *crtc = &rcrtc->crtc;
 
+#ifdef RCAR_DU_CONNECT_VSP
+	rcar_du_plane_compute_base(rcrtc->plane, crtc->fb);
+
+	if (rcrtc->lif_enable)
+		vsp_du_if_update_base(rcrtc->vpsd_handle, rcrtc->plane);
+	else
+		rcar_du_plane_update_base(rcrtc->plane);
+#else
 	rcrtc->plane->pitch = crtc->fb->pitches[0];
 
 	rcar_du_plane_compute_base(rcrtc->plane, crtc->fb);
+
 	rcar_du_plane_update_base(rcrtc->plane);
+#endif
 }
+
 
 static void rcar_du_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
@@ -503,6 +547,11 @@ static int rcar_du_crtc_mode_set(struct drm_crtc *crtc,
 	struct rcar_du_device *rcdu = rcrtc->group->dev;
 	const struct rcar_du_format_info *format;
 	int ret;
+#ifdef RCAR_DU_CONNECT_VSP
+	enum rcar_du_plane_source source;
+	const struct rcar_du_crtc_data *pdata =
+			&rcrtc->group->dev->pdata->crtcs[rcrtc->index];
+#endif
 
 	format = rcar_du_format_info(crtc->fb->pixel_format);
 	if (format == NULL) {
@@ -512,7 +561,25 @@ static int rcar_du_crtc_mode_set(struct drm_crtc *crtc,
 		goto error;
 	}
 
+#ifdef RCAR_DU_CONNECT_VSP
+	switch (format->fourcc) {
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
+		if (rcrtc->vpsd_handle) {
+			source = pdata->vsp == RCAR_DU_VSPD_0 ?
+				RCAR_DU_PLANE_VSPD0 : RCAR_DU_PLANE_VSPD1;
+			rcrtc->lif_enable = 1;
+			break;
+		}
+	default:
+		source = RCAR_DU_PLANE_MEMORY;
+		rcrtc->lif_enable = 0;
+		break;
+	}
+	ret = rcar_du_plane_reserve_src(rcrtc->plane, format, source);
+#else
 	ret = rcar_du_plane_reserve(rcrtc->plane, format);
+#endif
 	if (ret < 0)
 		goto error;
 
@@ -522,10 +589,20 @@ static int rcar_du_crtc_mode_set(struct drm_crtc *crtc,
 	rcrtc->plane->src_y = y;
 	rcrtc->plane->width = mode->hdisplay;
 	rcrtc->plane->height = mode->vdisplay;
-
+#ifdef RCAR_DU_CONNECT_VSP
+	rcrtc->plane->d_width = mode->hdisplay;
+	rcrtc->plane->d_height = mode->vdisplay;
+#endif
 	rcar_du_plane_compute_base(rcrtc->plane, crtc->fb);
 
 	rcrtc->outputs = 0;
+
+#ifdef RCAR_DU_CONNECT_VSP
+	if (rcrtc->lif_enable)
+		vsp_du_if_setup_base(rcrtc->vpsd_handle, rcrtc->plane,
+			rcrtc->crtc.mode.flags & DRM_MODE_FLAG_INTERLACE ?
+							true : false);
+#endif
 
 	return 0;
 
@@ -548,6 +625,7 @@ static void rcar_du_crtc_mode_commit(struct drm_crtc *crtc)
 	 */
 	rcar_du_crtc_start(rcrtc);
 	rcrtc->dpms = DRM_MODE_DPMS_ON;
+
 }
 
 static int rcar_du_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
@@ -691,8 +769,23 @@ static int rcar_du_crtc_page_flip(struct drm_crtc *crtc,
 	return 0;
 }
 
+#ifdef RCAR_DU_CONNECT_VSP
+void rcar_du_crtc_cleanup(struct drm_crtc *crtc)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+
+	if (rcrtc->vpsd_handle)
+		vsp_du_if_deinit(rcrtc->vpsd_handle);
+	drm_crtc_cleanup(crtc);
+}
+#endif
+
 static const struct drm_crtc_funcs crtc_funcs = {
+#ifdef RCAR_DU_CONNECT_VSP
+	.destroy = rcar_du_crtc_cleanup,
+#else
 	.destroy = drm_crtc_cleanup,
+#endif
 	.set_config = drm_crtc_helper_set_config,
 	.page_flip = rcar_du_crtc_page_flip,
 };
@@ -714,6 +807,9 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 	int ret;
 	const struct rcar_du_crtc_data *pdata =
 			&rgrp->dev->pdata->crtcs[index];
+#ifdef RCAR_DU_CONNECT_VSP
+	int plane_bit;
+#endif
 
 	/* Get the CRTC clock. */
 	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_CRTC_IRQ_CLOCK)) {
@@ -799,6 +895,49 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 			"failed to register IRQ for CRTC %u\n", index);
 		return ret;
 	}
+
+
+#ifdef RCAR_DU_CONNECT_VSP
+	rcrtc->lif_enable = 0;
+	if (pdata->vsp == RCAR_DU_VSPD_UNUSED) {
+		rcrtc->vpsd_handle = NULL;
+		goto end;
+	} else if (DU_CH_2 <= rcrtc->index) {
+		if (pdata->vsp == RCAR_DU_VSPD_0) {
+			rcrtc->vpsd_handle = NULL;
+			goto end;
+		}
+		dev_info(rcdu->dev, "DU%d use VSPD%d\n", index, pdata->vsp - 1);
+		plane_bit = 0x01;
+	} else {
+		dev_info(rcdu->dev, "DU%d use VSPD%d\n", index, pdata->vsp - 1);
+		switch (pdata->vsp) {
+		case RCAR_DU_VSPD_0:
+			plane_bit = 0x01;
+			break;
+		case RCAR_DU_VSPD_1:
+			plane_bit = 0x02;
+			break;
+		default:
+			/* for build warning */
+			break;
+		}
+	}
+
+	plane_bit = (plane_bit << DPTSR_DK_BIT_SHIFT) |
+		    (plane_bit << DPTSR_TS_BIT_SHIFT);
+
+	rcrtc->vpsd_handle = vsp_du_if_init(rcdu->dev, pdata->vsp);
+	if (rcrtc->vpsd_handle == NULL) {
+		dev_err(rcdu->dev, "[Error] vsp_du_if_init\n");
+	} else {
+		if ((rcrtc->index % 2) == 0)
+			rcrtc->group->dptsr_init_val &= ~plane_bit;
+		else
+			rcrtc->group->dptsr_init_val |= plane_bit;
+	}
+end:
+#endif
 
 	return 0;
 }

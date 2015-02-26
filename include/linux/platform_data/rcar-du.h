@@ -16,6 +16,8 @@
 
 #include <drm/drm_mode.h>
 
+#define RCAR_DU_CONNECT_VSP 1
+
 enum rcar_du_output {
 	RCAR_DU_OUTPUT_DPAD0,
 	RCAR_DU_OUTPUT_DPAD1,
@@ -33,6 +35,14 @@ enum rcar_du_encoder_type {
 	RCAR_DU_ENCODER_LVDS,
 	RCAR_DU_ENCODER_HDMI,
 };
+
+#ifdef RCAR_DU_CONNECT_VSP
+enum rcar_du_connect_vsp {
+	RCAR_DU_VSPD_UNUSED = 0,
+	RCAR_DU_VSPD_0,
+	RCAR_DU_VSPD_1,
+};
+#endif
 
 struct rcar_du_panel_data {
 	unsigned int width_mm;		/* Panel width in mm */
@@ -77,6 +87,9 @@ struct rcar_du_encoder_data {
 struct rcar_du_crtc_data {
 	unsigned int exclk;
 	unsigned int init_conn_type;
+#ifdef RCAR_DU_CONNECT_VSP
+	enum rcar_du_connect_vsp vsp;
+#endif
 };
 
 struct rcar_du_platform_data {

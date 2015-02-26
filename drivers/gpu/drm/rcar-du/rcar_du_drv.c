@@ -200,6 +200,123 @@ static void rcar_du_disable_vblank(struct drm_device *dev, int crtc)
 	rcar_du_crtc_enable_vblank(&rcdu->crtcs[crtc], false);
 }
 
+
+#ifdef RCAR_DU_CONNECT_VSP
+
+int rcar_du_debug_reg(struct drm_device *dev, void *data,
+		struct drm_file *file_priv)
+{
+	int i;
+	int crtc_id = *(int *)data;
+	struct drm_mode_object *obj;
+	struct drm_crtc *crtc;
+	struct rcar_du_crtc *rcrtc;
+
+	obj = drm_mode_object_find(dev, crtc_id, DRM_MODE_OBJECT_CRTC);
+	if (!obj)
+		return -EINVAL;
+	crtc = obj_to_crtc(obj);
+
+	rcrtc = to_rcar_crtc(crtc);
+
+#define rcar_dbg_print(fmt, ...) \
+	pr_info(KERN_INFO fmt, ##__VA_ARGS__)
+
+#define group_dbg_print(fmt, rcrtc, reg) \
+	rcar_dbg_print(fmt, rcar_du_group_read(rcrtc->group, reg));
+
+	rcar_dbg_print("Control Register\n");
+	group_dbg_print(" DS1PR    0x%08x\n", rcrtc, DS1PR);
+	group_dbg_print(" DS2PR    0x%08x\n", rcrtc, DS2PR);
+	group_dbg_print(" DORCR    0x%08x\n", rcrtc, DORCR);
+	group_dbg_print(" DPTSR    0x%08x\n", rcrtc, DPTSR);
+	rcar_dbg_print("\n");
+
+#define plane_read(rcrtc, index, reg) \
+	rcar_du_read((rcrtc->group)->dev, \
+		(rcrtc->group)->mmio_offset + index * PLANE_OFF + reg)
+
+#define plane_dbg_print(fmt, rcrtc, index, reg) \
+		rcar_dbg_print(fmt, index + 1, plane_read(rcrtc, index, PnMR))
+
+	rcar_dbg_print("Plnae Register\n");
+	for (i = 0; i < 8; i++) {
+		plane_dbg_print(" P%dMR     0x%08x\n", rcrtc, i, PnMR);
+		plane_dbg_print(" P%dMWR    0x%08x\n", rcrtc, i, PnMWR);
+		plane_dbg_print(" P%dALPHAR 0x%08x\n", rcrtc, i, PnALPHAR);
+		plane_dbg_print(" P%dDSXR   0x%08x\n", rcrtc, i, PnDSXR);
+		plane_dbg_print(" P%dDSYR   0x%08x\n", rcrtc, i, PnDSYR);
+		plane_dbg_print(" P%dDPXR   0x%08x\n", rcrtc, i, PnDPXR);
+		plane_dbg_print(" P%dDPYR   0x%08x\n", rcrtc, i, PnDPYR);
+		plane_dbg_print(" P%dDSA0R  0x%08x\n", rcrtc, i, PnDSA0R);
+		plane_dbg_print(" P%dDSA1R  0x%08x\n", rcrtc, i, PnDSA1R);
+		plane_dbg_print(" P%dDSA2R  0x%08x\n", rcrtc, i, PnDSA2R);
+		plane_dbg_print(" P%dSPXR   0x%08x\n", rcrtc, i, PnSPXR);
+		plane_dbg_print(" P%dSPYR   0x%08x\n", rcrtc, i, PnSPYR);
+		plane_dbg_print(" P%dWASPR  0x%08x\n", rcrtc, i, PnWASPR);
+		plane_dbg_print(" P%dWAMWR  0x%08x\n", rcrtc, i, PnWAMWR);
+		plane_dbg_print(" P%dBTR    0x%08x\n", rcrtc, i, PnBTR);
+		plane_dbg_print(" P%dTC1R   0x%08x\n", rcrtc, i, PnTC1R);
+		plane_dbg_print(" P%dTC2R   0x%08x\n", rcrtc, i, PnTC2R);
+		plane_dbg_print(" P%dTC3R   0x%08x\n", rcrtc, i, PnTC3R);
+		plane_dbg_print(" P%dMLR    0x%08x\n", rcrtc, i, PnMLR);
+		plane_dbg_print(" P%dSWAPR  0x%08x\n", rcrtc, i, PnSWAPR);
+		plane_dbg_print(" P%dDDCR   0x%08x\n", rcrtc, i, PnDDCR);
+		plane_dbg_print(" P%dDDC2R  0x%08x\n", rcrtc, i, PnDDCR2);
+		plane_dbg_print(" P%dDDC4R  0x%08x\n", rcrtc, i, PnDDCR4);
+		rcar_dbg_print("\n");
+	}
+
+	rcar_dbg_print("group Register\n");
+	group_dbg_print(" DEFR8     0x%08x\n", rcrtc, DEFR8);
+
+	return 0;
+}
+
+int rcar_du_debug_reg_vsp(struct drm_device *dev, void *data,
+		struct drm_file *file_priv)
+{
+	int crtc_id = *(int *)data;
+	struct drm_mode_object *obj;
+	struct drm_crtc *crtc;
+	struct rcar_du_crtc *rcrtc;
+
+	obj = drm_mode_object_find(dev, crtc_id, DRM_MODE_OBJECT_CRTC);
+	if (!obj)
+		return -EINVAL;
+	crtc = obj_to_crtc(obj);
+
+	rcrtc = to_rcar_crtc(crtc);
+
+	if (rcrtc->vpsd_handle == NULL)
+		return -EINVAL;
+
+	vsp_du_if_reg_debug(rcrtc->vpsd_handle);
+
+	return 0;
+}
+
+#define DRM_RCAR_DU_SET_PLANE_FENCE	0
+#define DRM_RCAR_DU_DBG		1
+#define DRM_RCAR_DU_DBG_VSP	2
+
+#define DRM_IOCTL_RCAR_DU_SET_PLANE_FENCE \
+	DRM_IOW(DRM_RCAR_DU_SET_PLANE_FENCE, struct drm_mode_set_plane)
+#define DRM_IOCTL_RCAR_DU_DBG		DRM_IOW(DRM_RCAR_DU_DBG, int)
+#define DRM_IOCTL_RCAR_DU_DBG_VSP	DRM_IOW(DRM_RCAR_DU_DBG_VSP, int)
+
+static const struct drm_ioctl_desc rcar_du_ioctls[] = {
+	DRM_IOCTL_DEF_DRV(RCAR_DU_SET_PLANE_FENCE, drm_noop,
+		DRM_UNLOCKED | DRM_CONTROL_ALLOW),
+	/* Debug gunction */
+	DRM_IOCTL_DEF_DRV(RCAR_DU_DBG, rcar_du_debug_reg,
+		DRM_UNLOCKED | DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF_DRV(RCAR_DU_DBG_VSP, rcar_du_debug_reg_vsp,
+		DRM_UNLOCKED | DRM_CONTROL_ALLOW),
+};
+#endif /* RCAR_DU_CONNECT_VSP */
+
+
 static const struct file_operations rcar_du_fops = {
 	.owner		= THIS_MODULE,
 	.open		= drm_open,
@@ -238,6 +355,10 @@ static struct drm_driver rcar_du_driver = {
 	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
 	.dumb_destroy		= drm_gem_dumb_destroy,
 	.fops			= &rcar_du_fops,
+#ifdef RCAR_DU_CONNECT_VSP
+	.ioctls			= rcar_du_ioctls,
+	.num_ioctls		= ARRAY_SIZE(rcar_du_ioctls),
+#endif
 	.name			= "rcar-du",
 	.desc			= "Renesas R-Car Display Unit",
 	.date			= "20130110",

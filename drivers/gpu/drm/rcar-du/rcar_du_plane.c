@@ -142,7 +142,11 @@ static int rcar_du_plane_find(struct rcar_du_group *rgrp, unsigned int count,
 	if (fixed >= 0)
 		return rgrp->planes.free & (1 << fixed) ? fixed : -EBUSY;
 
+#ifdef RCAR_DU_CONNECT_VSP
+	for (i = 2; i < (ARRAY_SIZE(rgrp->planes.planes) - 1); i++) {
+#else
 	for (i = ARRAY_SIZE(rgrp->planes.planes) - 1; i >= 0; --i) {
+#endif
 		if (!(rgrp->planes.free & (1 << i)))
 			continue;
 
@@ -189,6 +193,15 @@ int rcar_du_plane_reserve(struct rcar_du_plane *plane,
 {
 	return __rcar_du_plane_reserve(plane, format, RCAR_DU_PLANE_MEMORY);
 }
+
+#ifdef RCAR_DU_CONNECT_VSP
+int rcar_du_plane_reserve_src(struct rcar_du_plane *plane,
+			  const struct rcar_du_format_info *format,
+			  enum rcar_du_plane_source source)
+{
+	return __rcar_du_plane_reserve(plane, format, source);
+}
+#endif
 
 void rcar_du_plane_release(struct rcar_du_plane *plane)
 {
@@ -415,6 +428,148 @@ void rcar_du_plane_setup(struct rcar_du_plane *plane)
 	rcar_du_plane_update_base(plane);
 }
 
+#ifdef RCAR_DU_CONNECT_VSP
+static int
+rcar_du_plane_update_core(struct drm_plane *plane, struct drm_crtc *crtc,
+		       struct drm_framebuffer *fb, struct drm_live_source *src,
+		       int crtc_x, int crtc_y,
+		       unsigned int crtc_w, unsigned int crtc_h,
+		       uint32_t src_x, uint32_t src_y,
+		       uint32_t src_w, uint32_t src_h,
+		       int use_sync)
+{
+	struct rcar_du_plane *rplane = to_rcar_plane(plane);
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+	const struct rcar_du_format_info *format;
+
+	if (!rcrtc->lif_enable)
+		return -EINVAL;
+
+	if (!fb)
+		return -EINVAL;
+
+	format = rcar_du_format_info(fb->pixel_format);
+
+	rplane->crtc = crtc;
+	rplane->format = format;
+	rplane->pitch = fb->pitches[0];
+
+	rplane->src_x = src_x >> 16;
+	rplane->src_y = src_y >> 16;
+	rplane->dst_x = crtc_x;
+	rplane->dst_y = crtc_y;
+	rplane->width = src_w >> 16;
+	rplane->height = src_h >> 16;
+	rplane->d_width = crtc_w;
+	rplane->d_height = crtc_h;
+
+	rcar_du_plane_compute_base(rplane, fb);
+	if (crtc->mode.flags & DRM_MODE_FLAG_INTERLACE)
+		rplane->interlace_flag = true;
+	else
+		rplane->interlace_flag = false;
+
+	mutex_lock(&rplane->group->planes.lock);
+	rplane->enabled = true;
+	mutex_unlock(&rplane->group->planes.lock);
+
+	return vsp_du_if_update_plane(rcrtc->vpsd_handle,
+				rplane->hwindex, rplane);
+}
+
+static int
+rcar_du_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
+		       struct drm_framebuffer *fb, struct drm_live_source *src,
+		       int crtc_x, int crtc_y,
+		       unsigned int crtc_w, unsigned int crtc_h,
+		       uint32_t src_x, uint32_t src_y,
+		       uint32_t src_w, uint32_t src_h)
+{
+	return rcar_du_plane_update_core(plane, crtc, fb, src,
+		       crtc_x, crtc_y, crtc_w, crtc_h,
+		       src_x, src_y, src_w, src_h,
+		       0);
+}
+
+static int rcar_du_plane_disable(struct drm_plane *plane)
+{
+	struct rcar_du_plane *rplane = to_rcar_plane(plane);
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(plane->crtc);
+
+	if (!rplane->enabled)
+		return 0;
+
+	vsp_du_if_update_plane(rcrtc->vpsd_handle, rplane->hwindex, NULL);
+
+	mutex_lock(&rplane->group->planes.lock);
+	rplane->enabled = false;
+	mutex_unlock(&rplane->group->planes.lock);
+
+	rplane->crtc = NULL;
+	rplane->format = NULL;
+
+	return 0;
+}
+
+static void rcar_du_plane_set_premultiplied(struct rcar_du_plane *plane,
+					u32 premultiplied)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(plane->crtc);
+
+	if (plane->premultiplied == premultiplied)
+		return;
+
+	plane->premultiplied = premultiplied;
+	if ((!plane->enabled) || (plane->format->fourcc != DRM_FORMAT_ARGB8888))
+		return;
+
+	vsp_du_if_update_plane(rcrtc->vpsd_handle, plane->hwindex, plane);
+}
+
+static void rcar_du_plane_set_alpha(struct rcar_du_plane *plane, u32 alpha)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(plane->crtc);
+
+	if (plane->alpha == alpha)
+		return;
+
+	plane->alpha = alpha;
+	if ((!plane->enabled) || (plane->format->fourcc == DRM_FORMAT_ARGB8888)
+			      || (plane->format->fourcc == DRM_FORMAT_UYVY)
+			      || (plane->format->fourcc == DRM_FORMAT_YUYV)
+			      || (plane->format->fourcc == DRM_FORMAT_NV12)
+			      || (plane->format->fourcc == DRM_FORMAT_NV21)
+			      || (plane->format->fourcc == DRM_FORMAT_NV16))
+		return;
+
+	vsp_du_if_update_plane(rcrtc->vpsd_handle, plane->hwindex, plane);
+}
+
+static int rcar_du_plane_set_property(struct drm_plane *plane,
+				      struct drm_property *property,
+				      uint64_t value)
+{
+	struct rcar_du_plane *rplane = to_rcar_plane(plane);
+	struct rcar_du_group *rgrp = rplane->group;
+
+	if (property == rgrp->planes.alpha)
+		rcar_du_plane_set_alpha(rplane, value);
+	else if (property == rgrp->planes.premultiplied)
+		rcar_du_plane_set_premultiplied(rplane, value);
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+static const struct drm_plane_funcs rcar_du_plane_lif_funcs = {
+	.update_plane = rcar_du_plane_update,
+	.disable_plane = rcar_du_plane_disable,
+	.set_property = rcar_du_plane_set_property,
+};
+
+#else /* RCAR_DU_CONNECT_VSP */
+
 static int
 rcar_du_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		       struct drm_framebuffer *fb, struct drm_live_source *src,
@@ -638,6 +793,7 @@ static const struct drm_plane_funcs rcar_du_plane_funcs = {
 	.set_property = rcar_du_plane_set_property,
 	.destroy = drm_plane_cleanup,
 };
+#endif
 
 static const uint32_t plane_formats[] = {
 	DRM_FORMAT_RGB565,
@@ -717,11 +873,122 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 		plane->zpos = 0;
 	}
 
+#ifdef RCAR_DU_CONNECT_VSP
+	planes->premultiplied =
+		drm_property_create_range(rcdu->ddev, 0, "premultiplied", 0, 1);
+	if (planes->premultiplied == NULL)
+		return -ENOMEM;
+
+	for (i = 0; i < VSPD_NUM_KMS_PLANES; ++i) {
+		int j;
+		for (j = 0; j < 2; j++) {
+			struct rcar_du_plane *plane =
+				&planes->vspd_planes[j][i];
+
+			plane->group = rgrp;
+			plane->hwindex = i + 1;
+			plane->source = RCAR_DU_PLANE_MEMORY;
+			plane->alpha = 255;
+			plane->colorkey = RCAR_DU_COLORKEY_NONE;
+			plane->zpos = 0;
+			plane->premultiplied = 0;
+		}
+	}
+#endif
+
 	return 0;
 }
 
+
+#ifdef RCAR_DU_CONNECT_VSP
+static int vpsd_planes_register(struct rcar_du_group *rgrp, int du_ch)
+{
+	struct rcar_du_planes *planes = &rgrp->planes;
+	struct rcar_du_device *rcdu = rgrp->dev;
+	int i;
+	int ret;
+	unsigned int crtc;
+	int ch_index;
+
+	switch (du_ch) {
+	case DU_CH_0:
+		ch_index = 0;
+		crtc = 1 << 0;
+		break;
+	case DU_CH_1:
+		ch_index = 1;
+		crtc = 1 << 1;
+		break;
+	case DU_CH_2:
+		ch_index = 0;
+		crtc = 1 << 2;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	for (i = 0; i < VSPD_NUM_KMS_PLANES; ++i) {
+		struct rcar_du_kms_plane *plane;
+
+		plane = devm_kzalloc(rcdu->dev, sizeof(*plane), GFP_KERNEL);
+		if (plane == NULL)
+			return -ENOMEM;
+
+		plane->hwplane = &planes->vspd_planes[ch_index][i];
+		plane->hwplane->zpos = 1;
+		plane->hwplane->fb_plane = false;
+		plane->hwplane->interlace_flag = false;
+		ret = drm_plane_init(
+				rcdu->ddev, &plane->plane, crtc,
+				&rcar_du_plane_lif_funcs, plane_formats,
+				ARRAY_SIZE(plane_formats), false);
+
+		if (ret < 0)
+			return ret;
+
+		drm_object_attach_property(&plane->plane.base,
+					   planes->alpha, 255);
+#ifndef RCAR_DU_CONNECT_VSP
+		drm_object_attach_property(&plane->plane.base,
+					   planes->colorkey,
+					   RCAR_DU_COLORKEY_NONE);
+#endif
+		drm_object_attach_property(&plane->plane.base,
+					   planes->zpos, 1);
+		drm_object_attach_property(&plane->plane.base,
+					   planes->channel, du_ch);
+		drm_object_attach_property(&plane->plane.base,
+					   planes->premultiplied, 0);
+	}
+
+	return 0;
+}
+#endif
+
+
 int rcar_du_planes_register(struct rcar_du_group *rgrp)
 {
+#ifdef RCAR_DU_CONNECT_VSP
+	struct rcar_du_device *rcdu = rgrp->dev;
+	unsigned int crtcs;
+	unsigned int i;
+	int ret;
+	const struct rcar_du_crtc_data *pdata =
+			rgrp->dev->pdata->crtcs;
+
+	crtcs = ((1 << rcdu->num_crtcs) - 1) & (3 << (2 * rgrp->index));
+
+	for (i = 0; i < rcdu->num_crtcs; i++) {
+		if (pdata[i].vsp == RCAR_DU_VSPD_UNUSED)
+			continue;
+
+		if (crtcs & (1 << i)) {
+			ret = vpsd_planes_register(rgrp, i);
+			if (ret < 0)
+				return ret;
+		}
+	}
+#else
 	struct rcar_du_planes *planes = &rgrp->planes;
 	struct rcar_du_device *rcdu = rgrp->dev;
 	unsigned int crtcs;
@@ -748,7 +1015,6 @@ int rcar_du_planes_register(struct rcar_du_group *rgrp)
 		plane->hwplane->zpos = 1;
 		plane->hwplane->fb_plane = false;
 		plane->hwplane->interlace_flag = false;
-
 		ret = drm_plane_init(rcdu->ddev, &plane->plane, crtcs,
 				     &rcar_du_plane_funcs, plane_formats,
 				     ARRAY_SIZE(plane_formats), false);
@@ -774,6 +1040,7 @@ int rcar_du_planes_register(struct rcar_du_group *rgrp)
 		drm_object_attach_property(&plane->plane.base,
 					   planes->channel, dptsr_ch);
 	}
+#endif
 
 	return 0;
 }

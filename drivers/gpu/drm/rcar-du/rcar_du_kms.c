@@ -232,6 +232,11 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 		rgrp->mmio_offset = mmio_offsets[i];
 		rgrp->index = i;
 		rgrp->dptsr_init = true;
+       #ifdef RCAR_DU_CONNECT_VSP
+		rgrp->dptsr_init_val =
+			((CONFIG_DRM_RCAR_DU_OVERLAY_CH << DPTSR_DK_BIT_SHIFT) |
+			(CONFIG_DRM_RCAR_DU_OVERLAY_CH << DPTSR_TS_BIT_SHIFT));
+       #endif
 
 		ret = rcar_du_planes_init(rgrp);
 		if (ret < 0)
@@ -304,11 +309,13 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 			return ret;
 	}
 
+#ifndef RCAR_DU_CONNECT_VSP
 	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_VSP1_SOURCE)) {
 		ret = rcar_du_vsp1_sources_init(rcdu);
 		if (ret < 0)
 			return ret;
 	}
+#endif
 
 	drm_kms_helper_poll_init(dev);
 

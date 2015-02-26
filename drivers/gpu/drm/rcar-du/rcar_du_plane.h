@@ -19,6 +19,8 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 
+#include <linux/platform_data/rcar-du.h>
+
 struct rcar_du_device;
 struct rcar_du_format_info;
 struct rcar_du_group;
@@ -29,10 +31,14 @@ struct rcar_du_group;
  * 9 software planes (one for each KMS planes and one for each CRTC).
  */
 
-#define RCAR_DU01_NUM_KMS_PLANES	6
-#define RCAR_DU2_NUM_KMS_PLANES		7
 #define RCAR_DU_NUM_HW_PLANES		8
 #define RCAR_DU_NUM_SW_PLANES		9
+#define RCAR_DU01_NUM_KMS_PLANES	6
+#define RCAR_DU2_NUM_KMS_PLANES		7
+
+#ifdef RCAR_DU_CONNECT_VSP
+#define VSPD_NUM_KMS_PLANES	3
+#endif
 
 #define DU_CH_0		0
 #define DU_CH_1		1
@@ -57,6 +63,9 @@ struct rcar_du_plane {
 	unsigned int colorkey;
 	unsigned int zpos;
 	unsigned int channel;
+#ifdef RCAR_DU_CONNECT_VSP
+	unsigned int premultiplied;
+#endif
 
 	const struct rcar_du_format_info *format;
 
@@ -65,7 +74,10 @@ struct rcar_du_plane {
 
 	unsigned int width;
 	unsigned int height;
-
+#ifdef RCAR_DU_CONNECT_VSP
+	unsigned int d_width;
+	unsigned int d_height;
+#endif
 	unsigned int src_x;
 	unsigned int src_y;
 	unsigned int dst_x;
@@ -77,6 +89,9 @@ struct rcar_du_plane {
 
 struct rcar_du_planes {
 	struct rcar_du_plane planes[RCAR_DU_NUM_SW_PLANES];
+#ifdef RCAR_DU_CONNECT_VSP
+	struct rcar_du_plane vspd_planes[2][VSPD_NUM_KMS_PLANES];
+#endif
 	unsigned int free;
 	bool need_restart;
 	struct mutex lock;
@@ -85,6 +100,9 @@ struct rcar_du_planes {
 	struct drm_property *colorkey;
 	struct drm_property *zpos;
 	struct drm_property *channel;
+#ifdef RCAR_DU_CONNECT_VSP
+	struct drm_property *premultiplied;
+#endif
 };
 
 int rcar_du_vsp1_sources_init(struct rcar_du_device *rcdu);
@@ -98,6 +116,11 @@ void rcar_du_plane_compute_base(struct rcar_du_plane *plane,
 				struct drm_framebuffer *fb);
 int rcar_du_plane_reserve(struct rcar_du_plane *plane,
 			  const struct rcar_du_format_info *format);
+#ifdef RCAR_DU_CONNECT_VSP
+int rcar_du_plane_reserve_src(struct rcar_du_plane *plane,
+			  const struct rcar_du_format_info *format,
+			  enum rcar_du_plane_source source);
+#endif
 void rcar_du_plane_release(struct rcar_du_plane *plane);
 
 #endif /* __RCAR_DU_PLANE_H__ */

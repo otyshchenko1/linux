@@ -39,6 +39,9 @@ struct rcar_du_group {
 	bool interlace_grp;
 
 	bool dptsr_init;
+#ifdef RCAR_DU_CONNECT_VSP
+	unsigned int dptsr_init_val;
+#endif
 };
 
 u32 rcar_du_group_read(struct rcar_du_group *rgrp, u32 reg);
