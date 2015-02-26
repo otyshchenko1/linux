@@ -231,6 +231,7 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 		rgrp->dev = rcdu;
 		rgrp->mmio_offset = mmio_offsets[i];
 		rgrp->index = i;
+		rgrp->dptsr_init = true;
 
 		ret = rcar_du_planes_init(rgrp);
 		if (ret < 0)
