@@ -5,7 +5,7 @@
 #include "rcar_du_plane.h"
 
 int vsp_du_if_update_plane(void *handle, int vsp_plane,
-			   struct rcar_du_plane *rplane);
+			   struct rcar_du_plane *rplane, bool blend);
 int vsp_du_if_setup_base(void *handle, struct rcar_du_plane *rplane,
 				bool interlace);
 int vsp_du_if_update_base(void *handle, struct rcar_du_plane *rplane);

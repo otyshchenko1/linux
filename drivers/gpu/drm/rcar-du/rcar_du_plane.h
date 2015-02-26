@@ -1,7 +1,7 @@
 /*
  * rcar_du_plane.h  --  R-Car Display Unit Planes
  *
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -85,6 +85,7 @@ struct rcar_du_plane {
 
 	bool fb_plane;
 	bool interlace_flag;
+	unsigned int order;
 };
 
 struct rcar_du_planes {

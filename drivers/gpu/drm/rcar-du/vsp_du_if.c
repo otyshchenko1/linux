@@ -144,7 +144,7 @@ static int set_plane_param(struct vsp_du_if *du_if, int vsp_plane,
 }
 
 int vsp_du_if_update_plane(void *handle, int vsp_plane,
-			   struct rcar_du_plane *rplane)
+			   struct rcar_du_plane *rplane, bool blend)
 {
 	struct vsp_du_if *du_if = (struct vsp_du_if *)handle;
 	int ret;
@@ -163,7 +163,7 @@ int vsp_du_if_update_plane(void *handle, int vsp_plane,
 	mutex_lock(&du_if->lock);
 
 	ret = set_plane_param(du_if, vsp_plane, rplane);
-	if (du_if->active && !ret) {
+	if (du_if->active && !ret && blend) {
 		ret = vspd_dl_output_du(du_if->pdata,
 			  du_if->blend, du_if->interlace, VSPD_FENCE_NONE);
 	}

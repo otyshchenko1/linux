@@ -1,7 +1,7 @@
 /*
  * rcar_du_plane.c  --  R-Car Display Unit Planes
  *
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -429,6 +429,70 @@ void rcar_du_plane_setup(struct rcar_du_plane *plane)
 }
 
 #ifdef RCAR_DU_CONNECT_VSP
+static int rcar_du_plane_order_sort_update(struct rcar_du_plane *plane)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(plane->crtc);
+	struct rcar_du_group *rgrp = plane->group;
+	struct rcar_du_planes *planes = &rgrp->planes;
+	struct rcar_du_plane *tmp_planes[VSPD_NUM_KMS_PLANES];
+	unsigned int ret, i, j, num_planes = 0, ch_index;
+	unsigned int planes_order[VSPD_NUM_KMS_PLANES];
+	bool blend;
+
+	switch (rcrtc->index) {
+	case DU_CH_0:
+		ch_index = 0;
+		break;
+	case DU_CH_1:
+		ch_index = 1;
+		break;
+	case DU_CH_2:
+		ch_index = 0;
+		break;
+	default:
+		ret = -EINVAL;
+		goto done;
+	}
+
+	/* sort order */
+	for (i = 0; i < VSPD_NUM_KMS_PLANES; ++i) {
+		struct rcar_du_plane *tmp_plane =
+			&planes->vspd_planes[ch_index][i];
+		for (j = num_planes++; j > 0; --j) {
+			if (tmp_planes[j-1]->zpos <= tmp_plane->zpos)
+				break;
+			tmp_planes[j] = tmp_planes[j-1];
+		}
+		tmp_planes[j] = tmp_plane;
+	}
+
+	for (i = 0; i < VSPD_NUM_KMS_PLANES; ++i) {
+		tmp_planes[i]->order = i + 1;
+		planes_order[(tmp_planes[i]->hwindex - 1)]
+					 = tmp_planes[i]->order;
+	}
+
+	for (i = 0; i < VSPD_NUM_KMS_PLANES; ++i) {
+		struct rcar_du_plane *tmp_plane =
+			&planes->vspd_planes[ch_index][i];
+
+		if (i == (VSPD_NUM_KMS_PLANES - 1))
+			blend = true;
+		else
+			blend = false;
+		tmp_plane->hwindex = planes_order[(tmp_plane->hwindex - 1)];
+		if (tmp_plane->enabled) {
+			ret = vsp_du_if_update_plane(rcrtc->vpsd_handle,
+					 tmp_plane->hwindex, tmp_plane, blend);
+		} else {
+			ret = vsp_du_if_update_plane(rcrtc->vpsd_handle,
+					 tmp_plane->hwindex, NULL, blend);
+		}
+	}
+done:
+	return ret;
+}
+
 static int
 rcar_du_plane_update_core(struct drm_plane *plane, struct drm_crtc *crtc,
 		       struct drm_framebuffer *fb, struct drm_live_source *src,
@@ -473,8 +537,7 @@ rcar_du_plane_update_core(struct drm_plane *plane, struct drm_crtc *crtc,
 	rplane->enabled = true;
 	mutex_unlock(&rplane->group->planes.lock);
 
-	return vsp_du_if_update_plane(rcrtc->vpsd_handle,
-				rplane->hwindex, rplane);
+	return rcar_du_plane_order_sort_update(rplane);
 }
 
 static int
@@ -499,7 +562,7 @@ static int rcar_du_plane_disable(struct drm_plane *plane)
 	if (!rplane->enabled)
 		return 0;
 
-	vsp_du_if_update_plane(rcrtc->vpsd_handle, rplane->hwindex, NULL);
+	vsp_du_if_update_plane(rcrtc->vpsd_handle, rplane->hwindex, NULL, true);
 
 	mutex_lock(&rplane->group->planes.lock);
 	rplane->enabled = false;
@@ -523,7 +586,7 @@ static void rcar_du_plane_set_premultiplied(struct rcar_du_plane *plane,
 	if ((!plane->enabled) || (plane->format->fourcc != DRM_FORMAT_ARGB8888))
 		return;
 
-	vsp_du_if_update_plane(rcrtc->vpsd_handle, plane->hwindex, plane);
+	vsp_du_if_update_plane(rcrtc->vpsd_handle, plane->hwindex, plane, true);
 }
 
 static void rcar_du_plane_set_alpha(struct rcar_du_plane *plane, u32 alpha)
@@ -542,7 +605,24 @@ static void rcar_du_plane_set_alpha(struct rcar_du_plane *plane, u32 alpha)
 			      || (plane->format->fourcc == DRM_FORMAT_NV16))
 		return;
 
-	vsp_du_if_update_plane(rcrtc->vpsd_handle, plane->hwindex, plane);
+	vsp_du_if_update_plane(rcrtc->vpsd_handle, plane->hwindex, plane, true);
+}
+
+static void rcar_du_plane_set_zpos(struct rcar_du_plane *plane,
+				   unsigned int zpos)
+{
+	mutex_lock(&plane->group->planes.lock);
+
+	if (plane->zpos == zpos)
+		goto done;
+
+	plane->zpos = zpos;
+	if (!plane->enabled)
+		goto done;
+
+	rcar_du_plane_order_sort_update(plane);
+done:
+	mutex_unlock(&plane->group->planes.lock);
 }
 
 static int rcar_du_plane_set_property(struct drm_plane *plane,
@@ -556,6 +636,8 @@ static int rcar_du_plane_set_property(struct drm_plane *plane,
 		rcar_du_plane_set_alpha(rplane, value);
 	else if (property == rgrp->planes.premultiplied)
 		rcar_du_plane_set_premultiplied(rplane, value);
+	else if (property == rgrp->planes.zpos)
+		rcar_du_plane_set_zpos(rplane, value);
 	else
 		return -EINVAL;
 
@@ -841,8 +923,13 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 	if (planes->colorkey == NULL)
 		return -ENOMEM;
 
+#ifdef RCAR_DU_CONNECT_VSP
+	planes->zpos =
+		drm_property_create_range(rcdu->ddev, 0, "zpos", 1, 3);
+#else
 	planes->zpos =
 		drm_property_create_range(rcdu->ddev, 0, "zpos", 1, 7);
+#endif
 	if (planes->zpos == NULL)
 		return -ENOMEM;
 
@@ -890,7 +977,7 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 			plane->source = RCAR_DU_PLANE_MEMORY;
 			plane->alpha = 255;
 			plane->colorkey = RCAR_DU_COLORKEY_NONE;
-			plane->zpos = 0;
+			plane->zpos = 1;
 			plane->premultiplied = 0;
 		}
 	}
