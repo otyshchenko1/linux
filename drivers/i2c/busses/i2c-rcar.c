@@ -161,7 +161,7 @@ static void rcar_i2c_init(struct rcar_i2c_priv *priv)
 
 	/* reset master mode */
 	rcar_i2c_write(priv, ICMIER, 0);
-	rcar_i2c_write(priv, ICMCR, 0);
+	rcar_i2c_write(priv, ICMCR, MDBS | MIE);
 	rcar_i2c_write(priv, ICMSR, 0);
 	rcar_i2c_write(priv, ICMAR, 0);
 }
