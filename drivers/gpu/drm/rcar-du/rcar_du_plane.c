@@ -549,6 +549,13 @@ rcar_du_plane_update_core(struct drm_plane *plane, struct drm_crtc *crtc,
 	rplane->d_width = crtc_w;
 	rplane->d_height = crtc_h;
 
+	if ((rplane->width < 4) || (rplane->height < 4)) {
+		dev_dbg(rcdu->dev, "%s: unspecified memory size (%dx%d).\n"
+				   "please specify memory size more than 4x4\n",
+				   __func__, rplane->width, rplane->height);
+		return -EINVAL;
+	}
+
 	rcar_du_plane_compute_base(rplane, fb);
 	if (crtc->mode.flags & DRM_MODE_FLAG_INTERLACE)
 		rplane->interlace_flag = true;
