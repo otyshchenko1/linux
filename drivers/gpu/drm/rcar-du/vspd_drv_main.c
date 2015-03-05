@@ -826,36 +826,35 @@ static int vspd_dl_output_du_head_mode(struct vspd_private_data *vdata,
 	struct dl_head *heads[DISPLAY_LIST_NUM];
 
 	for (i = 0; i < num; i++) {
-		heads[i] = vspd_dl_get_header(vdata->dlmemory);
-		if (heads[i] == NULL) {
-			vspd_err(vdata, "Display List header busy\n");
-			goto free_dl_head;
-		}
-
 		body = vspd_dl_get_body(vdata->dlmemory, DL_LIST_OFFSET_CTRL);
 		if (body == NULL) {
 			vspd_err(vdata, "Display List body busy\n");
-			vspd_dl_free_header(vdata->dlmemory, heads[i]);
-			goto free_dl_head;
+			goto error_get_dl_body;
+		}
+
+		heads[i] = vspd_dl_get_header(vdata->dlmemory);
+		if (heads[i] == NULL) {
+			vspd_err(vdata, "Display List header busy\n");
+			goto error_get_dl_head;
 		}
 
 		if (vspd_rpfs_to_dl(vdata, &blends[i], heads[i]))
-			goto free_dl_body;
+			goto error_set_dl_param;
 
 		if (vspd_wpf_to_dl(vdata, &blends[i], body))
-			goto free_dl_body;
+			goto error_set_dl_param;
 
 		if (vspd_bru_to_dl(vdata, &blends[i], body))
-			goto free_dl_body;
+			goto error_set_dl_param;
 
 		if (vspd_uds_to_dl(vdata, &blends[i], body))
-			goto free_dl_body;
+			goto error_set_dl_param;
 
 		if (vspd_drp_to_dl(vdata, &blends[i], body))
-			goto free_dl_body;
+			goto error_set_dl_param;
 
 		if (vspd_lif_set(vdata, &blends[i], body))
-			goto free_dl_body;
+			goto error_set_dl_param;
 
 		vspd_dl_set_body(heads[i], body, DL_LIST_OFFSET_CTRL);
 	}
@@ -863,11 +862,14 @@ static int vspd_dl_output_du_head_mode(struct vspd_private_data *vdata,
 	return vspd_run_dl(vdata, heads, num,
 				DL_MODE_MANUAL_REPEAT, use_sync);
 
-free_dl_body:
+
+error_set_dl_param:
+	vspd_dl_free_header(vdata->dlmemory, heads[i]);
+error_get_dl_head:
 	vspd_dl_free_body(vdata->dlmemory, body);
-free_dl_head:
+error_get_dl_body:
 	i--;
-	for (; i >= 0; i++)
+	for (; i >= 0; i--)
 		vspd_dl_free_header(vdata->dlmemory, heads[i]);
 
 	return -ENOMEM;
@@ -886,7 +888,7 @@ static int vspd_dl_output_du_head_less(struct vspd_private_data *vdata,
 		if (bodies[i] == NULL) {
 			vspd_err(vdata, "Display List body busy\n");
 			ret = -ENOMEM;
-			goto error;
+			goto error_get_dl_body;
 		}
 
 		rpf_count = 0;
@@ -901,27 +903,28 @@ static int vspd_dl_output_du_head_less(struct vspd_private_data *vdata,
 		}
 
 		if (vspd_wpf_to_dl(vdata, &blends[i], bodies[i]))
-			goto free_dl_body;
+			goto error_set_dl_param;
 
 		if (vspd_bru_to_dl(vdata, &blends[i], bodies[i]))
-			goto free_dl_body;
+			goto error_set_dl_param;
 
 		if (vspd_uds_to_dl(vdata, &blends[i], bodies[i]))
-			goto free_dl_body;
+			goto error_set_dl_param;
 
 		if (vspd_drp_to_dl(vdata, &blends[i], bodies[i]))
-			goto free_dl_body;
+			goto error_set_dl_param;
 
 		if (vspd_lif_set(vdata, &blends[i], bodies[i]))
-			goto free_dl_body;
+			goto error_set_dl_param;
 	}
 
 	return vspd_run_dl(vdata, bodies, num,
 		DL_MODE_HEADER_LESS_AUTO_REPEAT, use_sync);
 
-free_dl_body:
+error_set_dl_param:
+	vspd_dl_free_body(vdata->dlmemory, bodies[i]);
+error_get_dl_body:
 	i--;
-error:
 	for (; i >= 0; i--)
 		vspd_dl_free_body(vdata->dlmemory, bodies[i]);
 
