@@ -58,6 +58,7 @@ struct sh_msiof_spi_priv {
 	const struct sh_msiof_chipdata *chipdata;
 	struct sh_msiof_spi_info *info;
 	struct completion done;
+	struct completion done_dma_tx, done_dma_rx;
 	int tx_fifo_size;
 	int rx_fifo_size;
 	int mode;
@@ -703,12 +704,18 @@ stop_ier:
 }
 
 #ifdef CONFIG_SPI_SH_MSIOF_DMA
-static void sh_msiof_dma_complete(void *arg)
+static void sh_msiof_tx_dma_complete(void *arg)
 {
 	struct sh_msiof_spi_priv *p = arg;
 
-	sh_msiof_write(p, IER, 0);
-	complete(&p->done);
+	complete(&p->done_dma_tx);
+}
+
+static void sh_msiof_rx_dma_complete(void *arg)
+{
+	struct sh_msiof_spi_priv *p = arg;
+
+	complete(&p->done_dma_rx);
 }
 
 static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
@@ -746,10 +753,11 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 	}
 	sh_msiof_write(p, IER, ier_bits);
 
-	reinit_completion(&p->done);
+	reinit_completion(&p->done_dma_tx);
+	reinit_completion(&p->done_dma_rx);
 
 	if (rx) {
-		desc_rx->callback = sh_msiof_dma_complete;
+		desc_rx->callback = sh_msiof_rx_dma_complete;
 		desc_rx->callback_param = p;
 		cookie = dmaengine_submit(desc_rx);
 		if (dma_submit_error(cookie)) {
@@ -760,13 +768,8 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 	}
 
 	if (tx) {
-		if (rx) {
-			/* No callback */
-			desc_tx->callback = NULL;
-		} else {
-			desc_tx->callback = sh_msiof_dma_complete;
-			desc_tx->callback_param = p;
-		}
+		desc_tx->callback = sh_msiof_tx_dma_complete;
+		desc_tx->callback_param = p;
 		cookie = dmaengine_submit(desc_tx);
 		if (dma_submit_error(cookie)) {
 			ret = cookie;
@@ -782,12 +785,26 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 	}
 
 	/* wait for tx fifo to be emptied / rx fifo to be filled */
-	ret = wait_for_completion_timeout(&p->done, HZ);
-	if (!ret) {
-		dev_err(&p->pdev->dev, "DMA timeout\n");
-		ret = -ETIMEDOUT;
-		goto stop_reset;
+	if (tx) {
+		ret = wait_for_completion_timeout(&p->done_dma_tx,
+							MAX_SCHEDULE_TIMEOUT);
+		if (!ret) {
+			dev_err(&p->pdev->dev, "Tx DMA timeout\n");
+			ret = -ETIMEDOUT;
+			goto stop_reset;
+		}
 	}
+	if (rx) {
+		ret = wait_for_completion_timeout(&p->done_dma_rx,
+							MAX_SCHEDULE_TIMEOUT);
+		if (!ret) {
+			dev_err(&p->pdev->dev, "Rx DMA timeout\n");
+			ret = -ETIMEDOUT;
+			goto stop_reset;
+		}
+	}
+
+	sh_msiof_write(p, IER, 0);
 
 	/* clear status bits */
 	sh_msiof_reset_str(p);
@@ -1212,6 +1229,8 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	}
 
 	init_completion(&p->done);
+	init_completion(&p->done_dma_tx);
+	init_completion(&p->done_dma_rx);
 
 	p->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(p->clk)) {
