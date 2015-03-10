@@ -329,6 +329,9 @@ static int rsnd_src_set_convert_rate(struct rsnd_mod *mod,
 	u32 fsrate = 0;
 	u32 remain = 0;
 
+	if (src->reconvert_rate)
+		convert_rate = src->reconvert_rate;
+
 	if (convert_rate) {
 		if (rsnd_dai_is_play(rdai, io)) {
 			fsrate = muldiv32(0x0400000, runtime->rate,
