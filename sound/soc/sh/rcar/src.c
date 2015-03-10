@@ -373,7 +373,7 @@ static void rsnd_src_set_reconvert_rate(struct rsnd_mod *mod)
 	struct snd_pcm_runtime *runtime;
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	u32 fsrate;
-
+	u32 remain = 0;
 
 	if (io->substream == NULL)
 		return;
@@ -386,9 +386,15 @@ static void rsnd_src_set_reconvert_rate(struct rsnd_mod *mod)
 	if (!runtime->rate)
 		return;
 
-	if (src->reconvert_rate)
-		fsrate = 0x0400000 / src->reconvert_rate * runtime->rate;
-	else
+	if (src->reconvert_rate) {
+		if (io->substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			fsrate = muldiv32(0x0400000, runtime->rate,
+					  src->reconvert_rate, &remain);
+		} else {
+			fsrate = muldiv32(0x0400000, src->reconvert_rate,
+					  runtime->rate, &remain);
+		}
+	} else
 		fsrate = 0x0400000;
 
 	/* Set initial value of IFS */
