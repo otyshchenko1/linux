@@ -124,8 +124,6 @@ struct rcar_i2c_priv {
 	u32 icccr;
 	u32 flags;
 	enum rcar_i2c_type	devtype;
-	u32 bus_speed;
-	s32 timeout;	/* timeout value in jiffies */
 };
 
 #define rcar_i2c_priv_to_dev(p)		((p)->adap.dev.parent)
@@ -340,17 +338,6 @@ static void rcar_i2c_status_bit_clear(struct rcar_i2c_priv *priv, u32 bit)
 
 static void rcar_i2c_start(struct rcar_i2c_priv *priv)
 {
-	/* timeout value in jiffies
-	 * timeout = (1s / bus_speed) * (9bit * Bytes) * margin1
-	 *					/ (1s / HZ) + margin2
-	 *         = (9bit * Bytes * margin1 * HZ) / bus_speed + margin2
-	 * Bytes   = 1Byte(slave_addr) + data length
-	 * margin1 = 5 times	[include start/stop condition]
-	 * margin2 = 10 jiffies	[for printk etc. by other driver]
-	 */
-	priv->timeout = (9 * (1 + priv->msg->len) * 5 * HZ)
-						/ priv->bus_speed + 10;
-
 	if (rcar_i2c_flags_has(priv, ID_FIRST_MSG)) {	/* start */
 		rcar_i2c_status_clear(priv);
 		rcar_i2c_bus_phase(priv, RCAR_BUS_PHASE_ADDR);
@@ -637,7 +624,7 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 		 */
 		timeout = wait_event_timeout(priv->wait,
 					     rcar_i2c_flags_has(priv, ID_DONE),
-					     priv->timeout);
+					     5 * HZ);
 		if (!timeout) {
 			if (rcar_i2c_flags_has(priv, ID_NACK)) {
 				ret = -ENXIO;
@@ -730,7 +717,6 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	ret = rcar_i2c_clock_calculate(priv, bus_speed, dev);
 	if (ret < 0)
 		return ret;
-	priv->bus_speed = bus_speed;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->io = devm_ioremap_resource(dev, res);
