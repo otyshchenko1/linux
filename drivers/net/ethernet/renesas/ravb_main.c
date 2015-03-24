@@ -1084,8 +1084,6 @@ static irqreturn_t ravb_interrupt(int irq, void *netdev)
 		ric0 = ravb_read(ndev, RIC0);
 		tis = ravb_read(ndev, TIS);
 		tic = ravb_read(ndev, TIC);
-		ravb_write(ndev,
-				~(TIS_TFUF | TIS_FTF1), TIS);
 
 		/* Received Network Control Queue */
 		if (ris0 & RIS0_FRF1) {
@@ -1101,12 +1099,14 @@ static irqreturn_t ravb_interrupt(int irq, void *netdev)
 
 		/* Timestamp updated */
 		if (tis & TIS_TFUF) {
+			ravb_write(ndev, ~TIS_TFUF, TIS);
 			ravb_get_txtstamp(ndev);
 			ret = IRQ_HANDLED;
 		}
 
 		/* Transmited Network Control Queue */
 		if (tis & TIS_FTF1) {
+			ravb_write(ndev, ~TIS_FTF1, TIS);
 			ravb_txfree(ndev, RAVB_NC);
 			netif_wake_queue(ndev);
 			ret = IRQ_HANDLED;
