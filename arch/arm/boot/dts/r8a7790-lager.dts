@@ -261,21 +261,6 @@
 		renesas,function = "msiof1";
 	};
 
-	usb0_pins: usb0 {
-		renesas,groups = "usb0_ovc_vbus";
-		renesas,function = "usb0";
-	};
-
-	usb1_pins: usb1 {
-		renesas,groups = "usb1";
-		renesas,function = "usb1";
-	};
-
-	usb2_pins: usb2 {
-		renesas,groups = "usb2";
-		renesas,function = "usb2";
-	};
-
 	sound_pins: sound {
 		renesas,groups = "ssi0129_ctrl", "ssi0_data", "ssi1_data";
 		renesas,function = "ssi";
