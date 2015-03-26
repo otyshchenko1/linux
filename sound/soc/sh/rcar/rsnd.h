@@ -249,15 +249,16 @@ struct rsnd_mod {
 #define rsnd_dma_to_mod(_dma) container_of((_dma), struct rsnd_mod, dma)
 #define rsnd_mod_to_io(mod) ((mod)->io)
 #define rsnd_mod_id(mod) ((mod)->id)
-#define rsnd_mod_hw_start(mod)	clk_prepare_enable((mod)->clk)
-#define rsnd_mod_hw_stop(mod)	clk_disable_unprepare((mod)->clk)
+#define rsnd_mod_hw_start(mod)	clk_enable((mod)->clk)
+#define rsnd_mod_hw_stop(mod)	clk_disable((mod)->clk)
 
-void rsnd_mod_init(struct rsnd_priv *priv,
+int rsnd_mod_init(struct rsnd_priv *priv,
 		   struct rsnd_mod *mod,
 		   struct rsnd_mod_ops *ops,
 		   struct clk *clk,
 		   enum rsnd_mod_type type,
 		   int id);
+void rsnd_mod_quit(struct rsnd_mod *mod);
 char *rsnd_mod_name(struct rsnd_mod *mod);
 char *rsnd_mod_dma_name(struct rsnd_mod *mod);
 
@@ -425,6 +426,8 @@ struct rsnd_priv {
 int rsnd_src_probe(struct platform_device *pdev,
 		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv);
+void rsnd_src_remove(struct platform_device *pdev,
+		     struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_src_mod_get(struct rsnd_priv *priv, int id);
 unsigned int rsnd_src_get_ssi_rate(struct rsnd_priv *priv,
 				   struct rsnd_dai_stream *io,
@@ -452,6 +455,8 @@ int rsnd_src_disable_dma_ssi_irq(struct rsnd_mod *ssi_mod,
 int rsnd_ssi_probe(struct platform_device *pdev,
 		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv);
+void rsnd_ssi_remove(struct platform_device *pdev,
+		     struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id);
 int rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod);
 void rsnd_ssi_access_enable(struct rsnd_mod *mod, struct rsnd_dai *rdai);
