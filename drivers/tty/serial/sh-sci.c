@@ -1450,12 +1450,14 @@ static void work_fn_rx(struct work_struct *work)
 	struct dma_async_tx_descriptor *desc;
 	int new;
 	int next;
+	unsigned long flags;
 
 	if (s->chan_rx == NULL) {
 		dev_dbg(port->dev, "%s: DMA channel is released.\n", __func__);
 		return;
 	}
 
+	spin_lock_irqsave(&port->lock, flags);
 	if (s->active_rx == s->cookie_rx[0]) {
 		new = 0;
 	} else if (s->active_rx == s->cookie_rx[1]) {
@@ -1464,7 +1466,7 @@ static void work_fn_rx(struct work_struct *work)
 		new = 2;
 	} else {
 		dev_err(port->dev, "cookie %d not found!\n", s->active_rx);
-		return;
+		goto out;
 	}
 	desc = s->desc_rx[new];
 
@@ -1474,16 +1476,13 @@ static void work_fn_rx(struct work_struct *work)
 		struct dma_chan *chan = s->chan_rx;
 		struct shdma_desc *sh_desc = container_of(desc,
 					struct shdma_desc, async_tx);
-		unsigned long flags;
 		int count;
 
 		chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
 		dev_dbg(port->dev, "Read %zu bytes with cookie %d\n",
 			sh_desc->partial, sh_desc->cookie);
 
-		spin_lock_irqsave(&port->lock, flags);
 		count = sci_dma_rx_push(s, sh_desc->partial);
-		spin_unlock_irqrestore(&port->lock, flags);
 
 		if (count)
 			tty_flip_buffer_push(&port->state->port);
@@ -1492,7 +1491,7 @@ static void work_fn_rx(struct work_struct *work)
 			sci_submit_rx(s);
 	    s->rx_flag = 0;
 
-		return;
+		goto out;
 	}
 
 	if (port->type == PORT_SCIF || port->type == PORT_HSCIF) {
@@ -1501,7 +1500,7 @@ static void work_fn_rx(struct work_struct *work)
 			if (s->cookie_rx[new] < 0) {
 				dev_warn(port->dev, "Failed submitting Rx DMA descriptor\n");
 				sci_rx_dma_release(s, true);
-				return;
+				goto out;
 			}
 		}
 		next = new % 2 + 1;
@@ -1510,7 +1509,7 @@ static void work_fn_rx(struct work_struct *work)
 		if (s->cookie_rx[new] < 0) {
 			dev_warn(port->dev, "Failed submitting Rx DMA descriptor\n");
 			sci_rx_dma_release(s, true);
-			return;
+			goto out;
 		}
 		next = !new;
 	}
@@ -1519,6 +1518,8 @@ static void work_fn_rx(struct work_struct *work)
 
 	dev_dbg(port->dev, "%s: cookie %d #%d, new active #%d\n",
 		__func__, s->cookie_rx[new], new, s->active_rx);
+out:
+	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static void work_fn_tx(struct work_struct *work)
