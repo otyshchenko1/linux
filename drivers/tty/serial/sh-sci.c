@@ -1432,11 +1432,11 @@ static void sci_submit_rx(struct sci_port *s)
 		dev_dbg(s->port.dev, "%s(): cookie %d to #%d\n",
 			__func__, s->cookie_rx[i], i);
 
-		if (i == 0)
+		if (i == 0) {
+			s->active_rx = s->cookie_rx[0];
 			dma_async_issue_pending(chan);
+		}
 	}
-
-	s->active_rx = s->cookie_rx[0];
 
 }
 
