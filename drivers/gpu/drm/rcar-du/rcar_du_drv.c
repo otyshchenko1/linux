@@ -24,6 +24,9 @@
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_encoder_slave.h>
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
+#include <drm/rcar_du_drm.h>
+#endif /* CONFIG_DRM_RCAR_DU_CONNECT_VSP */
 
 #include "rcar_du_crtc.h"
 #include "rcar_du_drv.h"
@@ -330,22 +333,17 @@ int rcar_du_debug_reg_vsp(struct drm_device *dev, void *data,
 	return 0;
 }
 
-#define DRM_RCAR_DU_SET_PLANE_FENCE	0
-#define DRM_RCAR_DU_DBG		1
-#define DRM_RCAR_DU_DBG_VSP	2
-
-#define DRM_IOCTL_RCAR_DU_SET_PLANE_FENCE \
-	DRM_IOW(DRM_RCAR_DU_SET_PLANE_FENCE, struct drm_mode_set_plane)
-#define DRM_IOCTL_RCAR_DU_DBG		DRM_IOW(DRM_RCAR_DU_DBG, int)
-#define DRM_IOCTL_RCAR_DU_DBG_VSP	DRM_IOW(DRM_RCAR_DU_DBG_VSP, int)
-
 static const struct drm_ioctl_desc rcar_du_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(RCAR_DU_SET_PLANE_FENCE, drm_noop,
 		DRM_UNLOCKED | DRM_CONTROL_ALLOW),
+
 	/* Debug gunction */
 	DRM_IOCTL_DEF_DRV(RCAR_DU_DBG, rcar_du_debug_reg,
 		DRM_UNLOCKED | DRM_CONTROL_ALLOW),
 	DRM_IOCTL_DEF_DRV(RCAR_DU_DBG_VSP, rcar_du_debug_reg_vsp,
+		DRM_UNLOCKED | DRM_CONTROL_ALLOW),
+
+	DRM_IOCTL_DEF_DRV(RCAR_DU_SET_DESKTOP, drm_noop,
 		DRM_UNLOCKED | DRM_CONTROL_ALLOW),
 };
 #endif /* CONFIG_DRM_RCAR_DU_CONNECT_VSP */
