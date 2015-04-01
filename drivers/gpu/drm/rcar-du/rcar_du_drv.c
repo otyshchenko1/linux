@@ -228,11 +228,37 @@ int rcar_du_debug_reg(struct drm_device *dev, void *data,
 #define group_dbg_print(fmt, rcrtc, reg) \
 	rcar_dbg_print(fmt, rcar_du_group_read(rcrtc->group, reg));
 
+#define crtc_dbg_print(fmt, rcrtc, reg) \
+do { \
+	struct rcar_du_device *rcdu = rcrtc->group->dev; \
+	rcar_dbg_print(fmt, rcar_du_read(rcdu, rcrtc->mmio_offset + reg)); \
+} while (0)
+
+
 	rcar_dbg_print("Control Register\n");
 	group_dbg_print(" DS1PR    0x%08x\n", rcrtc, DS1PR);
 	group_dbg_print(" DS2PR    0x%08x\n", rcrtc, DS2PR);
 	group_dbg_print(" DORCR    0x%08x\n", rcrtc, DORCR);
 	group_dbg_print(" DPTSR    0x%08x\n", rcrtc, DPTSR);
+	group_dbg_print(" DSYSR    0x%08x\n", rcrtc, DSYSR);
+	group_dbg_print(" DORCR    0x%08x\n", rcrtc, DORCR);
+	group_dbg_print(" ESCR     0x%08x\n", rcrtc, ESCR);
+	group_dbg_print(" OTAR     0x%08x\n", rcrtc, OTAR);
+	rcar_dbg_print("\n");
+
+	crtc_dbg_print(" DOOR     0x%08x\n", rcrtc, DOOR);
+	crtc_dbg_print(" BPOR     0x%08x\n", rcrtc, BPOR);
+	crtc_dbg_print(" DSMR     0x%08x\n", rcrtc, DSMR);
+	crtc_dbg_print(" HDSR     0x%08x\n", rcrtc, HDSR);
+	crtc_dbg_print(" HDER     0x%08x\n", rcrtc, HDER);
+	crtc_dbg_print(" HSWR     0x%08x\n", rcrtc, HSWR);
+	crtc_dbg_print(" HCR      0x%08x\n", rcrtc, HCR);
+	crtc_dbg_print(" VDSR     0x%08x\n", rcrtc, VDSR);
+	crtc_dbg_print(" VDER     0x%08x\n", rcrtc, VDER);
+	crtc_dbg_print(" VSPR     0x%08x\n", rcrtc, VSPR);
+	crtc_dbg_print(" VCR      0x%08x\n", rcrtc, VCR);
+	crtc_dbg_print(" DESR     0x%08x\n", rcrtc, DESR);
+	crtc_dbg_print(" DEWR     0x%08x\n", rcrtc, DEWR);
 	rcar_dbg_print("\n");
 
 #define plane_read(rcrtc, index, reg) \
@@ -240,7 +266,7 @@ int rcar_du_debug_reg(struct drm_device *dev, void *data,
 		(rcrtc->group)->mmio_offset + index * PLANE_OFF + reg)
 
 #define plane_dbg_print(fmt, rcrtc, index, reg) \
-		rcar_dbg_print(fmt, index + 1, plane_read(rcrtc, index, PnMR))
+		rcar_dbg_print(fmt, index + 1, plane_read(rcrtc, index, reg))
 
 	rcar_dbg_print("Plnae Register\n");
 	for (i = 0; i < 8; i++) {
@@ -271,6 +297,11 @@ int rcar_du_debug_reg(struct drm_device *dev, void *data,
 	}
 
 	rcar_dbg_print("group Register\n");
+	group_dbg_print(" DEFR1     0x%08x\n", rcrtc, DEFR);
+	group_dbg_print(" DEFR2     0x%08x\n", rcrtc, DEFR2);
+	group_dbg_print(" DEFR3     0x%08x\n", rcrtc, DEFR3);
+	group_dbg_print(" DEFR4     0x%08x\n", rcrtc, DEFR4);
+	group_dbg_print(" DEFR5     0x%08x\n", rcrtc, DEFR5);
 	group_dbg_print(" DEFR8     0x%08x\n", rcrtc, DEFR8);
 
 	return 0;
