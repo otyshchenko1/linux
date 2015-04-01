@@ -220,17 +220,19 @@ int vspd_device_init(struct vspd_private_data *vdata)
 
 	/* modules disconnect */
 	for (i = 0; i < VSPD_INPUT_IMAGE_NUM; i++)
-		vspd_write(vdata, VI6_DPR_RPFn_ROUTE(i), 63);
+		vspd_write(vdata, VI6_DPR_RPFn_ROUTE(i),
+				VI6_DPR_ROUTE_DIS_CONN);
 
 	for (i = 0; i < VSPD_SCALING_IMAGE_NUM; i++)
-		vspd_write(vdata, VI6_DPR_UDSn_ROUTE(i), 63);
+		vspd_write(vdata, VI6_DPR_UDSn_ROUTE(i),
+				VI6_DPR_ROUTE_DIS_CONN);
 
-	vspd_write(vdata, VI6_DPR_SRU_ROUTE, 63);
-	vspd_write(vdata, VI6_DPR_LUT_ROUTE, 63);
-	vspd_write(vdata, VI6_DPR_CLU_ROUTE, 63);
-	vspd_write(vdata, VI6_DPR_HST_ROUTE, 63);
-	vspd_write(vdata, VI6_DPR_HSI_ROUTE, 63);
-	vspd_write(vdata, VI6_DPR_BRU_ROUTE, 63);
+	vspd_write(vdata, VI6_DPR_SRU_ROUTE, VI6_DPR_ROUTE_DIS_CONN);
+	vspd_write(vdata, VI6_DPR_LUT_ROUTE, VI6_DPR_ROUTE_DIS_CONN);
+	vspd_write(vdata, VI6_DPR_CLU_ROUTE, VI6_DPR_ROUTE_DIS_CONN);
+	vspd_write(vdata, VI6_DPR_HST_ROUTE, VI6_DPR_ROUTE_DIS_CONN);
+	vspd_write(vdata, VI6_DPR_HSI_ROUTE, VI6_DPR_ROUTE_DIS_CONN);
+	vspd_write(vdata, VI6_DPR_BRU_ROUTE, VI6_DPR_ROUTE_DIS_CONN);
 
 	vspd_write(vdata, VI6_LIF_CTRL, 0);
 
@@ -674,27 +676,46 @@ int vspd_uds_to_dl(struct vspd_private_data *vdata,
 }
 
 
-/* set drp */
-int vspd_drp_to_dl(struct vspd_private_data *vdata,
+/* set dpr */
+int vspd_dpr_to_dl(struct vspd_private_data *vdata,
 			  struct vspd_blend *blend,
 			  struct dl_body *body)
 {
 	int i;
 	int rpf_count = 0;
 	int scal_count = 0;
+	unsigned long bru_connect_to = VI6_DPR_ROUTE_DIS_CONN;
 
 	for (i = 0; i < VSPD_INPUT_IMAGE_NUM; i++) {
 		struct vspd_image *in = &blend->in[i];
-		if (in->enable)
+		if (in->enable) {
+			if (is_scaling(in))
+				scal_count++;
+
 			rpf_count++;
+		}
 	}
 
-	if (rpf_count == 1) {
-		/* rpf0 -> wpf0 */
-		vspd_set_dl(vdata, VI6_DPR_RPFn_ROUTE(USE_WPF),
-				56 + USE_WPF, body);
-		vspd_set_dl(vdata, VI6_DPR_BRU_ROUTE, 63, body);
-	} else {
+	if (scal_count > VSPD_SCALING_IMAGE_NUM)
+		return -EINVAL;
+
+	if (rpf_count == 0) {
+		vspd_err(vdata, "no input layer\n");
+		return -EINVAL;
+	} else if (rpf_count == 1) {
+		if (scal_count) {
+			/* rpf0 -> uds -> wpf0 */
+			vspd_set_dl(vdata, VI6_DPR_RPFn_ROUTE(0),
+					VI6_DPR_ROUTE_TO_UDSn(0), body);
+			vspd_set_dl(vdata, VI6_DPR_UDSn_ROUTE(0),
+					VI6_DPR_ROUTE_TO_WPF(USE_WPF), body);
+		} else {
+			/* rpf0 -> wpf0 */
+			vspd_set_dl(vdata, VI6_DPR_RPFn_ROUTE(0),
+					VI6_DPR_ROUTE_TO_WPF(USE_WPF), body);
+		}
+	} else if (rpf_count <= VSPD_INPUT_IMAGE_NUM) {
+		scal_count = 0;
 		rpf_count = 0;
 
 		/* rpfn -> bru */
@@ -709,28 +730,39 @@ int vspd_drp_to_dl(struct vspd_private_data *vdata,
 				/* RPFn -> UDSn -> BRU */
 				vspd_set_dl(vdata,
 					VI6_DPR_RPFn_ROUTE(rpf_count),
-					17 + scal_count, body);
+					VI6_DPR_ROUTE_TO_UDSn(scal_count),
+					body);
 				vspd_set_dl(vdata,
 					VI6_DPR_UDSn_ROUTE(scal_count),
-					23 + rpf_count, body);
+					VI6_DPR_ROUTE_TO_BRU(rpf_count),
+					body);
 				scal_count++;
 			} else {
 				/* RPFn -> BRUn */
 				vspd_set_dl(vdata,
 					VI6_DPR_RPFn_ROUTE(rpf_count),
-					23 + rpf_count, body);
+					VI6_DPR_ROUTE_TO_BRU(rpf_count),
+					body);
 			}
 			rpf_count++;
 		}
 		/* BRU -> WPF0 */
-		vspd_set_dl(vdata, VI6_DPR_BRU_ROUTE, 56 + USE_WPF, body);
+		bru_connect_to = VI6_DPR_ROUTE_TO_WPF(USE_WPF);
+	} else {
+		vspd_err(vdata, "too many input layer\n");
+		return -EINVAL;
 	}
+
+	/* set BRU connect to ... */
+	vspd_set_dl(vdata, VI6_DPR_BRU_ROUTE, bru_connect_to, body);
 
 	/* disable */
 	for (i = rpf_count; i < VSPD_INPUT_IMAGE_NUM; i++)
-		vspd_set_dl(vdata, VI6_DPR_RPFn_ROUTE(i), 63, body);
+		vspd_set_dl(vdata, VI6_DPR_RPFn_ROUTE(i),
+			VI6_DPR_ROUTE_DIS_CONN, body);
 	for (i = scal_count; i < VSPD_SCALING_IMAGE_NUM; i++)
-		vspd_set_dl(vdata, VI6_DPR_UDSn_ROUTE(i), 63, body);
+		vspd_set_dl(vdata, VI6_DPR_UDSn_ROUTE(i),
+			VI6_DPR_ROUTE_DIS_CONN, body);
 
 	vspd_set_dl(vdata, VI6_DPR_WPFn_FPORCH(USE_WPF), 5 << 8, body);
 
@@ -808,7 +840,7 @@ int vspd_dl_mem_copy(struct vspd_private_data *vdata, struct vspd_blend *blend)
 	vspd_wpf_to_dl(vdata, blend, body);
 	vspd_bru_to_dl(vdata, blend, body);
 	vspd_uds_to_dl(vdata, blend, body);
-	vspd_drp_to_dl(vdata, blend, body);
+	vspd_dpr_to_dl(vdata, blend, body);
 	vspd_dl_set_body(head, body, DL_LIST_OFFSET_CTRL);
 
 	heads[0] = head;
@@ -850,7 +882,7 @@ static int vspd_dl_output_du_head_mode(struct vspd_private_data *vdata,
 		if (vspd_uds_to_dl(vdata, &blends[i], body))
 			goto error_set_dl_param;
 
-		if (vspd_drp_to_dl(vdata, &blends[i], body))
+		if (vspd_dpr_to_dl(vdata, &blends[i], body))
 			goto error_set_dl_param;
 
 		vspd_dl_set_body(heads[i], body, DL_LIST_OFFSET_CTRL);
@@ -910,7 +942,7 @@ static int vspd_dl_output_du_head_less(struct vspd_private_data *vdata,
 		if (vspd_uds_to_dl(vdata, &blends[i], bodies[i]))
 			goto error_set_dl_param;
 
-		if (vspd_drp_to_dl(vdata, &blends[i], bodies[i]))
+		if (vspd_dpr_to_dl(vdata, &blends[i], bodies[i]))
 			goto error_set_dl_param;
 	}
 

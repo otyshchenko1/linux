@@ -105,6 +105,15 @@
 #define VI6_DPR_HST_ROUTE		0x2044
 #define VI6_DPR_HSI_ROUTE		0x2048
 #define VI6_DPR_BRU_ROUTE		0x204c
+ #define VI6_DPR_ROUTE_TO_SRU		16
+ #define VI6_DPR_ROUTE_TO_UDSn(index)	(17 + index)
+ #define VI6_DPR_ROUTE_TO_LUT		22
+ #define VI6_DPR_ROUTE_TO_CLU		29
+ #define VI6_DPR_ROUTE_TO_HST		30
+ #define VI6_DPR_ROUTE_TO_HSI		31
+ #define VI6_DPR_ROUTE_TO_BRU(index)	(23 + index)
+ #define VI6_DPR_ROUTE_TO_WPF(index)	(56 + index)
+ #define VI6_DPR_ROUTE_DIS_CONN		63
 
 /* Blend ROP Unit */
 #define VI6_BRU_INCTRL			0x2c00
