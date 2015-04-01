@@ -42,6 +42,7 @@ static int set_plane_param(struct vsp_du_if *du_if, int vsp_plane,
 {
 	int i;
 	struct vspd_image *image;
+	unsigned long in_flag;
 
 	if (rplane == NULL) {
 		for (i = 0; i < du_if->interlace; i++) {
@@ -50,6 +51,9 @@ static int set_plane_param(struct vsp_du_if *du_if, int vsp_plane,
 		}
 		return 0;
 	}
+
+	in_flag = rplane->premultiplied ? VSPD_FLAG_PREMUL_ALPH : 0;
+	in_flag |= VSPD_FLAG_COLOR_CONV_BT601;
 
 	for (i = 0; i < du_if->interlace; i++) {
 		image = &du_if->blend[i].in[vsp_plane];
@@ -158,8 +162,7 @@ static int set_plane_param(struct vsp_du_if *du_if, int vsp_plane,
 		image->dist.width	= rplane->d_width;
 		image->dist.height	= rplane->d_height / du_if->interlace;
 		image->alpha		= rplane->alpha;
-		image->flag		= rplane->premultiplied ?
-						VSPD_FLAG_PREMUL_ALPH : 0;
+		image->flag		= in_flag;
 	}
 
 	return 0;

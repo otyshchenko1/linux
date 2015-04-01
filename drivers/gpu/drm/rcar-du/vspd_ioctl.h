@@ -49,7 +49,11 @@ enum {
 #define VSPD_BYTE_SWAP		(1 << 0)
 
 /* flags */
-#define VSPD_FLAG_PREMUL_ALPH	(1 << 0)
+#define VSPD_FLAG_PREMUL_ALPH		(1 << 0)
+#define VSPD_FLAG_VIRTUAL		(1 << 1)
+#define VSPD_FLAG_COLOR_CONV_BT601	(0 << 2) /* for RGB <-> YUV */
+#define VSPD_FLAG_COLOR_CONV_BT709	(1 << 2) /* for RGB <-> YUV */
+ #define VSPD_FLAG_COLOR_CONV_MASK	(1 << 2)
 
 struct vspd_rect {
 	unsigned long x;

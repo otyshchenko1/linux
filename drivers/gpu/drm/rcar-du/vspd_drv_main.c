@@ -257,10 +257,15 @@ static int check_rpf_param(struct vspd_image *in, struct vspd_image *out,
 		return -EINVAL;
 
 	if (is_yuv_fmt(in->format) != is_yuv_fmt(out->format)) {
-		/* Color Space Conversion */
-		*infmt |= (1 << 8);
-		/* TODO : BT.601 YCbCr[16,235/240] <-> RGB[0,255] */
-		*infmt |= (0 << 9);
+		/* Color Space Conversion enable */
+		*infmt |= VI6_RPFn_INFMT_CSC;
+		if (in->flag & VSPD_FLAG_COLOR_CONV_MASK) {
+			/* BT.709 YCbCr [16,235/240] <-> RGB [0,255] */
+			*infmt |= VI6_RPFn_INFMT_BT709;
+		} else {
+			/* BT.601 YCbCr [16,235/240] <-> RGB [0,255] */
+			*infmt |= VI6_RPFn_INFMT_BT601;
+		}
 	}
 
 	adjust->addr_y = 0;
@@ -1118,14 +1123,8 @@ int vspd_check_reg(struct vspd_private_data *vdata, unsigned long arg)
 			i, vsp1_read(VI6_UDSn_ALPVAL(i)));
 		rcar_dbg_print("  VI6_UDS%d_PASS_BWIDTH : 0x%08x\n",
 			i, vsp1_read(VI6_UDSn_PASS_BWIDTH(i)));
-		rcar_dbg_print("  VI6_UDS%d_HPHASE      : 0x%08x\n",
-			i, vsp1_read(VI6_UDSn_HPHASE(i)));
-		rcar_dbg_print("  VI6_UDS%d_VPHASE      : 0x%08x\n",
-			i, vsp1_read(VI6_UDSn_VPHASE(i)));
-		rcar_dbg_print("  VI6_UDS%d_HSZCLIP     : 0x%08x\n",
-			i, vsp1_read(VI6_UDSn_HSZCLIP(i)));
-		rcar_dbg_print("  VI6_UDS%d_SZCLIP      : 0x%08x\n",
-			i, vsp1_read(VI6_UDSn_SZCLIP(i)));
+		rcar_dbg_print("  VI6_UDS%d_IPC         : 0x%08x\n",
+			i, vsp1_read(VI6_UDSn_IPC(i)));
 		rcar_dbg_print("  VI6_UDS%d_CLIP_SIZE   : 0x%08x\n",
 			i, vsp1_read(VI6_UDSn_CLIP_SIZE(i)));
 		rcar_dbg_print("  VI6_UDS%d_FILL_COLOR  : 0x%08x\n",
