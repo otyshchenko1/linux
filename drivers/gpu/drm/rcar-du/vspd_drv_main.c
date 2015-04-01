@@ -737,6 +737,31 @@ int vspd_drp_to_dl(struct vspd_private_data *vdata,
 	return 0;
 }
 
+/* connect rcar-du */
+int vspd_lif_set(struct vspd_private_data *vdata, struct vspd_blend *blend)
+{
+	struct vspd_image *out = &blend->out;
+	unsigned long obth;
+
+	if (vdata->active)
+		return 0;
+
+#define OBTH 128
+#define HBTH 1536
+#define LBTH 1520
+
+	obth = ((out->width + 1) / 2) * out->height - 4;
+	if (obth >= OBTH)
+		obth = OBTH;
+
+	vspd_write(vdata, VI6_LIF_CTRL,
+		(obth << 16) | (1 << 1) | (1 << 0));
+	vspd_write(vdata, VI6_LIF_CSBTH,
+		(HBTH << 16) | (LBTH << 0));
+
+	return 0;
+}
+
 int vspd_run_dl(struct vspd_private_data *vdata,
 		void *dl, int num, int dl_mode, int use_sync)
 {
@@ -760,32 +785,6 @@ int vspd_run_dl(struct vspd_private_data *vdata,
 	return ret;
 }
 
-
-/* connect rcar-du */
-int vspd_lif_set(struct vspd_private_data *vdata,
-		 struct vspd_blend *blend, struct dl_body *body)
-{
-	struct vspd_image *out = &blend->out;
-	unsigned long obth;
-
-	if (vdata->active)
-		return 0;
-
-#define OBTH 128
-#define HBTH 1536
-#define LBTH 1520
-
-	obth = ((out->width + 1) / 2) * out->height - 4;
-	if (obth >= OBTH)
-		obth = OBTH;
-
-	vspd_write(vdata, VI6_LIF_CTRL,
-		(obth << 16) | (1 << 1) | (1 << 0));
-	vspd_write(vdata, VI6_LIF_CSBTH,
-		(HBTH << 16) | (LBTH << 0));
-
-	return 0;
-}
 
 int vspd_dl_mem_copy(struct vspd_private_data *vdata, struct vspd_blend *blend)
 {
@@ -854,11 +853,10 @@ static int vspd_dl_output_du_head_mode(struct vspd_private_data *vdata,
 		if (vspd_drp_to_dl(vdata, &blends[i], body))
 			goto error_set_dl_param;
 
-		if (vspd_lif_set(vdata, &blends[i], body))
-			goto error_set_dl_param;
-
 		vspd_dl_set_body(heads[i], body, DL_LIST_OFFSET_CTRL);
 	}
+
+	vspd_lif_set(vdata, &blends[0]);
 
 	return vspd_run_dl(vdata, heads, num,
 				DL_MODE_MANUAL_REPEAT, use_sync);
@@ -914,10 +912,9 @@ static int vspd_dl_output_du_head_less(struct vspd_private_data *vdata,
 
 		if (vspd_drp_to_dl(vdata, &blends[i], bodies[i]))
 			goto error_set_dl_param;
-
-		if (vspd_lif_set(vdata, &blends[i], bodies[i]))
-			goto error_set_dl_param;
 	}
+
+	vspd_lif_set(vdata, &blends[0]);
 
 	return vspd_run_dl(vdata, bodies, num,
 		DL_MODE_HEADER_LESS_AUTO_REPEAT, use_sync);
