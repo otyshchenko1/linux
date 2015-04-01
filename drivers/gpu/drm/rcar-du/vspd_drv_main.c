@@ -147,7 +147,8 @@ static irqreturn_t vspd_irq_handler(int irq, void *data)
 	unsigned long stat;
 	int frame_stat = 0;
 
-	stat = vspd_read(vdata, VI6_WPFn_IRQ_STA(USE_WPF)) & (VI6_WPFn_IRQ_DFE);
+	stat = vspd_read(vdata, VI6_WPFn_IRQ_STA(USE_WPF)) &
+		(VI6_WPFn_IRQ_DFE | VI6_WPFn_IRQ_FRE);
 	if (stat) {
 		vspd_write(vdata, VI6_WPFn_IRQ_STA(USE_WPF), ~stat);
 
