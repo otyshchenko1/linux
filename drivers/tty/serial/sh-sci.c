@@ -132,6 +132,9 @@ struct sci_port {
 static void sci_start_tx(struct uart_port *port);
 static void sci_stop_tx(struct uart_port *port);
 static void sci_start_rx(struct uart_port *port);
+#ifdef CONFIG_SERIAL_SH_SCI_DMA
+static void work_fn_rx(struct work_struct *work);
+#endif
 
 #define SCI_NPORTS CONFIG_SERIAL_SH_SCI_NR_UARTS
 
@@ -1345,7 +1348,7 @@ static void sci_dma_rx_complete(void *arg)
 	if (count)
 		tty_flip_buffer_push(&port->state->port);
 
-	schedule_work(&s->work_rx);
+	work_fn_rx(&s->work_rx);
 }
 
 static void sci_rx_dma_release(struct sci_port *s, bool enable_pio)
