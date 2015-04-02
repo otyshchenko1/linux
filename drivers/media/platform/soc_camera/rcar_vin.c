@@ -55,7 +55,6 @@
 #define VNIE_REG	0x40	/* Video n Interrupt Enable Register */
 #define VNINTS_REG	0x44	/* Video n Interrupt Status Register */
 #define VNSI_REG	0x48	/* Video n Scanline Interrupt Register */
-#define VNMTC_REG	0x4C	/* Video n Memory Transfer Control Register */
 #define VNYS_REG	0x50	/* Video n Y Scale Register */
 #define VNXS_REG	0x54	/* Video n X Scale Register */
 #define VNDMR_REG	0x58	/* Video n Data Mode Register */
@@ -974,6 +973,14 @@ static int rcar_vin_add_device(struct soc_camera_device *icd)
 
 	priv->error_flag = false;
 
+	/* Select VIN buffer burst size */
+#if defined(CONFIG_VIDEO_RCAR_VIN_BURST_SIZE_256BYTE)
+	iowrite32(0x0A080108, priv->base + 0x4C);
+#elif defined(CONFIG_VIDEO_RCAR_VIN_BURST_SIZE_64BYTE)
+	iowrite32(0x0A080102, priv->base + 0x4C);
+#elif defined(CONFIG_VIDEO_RCAR_VIN_BURST_SIZE_32BYTE)
+	iowrite32(0x0A080101, priv->base + 0x4C);
+#endif
 	return 0;
 }
 

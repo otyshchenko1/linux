@@ -56,6 +56,30 @@ config VIDEO_RCAR_VIN
 	---help---
 	  This is a v4l2 driver for the R-Car VIN Interface
 
+choice
+	prompt "R-Car Video Input (VIN) buffer burst size"
+	depends on VIDEO_RCAR_VIN
+	default VIDEO_RCAR_VIN_BURST_SIZE_64BYTE
+	---help---
+	  The specification of buffer in R-Car Video Input is selected.
+
+config VIDEO_RCAR_VIN_BURST_SIZE_256BYTE
+	bool "256Byte"
+	---help---
+	  The buffer burst size is set to 256Byte, if you select 256Byte.
+
+config VIDEO_RCAR_VIN_BURST_SIZE_64BYTE
+	bool "64Byte"
+	---help---
+	  The buffer burst size is set to 64Byte, if you select 64Byte.
+
+config VIDEO_RCAR_VIN_BURST_SIZE_32BYTE
+	bool "32Byte"
+	---help---
+	  The buffer burst size is set to 32Byte, if you select 32Byte.
+
+endchoice
+
 config VIDEO_SH_MOBILE_CSI2
 	tristate "SuperH Mobile MIPI CSI-2 Interface driver"
 	depends on VIDEO_DEV && SOC_CAMERA && HAVE_CLK
