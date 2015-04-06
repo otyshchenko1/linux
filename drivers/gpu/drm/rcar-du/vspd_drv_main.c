@@ -938,16 +938,20 @@ static int vspd_dl_output_du_head_less(struct vspd_private_data *vdata,
 			rpf_count++;
 		}
 
-		if (vspd_wpf_to_dl(vdata, &blends[i], bodies[i]))
+		ret = vspd_wpf_to_dl(vdata, &blends[i], bodies[i]);
+		if (ret)
 			goto error_set_dl_param;
 
-		if (vspd_bru_to_dl(vdata, &blends[i], bodies[i]))
+		ret = vspd_bru_to_dl(vdata, &blends[i], bodies[i]);
+		if (ret)
 			goto error_set_dl_param;
 
-		if (vspd_uds_to_dl(vdata, &blends[i], bodies[i]))
+		ret = vspd_uds_to_dl(vdata, &blends[i], bodies[i]);
+		if (ret)
 			goto error_set_dl_param;
 
-		if (vspd_dpr_to_dl(vdata, &blends[i], bodies[i]))
+		ret = vspd_dpr_to_dl(vdata, &blends[i], bodies[i]);
+		if (ret)
 			goto error_set_dl_param;
 	}
 
