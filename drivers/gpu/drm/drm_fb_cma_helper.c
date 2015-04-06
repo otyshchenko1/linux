@@ -213,10 +213,6 @@ int drm_fb_cma_debugfs_show(struct seq_file *m, void *arg)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_framebuffer *fb;
 	int ret;
-#if defined(CONFIG_DRM_RCAR_DU) || defined(CONFIG_DRM_RCAR_DU_MODULE)
-	unsigned int align;
-	unsigned int align_width_size, align_height_size;
-#endif
 
 	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
 	if (ret)
