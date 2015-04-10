@@ -27,7 +27,8 @@
 
 #ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 struct vsp_du_if {
-	int active;
+	bool active;
+	bool mute;
 	struct vspd_private_data *pdata;
 	struct vspd_blend blend[2];
 	struct mutex lock;
@@ -168,6 +169,25 @@ static int set_plane_param(struct vsp_du_if *du_if, int vsp_plane,
 	return 0;
 }
 
+static int update_image(struct vsp_du_if *du_if)
+{
+	if (du_if->active) {
+		if (du_if->mute) {
+			return vspd_dl_output_mute(du_if->pdata,
+						du_if->blend[0].out.width,
+						du_if->blend[0].out.height,
+						du_if->interlace,
+						VSPD_FENCE_NONE);
+		} else  {
+			return vspd_dl_output_du(du_if->pdata, du_if->blend,
+						du_if->interlace,
+						VSPD_FENCE_NONE);
+		}
+	}
+
+	return 0;
+}
+
 int vsp_du_if_update_plane(void *handle, int vsp_plane,
 			   struct rcar_du_plane *rplane, bool blend)
 {
@@ -188,10 +208,8 @@ int vsp_du_if_update_plane(void *handle, int vsp_plane,
 	mutex_lock(&du_if->lock);
 
 	ret = set_plane_param(du_if, vsp_plane, rplane);
-	if (du_if->active && !ret && blend) {
-		ret = vspd_dl_output_du(du_if->pdata,
-			  du_if->blend, du_if->interlace, VSPD_FENCE_NONE);
-	}
+	if (!ret && blend)
+		ret = update_image(du_if);
 
 	mutex_unlock(&du_if->lock);
 
@@ -230,10 +248,9 @@ int vsp_du_if_update_planes(void *handle,
 		if (ret)
 			goto end;
 	}
-	if (du_if->active) {
-		ret = vspd_dl_output_du(du_if->pdata,
-			du_if->blend, du_if->interlace, VSPD_FENCE_NONE);
-	}
+
+	ret = update_image(du_if);
+
 end:
 	mutex_unlock(&du_if->lock);
 
@@ -296,12 +313,7 @@ int vsp_du_if_update_base(void *handle, struct rcar_du_plane *rplane)
 
 	mutex_lock(&du_if->lock);
 	set_plane_param(du_if, 0, rplane);
-	if (du_if->active) {
-		ret = vspd_dl_output_du(du_if->pdata,
-			du_if->blend, du_if->interlace, VSPD_FENCE_NONE);
-	} else {
-		ret = 0;
-	}
+	ret = update_image(du_if);
 	mutex_unlock(&du_if->lock);
 
 	return ret;
@@ -313,9 +325,8 @@ int vsp_du_if_start(void *handle)
 	int ret;
 
 	mutex_lock(&du_if->lock);
-	ret = vspd_dl_output_du(du_if->pdata,
-			du_if->blend, du_if->interlace, VSPD_FENCE_NONE);
-	du_if->active = 1;
+	du_if->active = true;
+	ret = update_image(du_if);
 	mutex_unlock(&du_if->lock);
 	udelay(8); /* wait for vspd data output */
 	return ret;
@@ -327,7 +338,7 @@ void vsp_du_if_stop(void *handle)
 	struct vsp_du_if *du_if = (struct vsp_du_if *)handle;
 
 	mutex_lock(&du_if->lock);
-	du_if->active = 0;
+	du_if->active = false;
 	vspd_wpf_reset(du_if->pdata);
 	mutex_unlock(&du_if->lock);
 }
@@ -370,7 +381,8 @@ void *vsp_du_if_init(struct device *dev, int use_vsp)
 	if (du_if->pdata == NULL)
 		goto error2;
 
-	du_if->active = 0;
+	du_if->active = false;
+	du_if->mute = false;
 	du_if->interlace = 0;
 	mutex_init(&du_if->lock);
 
@@ -406,6 +418,19 @@ int vsp_du_if_du_info(void *callback_data)
 {
 	struct rcar_du_crtc *rcrtc = (struct rcar_du_crtc *)callback_data;
 	return rcar_du_get_frmend(rcrtc->index);
+}
+
+void vsp_du_if_set_mute(void *handle, bool on)
+{
+	struct vsp_du_if *du_if = (struct vsp_du_if *)handle;
+
+	mutex_lock(&du_if->lock);
+
+	du_if->mute = on;
+
+	update_image(du_if);
+
+	mutex_unlock(&du_if->lock);
 }
 
 MODULE_ALIAS("vsp_du_if");

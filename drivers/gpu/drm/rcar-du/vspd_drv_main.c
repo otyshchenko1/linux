@@ -983,6 +983,71 @@ int vspd_dl_output_du(struct vspd_private_data *vdata,
 					blends, num, use_sync);
 }
 
+/* Please use only in DL headless mode. */
+int vspd_dl_output_mute(struct vspd_private_data *vdata,
+			unsigned long width, unsigned long height,
+			int num, int use_sync)
+{
+	int i, j;
+	struct dl_body *bodies[DISPLAY_LIST_NUM];
+
+	for (i = 0; i < num; i++) {
+		bodies[i] = vspd_dl_get_single_body(vdata->dlmemory);
+		if (bodies[i] == NULL) {
+			vspd_err(vdata, "Display List body busy\n");
+			goto error_get_dl_body;
+		}
+
+		/* set wpf */
+		vspd_set_dl(vdata, VI6_WPFn_SRCRPF(USE_WPF),
+			    2 << 28, bodies[i]);
+		vspd_set_dl(vdata, VI6_WPFn_HSZCLIP(USE_WPF), 0, bodies[i]);
+		vspd_set_dl(vdata, VI6_WPFn_VSZCLIP(USE_WPF), 0, bodies[i]);
+
+		/* set bru */
+		vspd_set_dl(vdata, VI6_BRU_INCTRL, 0, bodies[i]);
+		vspd_set_dl(vdata, VI6_BRU_VIRRPF_SIZE,
+				(width << 16) | (height << 0), bodies[i]);
+		vspd_set_dl(vdata, VI6_BRU_VIRRPF_LOC,
+				(0 << 16) | (0 << 0), bodies[i]); /* black */
+		vspd_set_dl(vdata, VI6_BRU_VIRRPF_COL,
+				(0xFF << 24), bodies[i]);
+		vspd_set_dl(vdata, VI6_BRUm_CTRL(0),
+				VI6_BRUm_CTRL_DSTSEL(4), bodies[i]);
+		vspd_set_dl(vdata, VI6_BRUm_BLD(0),
+				VI6_BRUm_BLD_CCMDX_255_SRCA |
+				VI6_BRUm_BLD_ACMDX_255_SRCA |
+				VI6_BRUm_BLD_CCMDY_SRCA |
+				VI6_BRUm_BLD_ACMDY_COEFY |
+				VI6_BRUm_BLD_COEFY(0xff),
+				bodies[i]);
+		for (j = 1; j < VSPD_BLEND_IMAGE_NUM; j++)
+			vspd_set_dl(vdata, VI6_BRUm_CTRL(j), 0, bodies[i]);
+
+		/* set dpr */
+		for (j = 0; j < VSPD_INPUT_IMAGE_NUM; j++)
+			vspd_set_dl(vdata, VI6_DPR_RPFn_ROUTE(j),
+				    VI6_DPR_ROUTE_DIS_CONN, bodies[i]);
+		for (j = 0; j < VSPD_SCALING_IMAGE_NUM; j++)
+			vspd_set_dl(vdata, VI6_DPR_UDSn_ROUTE(i),
+				    VI6_DPR_ROUTE_DIS_CONN, bodies[i]);
+		vspd_set_dl(vdata, VI6_DPR_BRU_ROUTE, 56 + USE_WPF, bodies[i]);
+		vspd_set_dl(vdata, VI6_DPR_WPFn_FPORCH(USE_WPF),
+			    5 << 8, bodies[i]);
+	}
+
+	return vspd_run_dl(vdata, bodies, num,
+		DL_MODE_HEADER_LESS_AUTO_REPEAT, use_sync);
+
+error_get_dl_body:
+	i--;
+	for (; i >= 0; i--)
+		vspd_dl_free_body(vdata->dlmemory, bodies[i]);
+
+	return -ENOMEM;
+}
+
+
 int vspd_check_reg(struct vspd_private_data *vdata, unsigned long arg)
 {
 	void __iomem *vsp1_base;

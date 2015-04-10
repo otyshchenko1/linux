@@ -21,4 +21,7 @@ void vspd_deinit(struct vspd_private_data *vdata);
 void vspd_set_callback(struct vspd_private_data *vdata,
 				void (*callback)(void *data),
 				void *callback_data);
+int vspd_dl_output_mute(struct vspd_private_data *vdata,
+			unsigned long width, unsigned long height,
+			int num, int use_sync);
 #endif /* VSPD_DRV_H */

@@ -18,6 +18,7 @@ void vsp_du_if_deinit(void *handle);
 void vsp_du_if_set_callback(void *handle,
 			    void (*callback)(void *data),
 			    void *callback_data);
+void vsp_du_if_set_mute(void *handle, bool on);
 
 void vsp_du_if_reg_debug(void *handle);
 
