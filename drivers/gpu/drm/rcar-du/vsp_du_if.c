@@ -17,6 +17,11 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_gem_cma_helper.h>
 #include <uapi/linux/rcar-du-frm-interface.h>
 
 #include "rcar_du_crtc.h"
@@ -283,7 +288,7 @@ int vsp_du_if_setup_base(void *handle, struct rcar_du_plane *rplane,
 				bool interlace)
 {
 	struct vsp_du_if *du_if = (struct vsp_du_if *)handle;
-	struct vspd_image *out = &du_if->blend[0].out;
+	struct vspd_image *out;
 	int i;
 
 	mutex_lock(&du_if->lock);
@@ -291,37 +296,38 @@ int vsp_du_if_setup_base(void *handle, struct rcar_du_plane *rplane,
 	du_if->interlace = interlace ? 2 : 1;
 
 	/* set output param */
-	out->enable		= 0; /* not effect for out param */
-	out->width		= rplane->width;
-	out->height		= rplane->height;
-	out->crop.x		= 0;
-	out->crop.y		= 0;
-	out->crop.width		= rplane->width;
-	out->crop.height	= rplane->height;
-	out->dist.x		= 0;
-	out->dist.y		= 0;
-	out->dist.width		= rplane->width;
-	out->dist.height	= rplane->height;
-	out->alpha		= 0; /* not effect for out param in LIF */
-	out->format		= VSPD_FMT_XRGB8888;
-	out->addr_y		= 0; /* not effect for out param in LIF */
-	out->addr_c0		= 0;
-	out->addr_c1		= 0;
-	out->stride_y		= rplane->d_width * 4;
-	out->stride_c		= 0;
-	out->swap		= 0; /* not effect for out param in LIF */
+	for (i = 0; i < du_if->interlace; i++) {
+		out = &du_if->blend[i].out;
+
+		out->width		= rplane->width;
+		out->height		= rplane->height / du_if->interlace;
+		out->crop.x		= 0;
+		out->crop.y		= 0;
+		out->crop.width		= rplane->width;
+		out->crop.height	= rplane->height / du_if->interlace;
+		/* In the case of LIF, you can set any format */
+		/* as long as it is a RGB format.             */
+		out->format		= VSPD_FMT_XRGB8888;
+
+		/* for write back in LIF (or mem to mem) */
+		out->addr_y		= 0;
+		out->addr_c0		= 0;
+		out->addr_c1		= 0;
+		out->stride_y		= 0;
+		out->stride_c		= 0;
+		out->swap		= 0;
+		out->alpha		= 0;
+
+		/* not effect for out param */
+		out->enable		= 0;
+		out->dist.x		= 0;
+		out->dist.y		= 0;
+		out->dist.width		= 0;
+		out->dist.height	= 0;
+		out->flag		= 0;
+	}
 
 	set_plane_param(du_if, 0, rplane);
-
-	if (du_if->interlace == 2) {
-		du_if->blend[1].out = du_if->blend[0].out;
-
-		for (i = 0; i < du_if->interlace; i++) {
-			out = &du_if->blend[i].out;
-			out->crop.height	/= 2;
-			out->dist.height	/= 2;
-		}
-	}
 
 	mutex_unlock(&du_if->lock);
 
@@ -453,6 +459,103 @@ void vsp_du_if_set_mute(void *handle, bool on)
 	update_image(du_if);
 
 	mutex_unlock(&du_if->lock);
+}
+
+
+
+int vsp_du_if_write_back(void *handle, struct rcar_du_screen_shot *sh)
+{
+	int i;
+	int ret = 0;
+	struct vsp_du_if *du_if = (struct vsp_du_if *)handle;
+	unsigned long format;
+	unsigned long stride;
+	unsigned long swap;
+	struct vspd_image *out = &du_if->blend[0].out;
+
+	switch (sh->fmt) {
+	case DRM_FORMAT_RGB565:
+		format = VSPD_FMT_RGB565;
+		stride = sh->width * 2;
+		swap = VSPD_LONG_LWORD_SWAP | VSPD_LWORD_SWAP |
+					VSPD_WORD_SWAP;
+		break;
+
+	case DRM_FORMAT_ARGB1555:
+		format = VSPD_FMT_ARGB1555;
+		stride = sh->width * 2;
+		swap = VSPD_LONG_LWORD_SWAP | VSPD_LWORD_SWAP |
+					VSPD_WORD_SWAP;
+		break;
+
+	case DRM_FORMAT_ARGB8888:
+		format = VSPD_FMT_ARGB8888;
+		stride = sh->width * 4;
+		swap = VSPD_LONG_LWORD_SWAP | VSPD_LWORD_SWAP;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	mutex_lock(&du_if->lock);
+
+	if (!du_if->active) {
+		mutex_unlock(&du_if->lock);
+		ret = -ECANCELED;
+		goto error_param;
+	}
+
+	if ((sh->width != (out->crop.width)) ||
+	    (sh->height != (out->crop.height * du_if->interlace))) {
+		mutex_unlock(&du_if->lock);
+		ret = -EINVAL;
+		goto error_param;
+	}
+
+	if ((stride * out->crop.height) > sh->buff_len) {
+		mutex_unlock(&du_if->lock);
+		ret = -EINVAL;
+		goto error_param;
+	}
+
+	for (i = 0; i < du_if->interlace; i++) {
+		out = &du_if->blend[i].out;
+
+		out->format	= format;
+		out->addr_y	= sh->buff + (stride * i);
+		out->addr_c0	= 0;
+		out->addr_c1	= 0;
+		out->stride_y	= stride * du_if->interlace;
+		out->stride_c	= 0;
+		out->swap	= swap;
+		out->alpha	= 0xFF;
+	}
+
+	ret = vspd_dl_write_back_start(du_if->pdata, du_if->blend,
+				 du_if->interlace);
+
+	mutex_unlock(&du_if->lock);
+
+	if (ret)
+		goto error_write_back_start;
+
+	ret = vspd_dl_write_back_wait(du_if->pdata, 0);
+	if (ret < 0)
+		goto error_get_write_back_image;
+
+	mutex_lock(&du_if->lock);
+	update_image(du_if);
+	mutex_unlock(&du_if->lock);
+
+	if (ret == 1)
+		ret = vspd_dl_write_back_wait(du_if->pdata, 1);
+
+error_get_write_back_image:
+error_write_back_start:
+error_param:
+
+	return ret;
 }
 
 MODULE_ALIAS("vsp_du_if");

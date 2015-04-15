@@ -212,6 +212,13 @@ enum {
 #define DL_IRQ_UPDATE_FRAME	0x02
 
 
+/* write back stat */
+enum {
+	WB_STAT_NONE = 0,
+	WB_STAT_CATP_ENABLE,
+	WB_STAT_CATP_START,
+	WB_STAT_CATP_DONE,
+};
 
 #define USE_WPF 0
 
@@ -319,21 +326,28 @@ struct vspd_resource {
 	struct clk *clk;
 };
 
+struct write_back {
+	int stat;
+	wait_queue_head_t wb_wait;
+	int count;
+};
+
 struct vspd_private_data {
 	struct device *dev;
 	struct vspd_resource res;
 
-	int active;
-	unsigned long addr;
-	void __iomem *base;
-	struct clk *clk;
+	bool active;
+	bool lif;
 	wait_queue_head_t event_wait;
 	spinlock_t lock;
+	struct mutex mutex_lock;
 
 	struct dl_memory *dlmemory;
 
 	void (*callback)(void *data);
 	void *callback_data;
+
+	struct write_back wb;
 };
 
 int vspd_dl_create(struct vspd_private_data *vdata, struct device *dev);

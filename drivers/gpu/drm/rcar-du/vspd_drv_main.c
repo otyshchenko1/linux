@@ -34,6 +34,7 @@ struct vspd_drvdata {
 };
 struct vspd_drvdata *p_vdrv;
 
+static void vspd_write_back_done(struct vspd_private_data *vdata);
 
 #define ALIGN_ROUND_DOWN(X, Y)  ((X) & ~((Y)-1))
 
@@ -173,6 +174,8 @@ static irqreturn_t vspd_irq_handler(int irq, void *data)
 		wake_up_interruptible(&vdata->event_wait);
 
 	if (frame_stat & DL_IRQ_FRAME_END) {
+		vspd_write_back_done(vdata);
+
 		if (vdata->callback)
 			vdata->callback(vdata->callback_data);
 	}
@@ -186,7 +189,8 @@ int vspd_wpf_reset(struct vspd_private_data *vdata)
 	int time;
 	unsigned long status;
 
-	vdata->active = 0;
+	vdata->active = false;
+	vdata->lif = false;
 
 	vspd_write(vdata, VI6_WPFn_IRQ_ENB(USE_WPF), 0);
 	vspd_write(vdata, VI6_DISP_IRQ_ENB, 0);
@@ -211,6 +215,9 @@ int vspd_wpf_reset(struct vspd_private_data *vdata)
 	vspd_write(vdata, VI6_DISP_IRQ_STA, 0);
 
 	vspd_dl_reset(vdata);
+
+	vdata->wb.stat = WB_STAT_NONE;
+	wake_up_interruptible(&vdata->wb.wb_wait);
 
 	return 0;
 }
@@ -579,11 +586,17 @@ int vspd_wpf_to_dl(struct vspd_private_data *vdata,
 			out->stride_c, body);
 
 	/* output image address */
-	vspd_set_dl(vdata, VI6_WPFn_DSTM_ADDR_Y(USE_WPF), out->addr_y, body);
-	vspd_set_dl(vdata, VI6_WPFn_DSTM_ADDR_C0(USE_WPF), out->addr_c0, body);
-	vspd_set_dl(vdata, VI6_WPFn_DSTM_ADDR_C1(USE_WPF), out->addr_c1, body);
+	vspd_set_dl(vdata, VI6_WPFn_DSTM_ADDR_Y(USE_WPF),
+		    out->addr_y, body);
+	vspd_set_dl(vdata, VI6_WPFn_DSTM_ADDR_C0(USE_WPF),
+		    out->addr_c0, body);
+	vspd_set_dl(vdata, VI6_WPFn_DSTM_ADDR_C1(USE_WPF),
+		    out->addr_c1, body);
 
-	vspd_set_dl(vdata, VI6_WPF0_WRBCK_CTRL, 0, body);
+	if (vdata->wb.stat == WB_STAT_CATP_ENABLE)
+		vspd_set_dl(vdata, VI6_WPF0_WRBCK_CTRL, 1, body);
+	else
+		vspd_set_dl(vdata, VI6_WPF0_WRBCK_CTRL, 0, body);
 
 	return 0;
 }
@@ -802,7 +815,7 @@ int vspd_lif_set(struct vspd_private_data *vdata, struct vspd_blend *blend)
 	struct vspd_image *out = &blend->out;
 	unsigned long obth;
 
-	if (vdata->active)
+	if (vdata->active || !vdata->lif)
 		return 0;
 
 #define OBTH 128
@@ -832,11 +845,13 @@ int vspd_run_dl(struct vspd_private_data *vdata,
 		vspd_dl_swap(vdata, dl, num);
 		spin_unlock_irqrestore(&vdata->lock, flags);
 	} else {
+		vspd_lif_set(vdata, (struct vspd_blend *)dl);
+
 		vspd_write(vdata, VI6_WPFn_IRQ_STA(USE_WPF), 0);
 		vspd_write(vdata, VI6_DISP_IRQ_STA, 0);
 
 		spin_lock_irqsave(&vdata->lock, flags);
-		vdata->active = 1;
+		vdata->active = true;
 		vspd_dl_start(vdata, dl, num, dl_mode);
 		spin_unlock_irqrestore(&vdata->lock, flags);
 	}
@@ -915,8 +930,6 @@ static int vspd_dl_output_du_head_mode(struct vspd_private_data *vdata,
 		vspd_dl_set_body(heads[i], body, DL_LIST_OFFSET_CTRL);
 	}
 
-	vspd_lif_set(vdata, &blends[0]);
-
 	return vspd_run_dl(vdata, heads, num,
 				DL_MODE_MANUAL_REPEAT, use_sync);
 
@@ -977,8 +990,6 @@ static int vspd_dl_output_du_head_less(struct vspd_private_data *vdata,
 			goto error_set_dl_param;
 	}
 
-	vspd_lif_set(vdata, &blends[0]);
-
 	return vspd_run_dl(vdata, bodies, num,
 		DL_MODE_HEADER_LESS_AUTO_REPEAT, use_sync);
 
@@ -995,14 +1006,24 @@ error_get_dl_body:
 int vspd_dl_output_du(struct vspd_private_data *vdata,
 		struct vspd_blend blends[], int num, int use_sync)
 {
+	int ret;
 	int dl_mode = DL_MODE_HEADER_LESS_AUTO_REPEAT;
 
+	mutex_lock(&vdata->mutex_lock);
+
+	if (!vdata->lif)
+		vdata->lif = true;
+
 	if (dl_mode == DL_MODE_HEADER_LESS_AUTO_REPEAT)
-		return vspd_dl_output_du_head_less(vdata,
+		ret = vspd_dl_output_du_head_less(vdata,
 					blends, num, use_sync);
 	else
-		return vspd_dl_output_du_head_mode(vdata,
+		ret = vspd_dl_output_du_head_mode(vdata,
 					blends, num, use_sync);
+
+	mutex_unlock(&vdata->mutex_lock);
+
+	return ret;
 }
 
 /* Please use only in DL headless mode. */
@@ -1069,6 +1090,96 @@ error_get_dl_body:
 	return -ENOMEM;
 }
 
+
+static void vspd_write_back_done(struct vspd_private_data *vdata)
+{
+	/* wait 2vsync */
+	switch (vdata->wb.stat) {
+	case WB_STAT_CATP_ENABLE:
+		/* capture start */
+		vdata->wb.stat = WB_STAT_CATP_START;
+		wake_up_interruptible(&vdata->wb.wb_wait);
+		return;
+
+	case WB_STAT_CATP_START:
+		/* capture done */
+		vdata->wb.stat = WB_STAT_CATP_DONE;
+		wake_up_interruptible(&vdata->wb.wb_wait);
+		return;
+	}
+}
+
+int vspd_dl_write_back_start(struct vspd_private_data *vdata,
+		struct vspd_blend blends[], int num)
+{
+	int ret;
+
+	mutex_lock(&vdata->mutex_lock);
+
+	if (vdata->wb.stat != WB_STAT_NONE) {
+		ret = -EBUSY;
+		goto end;
+	}
+
+	if (!vdata->lif) {
+		ret = -ECANCELED;
+		goto end;
+	}
+
+	if (!vdata->active) {
+		ret = -ECANCELED;
+		goto end;
+	}
+
+	vdata->wb.count = 0;
+	vdata->wb.stat = WB_STAT_CATP_ENABLE;
+
+	ret = vspd_dl_output_du_head_less(vdata, blends, num,
+						VSPD_FENCE_NONE);
+
+end:
+	mutex_unlock(&vdata->mutex_lock);
+
+	return ret;
+}
+
+
+/* Wait write back start or done.                               */
+/* Return 0 write back done, 1 write back start, <0 error.      */
+/* Write back does not stop even call this function.            */
+/* In order to stop the write back, please update display       */
+/* (call vspd_dl_output_du) after this function returns 1 or 0. */
+int vspd_dl_write_back_wait(struct vspd_private_data *vdata, int done)
+{
+	int ret;
+
+	if (vdata->wb.stat == WB_STAT_NONE)
+		return -EBUSY;
+
+	if (done) {
+		ret = wait_event_interruptible((vdata->wb.wb_wait),
+				((vdata->wb.stat == WB_STAT_CATP_DONE) ||
+				  !vdata->active));
+	} else {
+		ret = wait_event_interruptible((vdata->wb.wb_wait),
+				((vdata->wb.stat >= WB_STAT_CATP_START) ||
+				  !vdata->active));
+	}
+
+	if (!vdata->active)
+		return -ECANCELED;
+
+	if (ret) {
+		vdata->wb.stat = WB_STAT_NONE;
+	} else if (vdata->wb.stat == WB_STAT_CATP_START) {
+		ret = 1;
+	} else {
+		vdata->wb.stat = WB_STAT_NONE;
+		ret = 0;
+	}
+
+	return ret;
+}
 
 int vspd_check_reg(struct vspd_private_data *vdata, unsigned long arg)
 {
@@ -1387,6 +1498,20 @@ static void free_vspd_resource(struct vspd_private_data *vdata)
 	iounmap(vdata->res.base);
 }
 
+static int vspd_write_back_init(struct vspd_private_data *vdata)
+{
+	init_waitqueue_head(&vdata->wb.wb_wait);
+	vdata->wb.stat = WB_STAT_NONE;
+
+	return 0;
+}
+
+static void vspd_write_back_deinit(struct vspd_private_data *vdata)
+{
+	/* none */
+}
+
+
 struct vspd_private_data *vspd_init(struct device *dev, int use_vsp)
 {
 	struct vspd_private_data *vdata;
@@ -1404,13 +1529,21 @@ struct vspd_private_data *vspd_init(struct device *dev, int use_vsp)
 	if (ret)
 		goto error_vspd_dl_create;
 
+
+	ret = vspd_write_back_init(vdata);
+	if (ret)
+		goto error_vspd_write_back_init;
+
 	init_waitqueue_head(&vdata->event_wait);
 	spin_lock_init(&vdata->lock);
+	mutex_init(&vdata->mutex_lock);
 	vdata->callback = NULL;
 	vdata->callback_data = NULL;
 
 	return vdata;
 
+error_vspd_write_back_init:
+	vspd_dl_destroy(vdata);
 error_vspd_dl_create:
 	free_vspd_resource(vdata);
 error_get_vspd_resource:
@@ -1422,6 +1555,8 @@ error_kalloc:
 void vspd_deinit(struct vspd_private_data *vdata)
 {
 	vspd_wpf_reset(vdata);
+
+	vspd_write_back_deinit(vdata);
 
 	vspd_dl_destroy(vdata);
 

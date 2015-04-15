@@ -1,6 +1,8 @@
 #ifndef __VSP_DU_DU_H___
 #define __VSP_DU_DU_H___
 
+#include <uapi/drm/rcar_du_drm.h>
+
 #include "rcar_du_kms.h"
 #include "rcar_du_plane.h"
 
@@ -19,6 +21,8 @@ void vsp_du_if_set_callback(void *handle,
 			    void (*callback)(void *data),
 			    void *callback_data);
 void vsp_du_if_set_mute(void *handle, bool on);
+int vsp_du_if_write_back(void *handle, struct rcar_du_screen_shot *sh);
+void vsp_du_if_set_desktop(void *handle, bool on);
 
 void vsp_du_if_reg_debug(void *handle);
 

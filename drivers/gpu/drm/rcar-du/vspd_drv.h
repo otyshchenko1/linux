@@ -24,4 +24,8 @@ void vspd_set_callback(struct vspd_private_data *vdata,
 int vspd_dl_output_mute(struct vspd_private_data *vdata,
 			unsigned long width, unsigned long height,
 			int num, int use_sync);
+int vspd_dl_write_back_start(struct vspd_private_data *vdata,
+		struct vspd_blend blends[], int num);
+int vspd_dl_write_back_wait(struct vspd_private_data *vdata, int done);
+
 #endif /* VSPD_DRV_H */

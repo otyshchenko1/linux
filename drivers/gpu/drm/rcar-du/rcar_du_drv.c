@@ -333,6 +333,32 @@ int rcar_du_debug_reg_vsp(struct drm_device *dev, void *data,
 	return 0;
 }
 
+int rcar_du_screen_shot(struct drm_device *dev, void *data,
+		struct drm_file *file_priv)
+{
+	struct rcar_du_screen_shot *sh =
+		(struct rcar_du_screen_shot *)data;
+	struct drm_mode_object *obj;
+	struct drm_crtc *crtc;
+	struct rcar_du_crtc *rcrtc;
+
+	obj = drm_mode_object_find(dev, sh->crtc_id,
+				DRM_MODE_OBJECT_CRTC);
+	if (!obj)
+		return -EINVAL;
+	crtc = obj_to_crtc(obj);
+
+	rcrtc = to_rcar_crtc(crtc);
+
+	if (rcrtc->vpsd_handle == NULL)
+		return -EINVAL;
+
+	if (!rcrtc->lif_enable)
+		return -EAGAIN;
+
+	return vsp_du_if_write_back(rcrtc->vpsd_handle, sh);
+}
+
 static const struct drm_ioctl_desc rcar_du_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(RCAR_DU_SET_PLANE_FENCE, drm_noop,
 		DRM_UNLOCKED | DRM_CONTROL_ALLOW),
@@ -344,6 +370,9 @@ static const struct drm_ioctl_desc rcar_du_ioctls[] = {
 		DRM_UNLOCKED | DRM_CONTROL_ALLOW),
 
 	DRM_IOCTL_DEF_DRV(RCAR_DU_SET_DESKTOP, drm_noop,
+		DRM_UNLOCKED | DRM_CONTROL_ALLOW),
+
+	DRM_IOCTL_DEF_DRV(RCAR_DU_SET_SCRSHOT, rcar_du_screen_shot,
 		DRM_UNLOCKED | DRM_CONTROL_ALLOW),
 };
 #endif /* CONFIG_DRM_RCAR_DU_CONNECT_VSP */
