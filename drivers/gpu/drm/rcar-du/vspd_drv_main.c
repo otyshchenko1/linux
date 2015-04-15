@@ -99,6 +99,11 @@ static int get_fmt_val(struct vspd_image *image, unsigned long *fmt)
 		_fmt = 0x15;
 		break;
 
+	case VSPD_FMT_ARGB1555:
+	case VSPD_FMT_XRGB1555:
+		_fmt = 0x1B;
+		break;
+
 	case VSPD_FMT_RGB565:
 		_fmt = 0x06;
 		break;
@@ -292,6 +297,8 @@ static int check_rpf_param(struct vspd_image *in, struct vspd_image *out,
 				in->stride_y * adjust->crop.y;
 		break;
 
+	case VSPD_FMT_XRGB1555:
+	case VSPD_FMT_ARGB1555:
 	case VSPD_FMT_RGB565:
 		adjust->crop.width = in->crop.width;
 		adjust->crop.height = in->crop.height;
@@ -395,6 +402,15 @@ static int vspd_rpf_to_dl_core(struct vspd_private_data *vdata,
 
 	/* alpha plane */
 	switch (in->format) {
+	case VSPD_FMT_ARGB1555:
+		if (CONFIG_DRM_RCAR_VSP_ALPHA_BIT_ARGB1555 == 1)
+			alph_sel = (2 << 28) |
+				   (0xFF << 8) | (in->alpha & 0xFF);
+		else
+			alph_sel = (2 << 28) |
+				   ((in->alpha & 0xFF) << 8) | 0xFF;
+		laya = 0;
+		break;
 	case VSPD_FMT_ARGB8888:
 		/* none */
 		break;
@@ -481,6 +497,9 @@ static int check_wpf_param(struct vspd_blend *blend,
 	if (get_fmt_val(out, outfmt))
 		return -EINVAL;
 
+	/* WPF alpha use VI6_WPFn_OUTFMT.PDV */
+	*outfmt |= VI6_WPFn_OUTFMT_PDV((out->alpha & 0xFF));
+
 	if ((255 < out->crop.x) || (255 < out->crop.y))
 		return -EINVAL;
 
@@ -548,7 +567,10 @@ int vspd_wpf_to_dl(struct vspd_private_data *vdata,
 	/* output data swap */
 	vspd_set_dl(vdata, VI6_WPFn_DSWAP(USE_WPF), out->swap, body);
 
-	vspd_set_dl(vdata, VI6_WPFn_RNDCTRL(USE_WPF), 0, body);
+	/* rounding control */
+	/* lower-order bits are truncated */
+	vspd_set_dl(vdata, VI6_WPFn_RNDCTRL(USE_WPF),
+			VI6_WPFn_RNDCTRL_ABRM_LOW, body);
 
 	/* output image stride */
 	vspd_set_dl(vdata, VI6_WPFn_DSTM_STRIDE_Y(USE_WPF),

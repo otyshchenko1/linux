@@ -9,6 +9,8 @@
 enum {
 	/* 16 bpp RGB */
 	VSPD_FMT_RGB565,
+	VSPD_FMT_ARGB1555,
+	VSPD_FMT_XRGB1555,
 
 	/* 24 bpp RGB */
 	VSPD_FMT_RGB888,

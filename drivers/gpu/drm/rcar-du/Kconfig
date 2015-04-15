@@ -95,3 +95,15 @@ config DRM_RCAR_DU2_USE_VSPDU_CH
 	  If you set value to 1 or 3, DU2 is connected with VSPDU1.
 	  If you set value to -1, DU2 is not connected with any VSPD.
 	  When you set value to 3 , VSPDU connection can be changed dynamically.
+
+config DRM_RCAR_VSP_ALPHA_BIT_ARGB1555
+	int "R-Car DU VSP alpha bit function of ARGB1555"
+	depends on DRM_RCAR_DU && DRM_RCAR_DU_CONNECT_VSP
+	range 0 1
+	default 0
+	help
+	  Choose this option if you select A bit function of ARGB1555.
+	  If you set value to 0, pixel alpha blending is performed
+	  when the value of A is 0.
+	  If you set value to 1, pixel alpha blending is performed
+	  when the value of A is 1.

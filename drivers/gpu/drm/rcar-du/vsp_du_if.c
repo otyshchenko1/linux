@@ -71,6 +71,28 @@ static int set_plane_param(struct vsp_du_if *du_if, int vsp_plane,
 			image->stride_c = 0;
 			break;
 
+		case DRM_FORMAT_ARGB1555:
+			image->format = VSPD_FMT_ARGB1555;
+			image->addr_y = rplane->dma[0] + (rplane->pitch * i);
+			image->stride_y = rplane->pitch * du_if->interlace;
+			image->swap = VSPD_LONG_LWORD_SWAP | VSPD_LWORD_SWAP |
+					VSPD_WORD_SWAP;
+			image->addr_c0 = 0;
+			image->addr_c1 = 0;
+			image->stride_c = 0;
+			break;
+
+		case DRM_FORMAT_XRGB1555:
+			image->format = VSPD_FMT_XRGB1555;
+			image->addr_y = rplane->dma[0] + (rplane->pitch * i);
+			image->stride_y = rplane->pitch * du_if->interlace;
+			image->swap = VSPD_LONG_LWORD_SWAP | VSPD_LWORD_SWAP |
+					VSPD_WORD_SWAP;
+			image->addr_c0 = 0;
+			image->addr_c1 = 0;
+			image->stride_c = 0;
+			break;
+
 		case DRM_FORMAT_ARGB8888:
 			image->format = VSPD_FMT_ARGB8888;
 			image->addr_y = rplane->dma[0] + (rplane->pitch * i);
@@ -280,14 +302,14 @@ int vsp_du_if_setup_base(void *handle, struct rcar_du_plane *rplane,
 	out->dist.y		= 0;
 	out->dist.width		= rplane->width;
 	out->dist.height	= rplane->height;
-	out->alpha		= 0; /* not effect for out param */
+	out->alpha		= 0; /* not effect for out param in LIF */
 	out->format		= VSPD_FMT_XRGB8888;
-	out->addr_y		= 0; /* not effect for out param */
+	out->addr_y		= 0; /* not effect for out param in LIF */
 	out->addr_c0		= 0;
 	out->addr_c1		= 0;
 	out->stride_y		= rplane->d_width * 4;
 	out->stride_c		= 0;
-	out->swap		= 0; /* not effect for out param */
+	out->swap		= 0; /* not effect for out param in LIF */
 
 	set_plane_param(du_if, 0, rplane);
 
