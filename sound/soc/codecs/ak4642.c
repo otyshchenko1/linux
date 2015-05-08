@@ -1,6 +1,7 @@
 /*
  * ak4642.c  --  AK4642/AK4643 ALSA Soc Audio driver
  *
+ * Copyright (C) 2015 Renesas Electronics Corporation
  * Copyright (C) 2009 Renesas Solutions Corp.
  * Kuninori Morimoto <morimoto.kuninori@renesas.com>
  *
@@ -74,6 +75,8 @@
 /* PW_MGMT1*/
 #define PMVCM		(1 << 6) /* VCOM Power Management */
 #define PMMIN		(1 << 5) /* MIN Input Power Management */
+#define PMSPK		(1 << 4) /* SP-amp Power Management */
+#define PMLO		(1 << 3) /* Stereo Line-out Power Management */
 #define PMDAC		(1 << 2) /* DAC Power Management */
 #define PMADL		(1 << 0) /* MIC Amp Lch and ADC Lch Power Management */
 
@@ -98,7 +101,12 @@
 #define MGAIN0		(1 << 0) /* MIC amp gain*/
 
 /* SG_SL2 */
+#define LOVL		(1 << 7)
 #define LOPS		(1 << 6) /* Stero Line-out Power Save Mode */
+#define MGAIN1		(1 << 5)
+#define SPKG1		(1 << 4)
+#define SPKG0		(1 << 3)
+#define MINL		(1 << 2)
 
 /* TIMER */
 #define ZTM(param)	((param & 0x3) << 4) /* ALC Zoro Crossing TimeOut */
@@ -137,6 +145,12 @@
 /* MD_CTL4 */
 #define DACH		(1 << 0)
 
+/* module params */
+static unsigned int popup_wait = 300;
+module_param(popup_wait, uint, 0644);
+static unsigned int popdown_wait = 300;
+module_param(popdown_wait, uint, 0644);
+
 /*
  * Playback Volume (table 39)
  *
@@ -168,15 +182,39 @@ static int ak4642_lout_event(struct snd_soc_dapm_widget *w,
 					struct snd_soc_codec, dapm);
 
 	switch (event) {
-	case SND_SOC_DAPM_PRE_PMD:
-	case SND_SOC_DAPM_PRE_PMU:
+	case SND_SOC_DAPM_PRE_PMU:	/* before widget power up */
+		break;
+	case SND_SOC_DAPM_POST_PMU:	/* after widget power up */
+		/* Power save mode OFF */
+		mdelay(popup_wait);
+		snd_soc_update_bits(codec, SG_SL2, LOPS, 0);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:	/* before widget power down */
 		/* Power save mode ON */
 		snd_soc_update_bits(codec, SG_SL2, LOPS, LOPS);
 		break;
-	case SND_SOC_DAPM_POST_PMU:
-	case SND_SOC_DAPM_POST_PMD:
-		/* Power save mode OFF */
-		mdelay(300);
+	case SND_SOC_DAPM_POST_PMD:	/* after widget power down */
+		break;
+	}
+
+	return 0;
+}
+
+static int ak4642_dac_event(struct snd_soc_dapm_widget *w,
+		struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:	/* before widget power up */
+		snd_soc_update_bits(codec, SG_SL2, LOPS, LOPS);
+		break;
+	case SND_SOC_DAPM_POST_PMU:	/* after widget power up */
+		break;
+	case SND_SOC_DAPM_PRE_PMD:	/* before widget power down */
+		break;
+	case SND_SOC_DAPM_POST_PMD:	/* after widget power down */
+		mdelay(popdown_wait);
 		snd_soc_update_bits(codec, SG_SL2, LOPS, 0);
 		break;
 	}
@@ -206,7 +244,10 @@ static const struct snd_soc_dapm_widget ak4642_dapm_widgets[] = {
 			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
 
 	/* DAC */
-	SND_SOC_DAPM_DAC("DAC", "HiFi Playback", PW_MGMT1, 2, 0),
+	SND_SOC_DAPM_DAC_E("DAC", "HiFi Playback", PW_MGMT1, 2, 0,
+			   ak4642_dac_event,
+			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
+			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
 };
 
 static const struct snd_soc_dapm_route ak4642_intercon[] = {
@@ -254,64 +295,6 @@ static const struct reg_default ak4648_reg[] = {
 	{ 32, 0x00 }, { 33, 0x00 }, { 34, 0x00 }, { 35, 0x00 },
 	{ 36, 0x00 }, { 37, 0x88 }, { 38, 0x88 }, { 39, 0x08 },
 };
-
-static int ak4642_dai_startup(struct snd_pcm_substream *substream,
-			      struct snd_soc_dai *dai)
-{
-	int is_play = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
-	struct snd_soc_codec *codec = dai->codec;
-
-	if (is_play) {
-		/*
-		 * start headphone output
-		 *
-		 * PLL, Master Mode
-		 * Audio I/F Format :MSB justified (ADC & DAC)
-		 * Bass Boost Level : Middle
-		 *
-		 * This operation came from example code of
-		 * "ASAHI KASEI AK4642" (japanese) manual p97.
-		 */
-		snd_soc_write(codec, L_IVC, 0x91); /* volume */
-		snd_soc_write(codec, R_IVC, 0x91); /* volume */
-	} else {
-		/*
-		 * start stereo input
-		 *
-		 * PLL Master Mode
-		 * Audio I/F Format:MSB justified (ADC & DAC)
-		 * Pre MIC AMP:+20dB
-		 * MIC Power On
-		 * ALC setting:Refer to Table 35
-		 * ALC bit=“1”
-		 *
-		 * This operation came from example code of
-		 * "ASAHI KASEI AK4642" (japanese) manual p94.
-		 */
-		snd_soc_update_bits(codec, SG_SL1, PMMP | MGAIN0, PMMP | MGAIN0);
-		snd_soc_write(codec, TIMER, ZTM(0x3) | WTM(0x3));
-		snd_soc_write(codec, ALC_CTL1, ALC | LMTH0);
-		snd_soc_update_bits(codec, PW_MGMT1, PMADL, PMADL);
-		snd_soc_update_bits(codec, PW_MGMT3, PMADR, PMADR);
-	}
-
-	return 0;
-}
-
-static void ak4642_dai_shutdown(struct snd_pcm_substream *substream,
-			       struct snd_soc_dai *dai)
-{
-	int is_play = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
-	struct snd_soc_codec *codec = dai->codec;
-
-	if (is_play) {
-	} else {
-		/* stop stereo input */
-		snd_soc_update_bits(codec, PW_MGMT1, PMADL, 0);
-		snd_soc_update_bits(codec, PW_MGMT3, PMADR, 0);
-		snd_soc_update_bits(codec, ALC_CTL1, ALC, 0);
-	}
-}
 
 static int ak4642_dai_set_sysclk(struct snd_soc_dai *codec_dai,
 	int clk_id, unsigned int freq, int dir)
@@ -445,11 +428,30 @@ static int ak4642_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
 	switch (level) {
-	case SND_SOC_BIAS_OFF:
-		snd_soc_write(codec, PW_MGMT1, 0x00);
+	case SND_SOC_BIAS_ON:
+	case SND_SOC_BIAS_PREPARE:
 		break;
-	default:
-		snd_soc_update_bits(codec, PW_MGMT1, PMVCM, PMVCM);
+	case SND_SOC_BIAS_STANDBY:
+		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+			snd_soc_update_bits(codec, PW_MGMT1, PMVCM, PMVCM);
+
+			/* start stereo input */
+			snd_soc_update_bits(codec, SG_SL1, PMMP | MGAIN0,
+						PMMP | MGAIN0);
+			snd_soc_write(codec, TIMER, ZTM(0x3) | WTM(0x3));
+			snd_soc_write(codec, ALC_CTL1, ALC | LMTH0);
+			snd_soc_update_bits(codec, PW_MGMT1, PMADL, PMADL);
+			snd_soc_update_bits(codec, PW_MGMT3, PMADR, PMADR);
+		}
+		break;
+	case SND_SOC_BIAS_OFF:
+		/* stop stereo input */
+		snd_soc_update_bits(codec, SG_SL1, PMMP, 0);
+		snd_soc_update_bits(codec, PW_MGMT1, PMADL, 0);
+		snd_soc_update_bits(codec, PW_MGMT3, PMADR, 0);
+		snd_soc_update_bits(codec, ALC_CTL1, ALC, 0);
+
+		snd_soc_write(codec, PW_MGMT1, 0x00);
 		break;
 	}
 	codec->dapm.bias_level = level;
@@ -458,8 +460,6 @@ static int ak4642_set_bias_level(struct snd_soc_codec *codec,
 }
 
 static const struct snd_soc_dai_ops ak4642_dai_ops = {
-	.startup	= ak4642_dai_startup,
-	.shutdown	= ak4642_dai_shutdown,
 	.set_sysclk	= ak4642_dai_set_sysclk,
 	.set_fmt	= ak4642_dai_set_fmt,
 	.hw_params	= ak4642_dai_hw_params,
