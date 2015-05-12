@@ -2031,14 +2031,13 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	sci_port_enable(s);
 
+	spin_lock_irqsave(&port->lock, flags);
+
 	sci_reset(port);
 
 	smr_val |= serial_port_in(port, SCSMR) & 3;
 
 	uart_update_timeout(port, termios->c_cflag, baud);
-
-	dev_dbg(port->dev, "%s: SMR %x, cks %x, t %x, SCSCR %x\n",
-		__func__, smr_val, cks, t, s->cfg->scscr);
 
 	if (t >= 0) {
 		serial_port_out(port, SCSMR, (smr_val & ~SCSMR_CKS) | cks);
@@ -2073,9 +2072,7 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 		serial_port_out(port, SCFCR, ctrl);
 	}
 
-	spin_lock_irqsave(&port->lock, flags);
 	serial_port_out(port, SCSCR, s->cfg->scscr);
-	spin_unlock_irqrestore(&port->lock, flags);
 
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
 	/*
@@ -2113,19 +2110,24 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 			bits++;
 		s->rx_timeout = DIV_ROUND_UP((s->buf_len_rx * 2 * bits * HZ) /
 					     (baud / 10), 10);
-		dev_dbg(port->dev, "DMA Rx t-out %ums, tty t-out %u jiffies\n",
-			s->rx_timeout * 1000 / HZ, port->timeout);
 		if (s->rx_timeout < msecs_to_jiffies(20))
 			s->rx_timeout = msecs_to_jiffies(20);
 	}
 #endif
 
 	if ((termios->c_cflag & CREAD) != 0) {
-		spin_lock_irqsave(&port->lock, flags);
 		sci_start_rx(port);
-		spin_unlock_irqrestore(&port->lock, flags);
 	}
 
+	spin_unlock_irqrestore(&port->lock, flags);
+
+	dev_dbg(port->dev, "%s: SMR %x, cks %x, t %x, SCSCR %x\n",
+		__func__, smr_val, cks, t, s->cfg->scscr);
+
+#ifdef CONFIG_SERIAL_SH_SCI_DMA
+	dev_dbg(port->dev, "DMA Rx t-out %ums, tty t-out %u jiffies\n",
+		s->rx_timeout * 1000 / HZ, port->timeout);
+#endif
 	sci_port_disable(s);
 }
 
