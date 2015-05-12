@@ -2031,8 +2031,6 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	sci_port_enable(s);
 
-	spin_lock_irqsave(&port->lock, flags);
-
 	sci_reset(port);
 
 	smr_val |= serial_port_in(port, SCSMR) & 3;
@@ -2075,7 +2073,9 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 		serial_port_out(port, SCFCR, ctrl);
 	}
 
+	spin_lock_irqsave(&port->lock, flags);
 	serial_port_out(port, SCSCR, s->cfg->scscr);
+	spin_unlock_irqrestore(&port->lock, flags);
 
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
 	/*
@@ -2121,10 +2121,10 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 #endif
 
 	if ((termios->c_cflag & CREAD) != 0) {
+		spin_lock_irqsave(&port->lock, flags);
 		sci_start_rx(port);
+		spin_unlock_irqrestore(&port->lock, flags);
 	}
-
-	spin_unlock_irqrestore(&port->lock, flags);
 
 	sci_port_disable(s);
 }
