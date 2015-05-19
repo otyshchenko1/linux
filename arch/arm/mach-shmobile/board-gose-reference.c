@@ -867,7 +867,7 @@ static struct i2c_board_info poweric_i2c[] = {
 	{ I2C_BOARD_INFO("da9063", 0x58), },
 };
 
-static void gose_restart(char mode, const char *cmd)
+static void gose_restart(enum reboot_mode mode, const char *cmd)
 {
 	struct i2c_adapter *adap;
 	struct i2c_client *client;
