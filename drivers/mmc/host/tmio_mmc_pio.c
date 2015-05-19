@@ -233,7 +233,7 @@ static void tmio_mmc_reset_work(struct work_struct *work)
 	 */
 	if (IS_ERR_OR_NULL(mrq)
 	    || time_is_after_jiffies(host->last_req_ts +
-		msecs_to_jiffies(2000))) {
+		msecs_to_jiffies(5000))) {
 		spin_unlock_irqrestore(&host->lock, flags);
 		return;
 	}
@@ -341,7 +341,7 @@ static int tmio_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	struct mmc_data data = {0};
 	struct scatterlist sg;
 	u8 *data_buf;
-	unsigned int tm = 2000; /* 2000msec */
+	unsigned int tm = 5000; /* 5000msec */
 	unsigned long flags;
 
 	if (ios->timing != MMC_TIMING_UHS_SDR104 &&
@@ -977,7 +977,7 @@ static void tmio_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		if (ret)
 			goto fail;
 		ret = wait_for_completion_timeout(&host->completion,
-						       msecs_to_jiffies(2000));
+						       msecs_to_jiffies(5000));
 		if (ret < 0)
 			goto fail;
 		if (!ret) {
@@ -1007,7 +1007,7 @@ static void tmio_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	ret = tmio_mmc_start_command(host, mrq->cmd);
 	if (!ret) {
 		schedule_delayed_work(&host->delayed_reset_work,
-				      msecs_to_jiffies(2000));
+				      msecs_to_jiffies(5000));
 		return;
 	}
 
