@@ -307,27 +307,11 @@ static void sh_mobile_sdhi_init_tuning(struct tmio_mmc_host *host,
 		of_match_device(sh_mobile_sdhi_of_match, &pdev->dev);
 	struct sh_mobile_sdhi_scc *taps;
 	int i;
-#ifdef R8A7790_ES1_SDHI_WORKAROUND
-	void __iomem *product_reg;
-#endif
 
 	/* set sampling clock selection range */
 	if (np && !of_property_read_u32(np, "renesas,mmc-scc-tapnum",
 							&scc_tapnum)) {
 		if (scc_tapnum)
-#ifdef R8A7790_ES1_SDHI_WORKAROUND
-			product_reg = ioremap_nocache(PRODUCT_REGISTER, 0x04);
-			if (!product_reg) {
-				dev_err(&pdev->dev,
-					"Cannot ioremap_nocache\n");
-				return;
-			}
-
-			if ((ioread32(product_reg) & PRODUCT_CUT_MASK) ==
-								PRODUCT_H2_BIT)
-				scc_tapnum = 10;
-			iounmap(product_reg);
-#endif
 			writel(scc_tapnum << 16,
 				host->ctl + SH_MOBILE_SDHI_SCC_DTCNTL);
 	}
