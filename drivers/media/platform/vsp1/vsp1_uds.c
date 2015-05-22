@@ -64,10 +64,10 @@ static unsigned int uds_output_size(unsigned int input, unsigned int ratio)
 		mp = ratio / 4096;
 		mp = mp < 4 ? 1 : (mp < 8 ? 2 : 4);
 
-		return (input - 1) / mp * mp * 4096 / ratio + 1;
+		return input / mp * mp * 4096 / ratio;
 	} else {
 		/* Up-scaling */
-		return (input - 1) * 4096 / ratio + 1;
+		return input * 4096 / ratio;
 	}
 }
 
@@ -145,7 +145,8 @@ static int uds_s_stream(struct v4l2_subdev *subdev, int enable)
 
 	vsp1_uds_write(uds, VI6_UDS_CTRL,
 		       (uds->scale_alpha ? VI6_UDS_CTRL_AON : 0) |
-		       (multitap ? VI6_UDS_CTRL_BC : 0));
+		       (multitap ? VI6_UDS_CTRL_BC : 0) |
+		       VI6_UDS_CTRL_AMD);
 
 	vsp1_uds_write(uds, VI6_UDS_PASS_BWIDTH,
 		       (uds_passband_width(hscale)
