@@ -645,7 +645,7 @@ vsp1_video_complete_buffer(struct vsp1_video *video, bool is_input)
 		next = list_entry(done->queue.next,
 					struct vsp1_video_buffer, queue);
 	else if (pipe->lif
-		|| video->format.field == V4L2_FIELD_PICONV_COMPOSITE) {
+		|| V4L2_FIELD_IS_PICONV(video->format.field)) {
 		/* Reuse the buffer if the list is singular. */
 		spin_unlock_irqrestore(&video->irqlock, flags);
 		return done;
