@@ -60,10 +60,13 @@ ENDPROC(rcar_cpu_resume)
 ENTRY(rcar_l2_restore)
 	ldr	r1, 2f
 	tst	r1, #1			@ is CA15
-	beq	_exit_init_l2_a15	@ is CA7, skip L2CTLR setting
+	beq	_exit_init_l2_a15	@ is CA7, skip L2(A)CTLR setting
 
 	ldr	r1, 3f
 	mcr 	p15, 1, r1, c9 , c0, 2
+
+	ldr	r1, 4f
+	mcr	p15, 1, r1, c15, c0, 0
 _exit_init_l2_a15:
 
 	bx	lr
@@ -78,6 +81,9 @@ is_a15_l2shutdown:
 	.globl	l2ctlr_value
 l2ctlr_value:
 3:	.space	4
+	.globl	l2actlr_value
+l2actlr_value:
+4:	.space	4
 
 /*
  * Reset vector for secondary CPUs.

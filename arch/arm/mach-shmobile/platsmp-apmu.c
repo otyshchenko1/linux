@@ -1,7 +1,7 @@
 /*
  * SMP support for SoCs with APMU
  *
- * Copyright (C) 2014  Renesas Electronics Corporation
+ * Copyright (C) 2014-2015  Renesas Electronics Corporation
  * Copyright (C) 2013  Magnus Damm
  *
  * This program is free software; you can redistribute it and/or modify
@@ -302,7 +302,10 @@ static int __cpuinit shmobile_smp_apmu_enter_suspend(suspend_state_t state)
 		is_a15_l2shutdown = 1;
 		asm volatile("mrc p15, 1, %0, c9 , c0, 2"
 			: "=r" (l2ctlr_value));
-		pr_debug("%s: l2ctlr: 0x%08x\n", __func__, l2ctlr_value);
+		asm volatile("mrc p15, 1, %0, c15, c0, 0"
+			: "=r" (l2actlr_value));
+		pr_debug("%s: l2ctlr: 0x%08x l2actlr: 0x%08x\n",
+			__func__, l2ctlr_value, l2actlr_value);
 	} else {
 		writel_relaxed(0x2, cpucmcr_ca7);
 		is_a15_l2shutdown = 0;

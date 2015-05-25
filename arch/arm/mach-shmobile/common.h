@@ -54,6 +54,7 @@ extern phys_addr_t cpu_resume_phys_addr;
 extern void rcar_cpu_resume(void);
 extern unsigned int is_a15_l2shutdown;
 extern unsigned int l2ctlr_value;
+extern unsigned int l2actlr_value;
 
 static inline void __init shmobile_init_late(void)
 {
