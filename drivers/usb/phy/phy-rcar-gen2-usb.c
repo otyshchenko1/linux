@@ -159,7 +159,6 @@ static int rcar_gen2_usb_phy_init(struct usb_phy *phy)
 	struct rcar_gen2_usb_phy_priv *priv = usb_phy_to_priv(phy);
 	unsigned long flags;
 
-	spin_lock_irqsave(&priv->lock, flags);
 	/*
 	 * Enable the clock and setup USB channels
 	 * if it's the first user
@@ -173,13 +172,14 @@ static int rcar_gen2_usb_phy_init(struct usb_phy *phy)
 		if (IS_ERR(priv->base))
 			return PTR_ERR(priv->base);
 
+		spin_lock_irqsave(&priv->lock, flags);
 		__rcar_gen2_usb_phy_init(priv);
 
 		devm_release_mem_region(&pdev->dev, res->start,
 							resource_size(res));
 		devm_iounmap(&pdev->dev, priv->base);
+		spin_unlock_irqrestore(&priv->lock, flags);
 	}
-	spin_unlock_irqrestore(&priv->lock, flags);
 	return 0;
 }
 
