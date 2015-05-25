@@ -645,14 +645,14 @@ vsp1_video_complete_buffer(struct vsp1_video *video, bool is_input)
 		next = list_entry(done->queue.next,
 					struct vsp1_video_buffer, queue);
 	else if (pipe->lif
-		|| V4L2_FIELD_IS_PICONV(video->format.field)) {
+		|| V4L2_FIELD_IS_PICONV(vsp1->piconv_mode)) {
 		/* Reuse the buffer if the list is singular. */
 		spin_unlock_irqrestore(&video->irqlock, flags);
 		return done;
 	}
 
-	if (video->format.field == V4L2_FIELD_PICONV_DIVIDE
-		|| (video->format.field == V4L2_FIELD_PICONV_COMPOSITE
+	if (vsp1->piconv_mode == V4L2_FIELD_PICONV_DIVIDE
+		|| (vsp1->piconv_mode == V4L2_FIELD_PICONV_COMPOSITE
 		&& !is_input)) {
 		if (vsp1->display_field == V4L2_FIELD_BOTTOM) {
 			/* Use the bottom field of the buffer
@@ -667,8 +667,8 @@ vsp1_video_complete_buffer(struct vsp1_video *video, bool is_input)
 		}
 	}
 
-	if (video->format.field == V4L2_FIELD_PICONV_EXTRACT
-		|| (video->format.field == V4L2_FIELD_PICONV_COMPOSITE
+	if (vsp1->piconv_mode == V4L2_FIELD_PICONV_EXTRACT
+		|| (vsp1->piconv_mode == V4L2_FIELD_PICONV_COMPOSITE
 		&& is_input)) {
 		if (vsp1->display_field != next->buf.v4l2_buf.field) {
 			/* Reuse the buffer under the following conditions
@@ -989,7 +989,7 @@ static void vsp1_video_buffer_queue(struct vb2_buffer *vb)
 
 	spin_lock_irqsave(&video->irqlock, flags);
 	empty = list_empty(&video->irqqueue);
-	if (V4L2_FIELD_IS_PICONV(video->format.field))
+	if (V4L2_FIELD_IS_PICONV(vsp1->piconv_mode))
 		vsp1_video_set_bottom(buf, &rwpf->video.format);
 	vsp1_set_cropupdate(video, buf);
 	list_add_tail(&buf->queue, &video->irqqueue);
@@ -1000,8 +1000,8 @@ static void vsp1_video_buffer_queue(struct vb2_buffer *vb)
 
 	vsp1->display_field = V4L2_FIELD_TOP;
 
-	if (video->format.field == V4L2_FIELD_PICONV_DIVIDE
-		|| video->format.field == V4L2_FIELD_PICONV_EXTRACT) {
+	if (vsp1->piconv_mode == V4L2_FIELD_PICONV_DIVIDE
+		|| vsp1->piconv_mode == V4L2_FIELD_PICONV_EXTRACT) {
 		duch = vsp1_get_du_channel(vsp1->id);
 		if (duch != DU_CH_NONE) {
 			vsp1_sync_du(duch, 0, 1000);
@@ -1207,6 +1207,9 @@ vsp1_video_set_format(struct file *file, void *fh, struct v4l2_format *format)
 
 	video->format = format->fmt.pix_mp;
 	video->fmtinfo = info;
+
+	if (V4L2_FIELD_IS_PICONV(format->fmt.pix_mp.field))
+		video->vsp1->piconv_mode = format->fmt.pix_mp.field;
 
 done:
 	mutex_unlock(&video->lock);

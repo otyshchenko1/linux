@@ -120,10 +120,9 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 		stride_y = format->plane_fmt[0].bytesperline;
 		if (format->num_planes > 1)
 			stride_c = format->plane_fmt[1].bytesperline;
-		if (format->field == V4L2_FIELD_PICONV_COMPOSITE) {
+		if (vsp1->piconv_mode == V4L2_FIELD_PICONV_COMPOSITE) {
 			stride_y = stride_y * 2;
 			stride_c = stride_c * 2;
-			height = height / 2;
 		}
 
 		vsp1_wpf_write(wpf, VI6_WPF_DSTM_STRIDE_Y,
@@ -132,6 +131,9 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 			vsp1_wpf_write(wpf, VI6_WPF_DSTM_STRIDE_C,
 				       stride_c);
 	}
+
+	if (V4L2_FIELD_IS_PICONV(vsp1->piconv_mode))
+		height = height / 2;
 
 	vsp1_wpf_write(wpf, VI6_WPF_HSZCLIP, VI6_WPF_SZCLIP_EN |
 		       (crop->left << VI6_WPF_SZCLIP_OFST_SHIFT) |
@@ -214,7 +216,7 @@ static void wpf_vdev_queue(struct vsp1_video *video,
 	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&video->video.entity);
 	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
 
-	if (video->format.field == V4L2_FIELD_PICONV_COMPOSITE
+	if (vsp1->piconv_mode == V4L2_FIELD_PICONV_COMPOSITE
 		&& vsp1->display_field == V4L2_FIELD_BOTTOM) {
 		vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_Y, buf->addr_btm[0]);
 		if (buf->buf.num_planes > 1)

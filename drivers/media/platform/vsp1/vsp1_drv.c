@@ -580,6 +580,9 @@ static int vsp1_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	/* Initialize PI conversion mode */
+	vsp1->piconv_mode = V4L2_FIELD_ANY;
+
 	/* Initialize display_field */
 	vsp1->display_field = V4L2_FIELD_TOP;
 

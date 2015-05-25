@@ -67,6 +67,7 @@ struct vsp1_device {
 
 	int id;
 
+	unsigned int piconv_mode;
 	unsigned int display_field;
 };
 

@@ -117,8 +117,11 @@ static unsigned int uds_compute_ratio(unsigned int input, unsigned int output)
 static int uds_s_stream(struct v4l2_subdev *subdev, int enable)
 {
 	struct vsp1_uds *uds = to_uds(subdev);
+	struct vsp1_device *vsp1 = uds->entity.vsp1;
 	const struct v4l2_mbus_framefmt *output;
 	const struct v4l2_mbus_framefmt *input;
+	unsigned int in_height;
+	unsigned int out_height;
 	unsigned int hscale;
 	unsigned int vscale;
 	bool multitap;
@@ -129,8 +132,16 @@ static int uds_s_stream(struct v4l2_subdev *subdev, int enable)
 	input = &uds->entity.formats[UDS_PAD_SINK];
 	output = &uds->entity.formats[UDS_PAD_SOURCE];
 
+	if (V4L2_FIELD_IS_PICONV(vsp1->piconv_mode)) {
+		in_height = input->height / 2;
+		out_height = output->height / 2;
+	} else {
+		in_height = input->height;
+		out_height = output->height;
+	}
+
 	hscale = uds_compute_ratio(input->width, output->width);
-	vscale = uds_compute_ratio(input->height, output->height);
+	vscale = uds_compute_ratio(in_height, out_height);
 
 	dev_dbg(uds->entity.vsp1->dev, "hscale %u vscale %u\n", hscale, vscale);
 
@@ -160,7 +171,7 @@ static int uds_s_stream(struct v4l2_subdev *subdev, int enable)
 		       (vscale << VI6_UDS_SCALE_VFRAC_SHIFT));
 	vsp1_uds_write(uds, VI6_UDS_CLIP_SIZE,
 		       (output->width << VI6_UDS_CLIP_SIZE_HSIZE_SHIFT) |
-		       (output->height << VI6_UDS_CLIP_SIZE_VSIZE_SHIFT));
+		       (out_height << VI6_UDS_CLIP_SIZE_VSIZE_SHIFT));
 
 	return 0;
 }

@@ -75,6 +75,7 @@ static const struct v4l2_ctrl_ops rpf_ctrl_ops = {
 static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 {
 	struct vsp1_rwpf *rpf = to_rwpf(subdev);
+	struct vsp1_device *vsp1 = rpf->entity.vsp1;
 	const struct vsp1_format_info *fmtinfo = rpf->video.fmtinfo;
 	const struct v4l2_pix_format_mplane *format = &rpf->video.format;
 	const struct v4l2_rect *crop = &rpf->crop;
@@ -103,7 +104,7 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	if (format->num_planes > 1)
 		stride_c = format->plane_fmt[1].bytesperline;
 
-	if (V4L2_FIELD_IS_PICONV(format->field)) {
+	if (V4L2_FIELD_IS_PICONV(vsp1->piconv_mode)) {
 		stride_y = stride_y * 2;
 		stride_c = stride_c * 2;
 		height = height / 2;
@@ -213,7 +214,7 @@ static void rpf_vdev_queue(struct vsp1_video *video,
 	if (!vsp1_entity_is_streaming(&rpf->entity))
 		return;
 
-	if (V4L2_FIELD_IS_PICONV(video->format.field)
+	if (V4L2_FIELD_IS_PICONV(vsp1->piconv_mode)
 		&& vsp1->display_field == V4L2_FIELD_BOTTOM) {
 		vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_Y,
 			       buf->addr_btm[0] + rpf->offsets[0]);
