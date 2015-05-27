@@ -41,7 +41,10 @@ struct vsp_du_if {
 	int interlace;
 };
 
-
+static const unsigned long ip_flag[2] = {
+	VSPD_FLAG_INTERLACE_TOP,
+	VSPD_FLAG_INTERLACE_BOTTOM
+};
 
 static int set_plane_param(struct vsp_du_if *du_if, int vsp_plane,
 			   struct rcar_du_plane *rplane)
@@ -67,8 +70,8 @@ static int set_plane_param(struct vsp_du_if *du_if, int vsp_plane,
 		switch (rplane->format->fourcc) {
 		case DRM_FORMAT_RGB565:
 			image->format = VSPD_FMT_RGB565;
-			image->addr_y = rplane->dma[0] + (rplane->pitch * i);
-			image->stride_y = rplane->pitch * du_if->interlace;
+			image->addr_y = rplane->dma[0];
+			image->stride_y = rplane->pitch;
 			image->swap = VSPD_LONG_LWORD_SWAP | VSPD_LWORD_SWAP |
 					VSPD_WORD_SWAP;
 			image->addr_c0 = 0;
@@ -78,8 +81,8 @@ static int set_plane_param(struct vsp_du_if *du_if, int vsp_plane,
 
 		case DRM_FORMAT_ARGB1555:
 			image->format = VSPD_FMT_ARGB1555;
-			image->addr_y = rplane->dma[0] + (rplane->pitch * i);
-			image->stride_y = rplane->pitch * du_if->interlace;
+			image->addr_y = rplane->dma[0];
+			image->stride_y = rplane->pitch;
 			image->swap = VSPD_LONG_LWORD_SWAP | VSPD_LWORD_SWAP |
 					VSPD_WORD_SWAP;
 			image->addr_c0 = 0;
@@ -89,8 +92,8 @@ static int set_plane_param(struct vsp_du_if *du_if, int vsp_plane,
 
 		case DRM_FORMAT_XRGB1555:
 			image->format = VSPD_FMT_XRGB1555;
-			image->addr_y = rplane->dma[0] + (rplane->pitch * i);
-			image->stride_y = rplane->pitch * du_if->interlace;
+			image->addr_y = rplane->dma[0];
+			image->stride_y = rplane->pitch;
 			image->swap = VSPD_LONG_LWORD_SWAP | VSPD_LWORD_SWAP |
 					VSPD_WORD_SWAP;
 			image->addr_c0 = 0;
@@ -100,8 +103,8 @@ static int set_plane_param(struct vsp_du_if *du_if, int vsp_plane,
 
 		case DRM_FORMAT_ARGB8888:
 			image->format = VSPD_FMT_ARGB8888;
-			image->addr_y = rplane->dma[0] + (rplane->pitch * i);
-			image->stride_y = rplane->pitch * du_if->interlace;
+			image->addr_y = rplane->dma[0];
+			image->stride_y = rplane->pitch;
 			image->swap = VSPD_LONG_LWORD_SWAP | VSPD_LWORD_SWAP;
 			image->addr_c0 = 0;
 			image->addr_c1 = 0;
@@ -110,8 +113,8 @@ static int set_plane_param(struct vsp_du_if *du_if, int vsp_plane,
 
 		case DRM_FORMAT_XRGB8888:
 			image->format = VSPD_FMT_XRGB8888;
-			image->addr_y = rplane->dma[0] + (rplane->pitch * i);
-			image->stride_y = rplane->pitch * du_if->interlace;
+			image->addr_y = rplane->dma[0];
+			image->stride_y = rplane->pitch;
 			image->swap = VSPD_LONG_LWORD_SWAP | VSPD_LWORD_SWAP;
 			image->addr_c0 = 0;
 			image->addr_c1 = 0;
@@ -120,8 +123,8 @@ static int set_plane_param(struct vsp_du_if *du_if, int vsp_plane,
 
 		case DRM_FORMAT_UYVY:
 			image->format = VSPD_FMT_YUV422I_UYVY;
-			image->addr_y = rplane->dma[0] + (rplane->pitch * i);
-			image->stride_y = rplane->pitch * du_if->interlace;
+			image->addr_y = rplane->dma[0];
+			image->stride_y = rplane->pitch;
 			image->swap = VSPD_LONG_LWORD_SWAP | VSPD_LWORD_SWAP |
 					VSPD_WORD_SWAP | VSPD_BYTE_SWAP;
 			image->addr_c0 = 0;
@@ -131,8 +134,8 @@ static int set_plane_param(struct vsp_du_if *du_if, int vsp_plane,
 
 		case DRM_FORMAT_YUYV:
 			image->format = VSPD_FMT_YUV422I_YUYV;
-			image->addr_y = rplane->dma[0] + (rplane->pitch * i);
-			image->stride_y = rplane->pitch * du_if->interlace;
+			image->addr_y = rplane->dma[0];
+			image->stride_y = rplane->pitch;
 			image->swap = VSPD_LONG_LWORD_SWAP | VSPD_LWORD_SWAP |
 					VSPD_WORD_SWAP | VSPD_BYTE_SWAP;
 			image->addr_c0 = 0;
@@ -142,10 +145,10 @@ static int set_plane_param(struct vsp_du_if *du_if, int vsp_plane,
 
 		case DRM_FORMAT_NV12:
 			image->format = VSPD_FMT_YUV420SP_NV12;
-			image->addr_y = rplane->dma[0] + (rplane->pitch * i);
-			image->addr_c0 = rplane->dma[1] + (rplane->pitch * i);
-			image->stride_y = rplane->pitch * du_if->interlace;
-			image->stride_c = rplane->pitch * du_if->interlace;
+			image->addr_y = rplane->dma[0];
+			image->addr_c0 = rplane->dma[1];
+			image->stride_y = rplane->pitch;
+			image->stride_c = rplane->pitch;
 			image->swap = VSPD_LONG_LWORD_SWAP | VSPD_LWORD_SWAP |
 					VSPD_WORD_SWAP | VSPD_BYTE_SWAP;
 			image->addr_c1 = 0;
@@ -153,10 +156,10 @@ static int set_plane_param(struct vsp_du_if *du_if, int vsp_plane,
 
 		case DRM_FORMAT_NV21:
 			image->format = VSPD_FMT_YUV420SP_NV21;
-			image->addr_y = rplane->dma[0] + (rplane->pitch * i);
-			image->addr_c0 = rplane->dma[1] + (rplane->pitch * i);
-			image->stride_y = rplane->pitch * du_if->interlace;
-			image->stride_c = rplane->pitch * du_if->interlace;
+			image->addr_y = rplane->dma[0];
+			image->addr_c0 = rplane->dma[1];
+			image->stride_y = rplane->pitch;
+			image->stride_c = rplane->pitch;
 			image->swap = VSPD_LONG_LWORD_SWAP | VSPD_LWORD_SWAP |
 					VSPD_WORD_SWAP | VSPD_BYTE_SWAP;
 			image->addr_c1 = 0;
@@ -164,10 +167,10 @@ static int set_plane_param(struct vsp_du_if *du_if, int vsp_plane,
 
 		case DRM_FORMAT_NV16:
 			image->format = VSPD_FMT_YUV422SP_NV16;
-			image->addr_y = rplane->dma[0] + (rplane->pitch * i);
-			image->addr_c0 = rplane->dma[1] + (rplane->pitch * i);
-			image->stride_y = rplane->pitch * du_if->interlace;
-			image->stride_c = rplane->pitch * du_if->interlace;
+			image->addr_y = rplane->dma[0];
+			image->addr_c0 = rplane->dma[1];
+			image->stride_y = rplane->pitch;
+			image->stride_c = rplane->pitch;
 			image->swap = VSPD_LONG_LWORD_SWAP | VSPD_LWORD_SWAP |
 					VSPD_WORD_SWAP | VSPD_BYTE_SWAP;
 			image->addr_c1 = 0;
@@ -180,17 +183,19 @@ static int set_plane_param(struct vsp_du_if *du_if, int vsp_plane,
 
 		image->enable		= 1;
 		image->width		= rplane->width;
-		image->height		= rplane->height / du_if->interlace;
+		image->height		= rplane->height;
 		image->crop.x		= rplane->src_x;
-		image->crop.y		= rplane->src_y / du_if->interlace;
+		image->crop.y		= rplane->src_y;
 		image->crop.width	= rplane->width;
-		image->crop.height	= rplane->height / du_if->interlace;
+		image->crop.height	= rplane->height;
 		image->dist.x		= rplane->dst_x;
-		image->dist.y		= rplane->dst_y / du_if->interlace;
+		image->dist.y		= rplane->dst_y;
 		image->dist.width	= rplane->d_width;
-		image->dist.height	= rplane->d_height / du_if->interlace;
+		image->dist.height	= rplane->d_height;
 		image->alpha		= rplane->alpha;
 		image->flag		= in_flag;
+		image->flag		|= du_if->interlace == 1 ?
+					  VSPD_FLAG_PROGRESSIVE : ip_flag[i];
 	}
 
 	return 0;
@@ -201,10 +206,9 @@ static int update_image(struct vsp_du_if *du_if)
 	if (du_if->active) {
 		if (du_if->mute) {
 			return vspd_dl_output_mute(du_if->pdata,
-						du_if->blend[0].out.width,
-						du_if->blend[0].out.height,
-						du_if->interlace,
-						VSPD_FENCE_NONE);
+				du_if->blend[0].out.width,
+				du_if->blend[0].out.height / du_if->interlace,
+				du_if->interlace, VSPD_FENCE_NONE);
 		} else  {
 			return vspd_dl_output_du(du_if->pdata, du_if->blend,
 						du_if->interlace,
@@ -300,14 +304,16 @@ int vsp_du_if_setup_base(void *handle, struct rcar_du_plane *rplane,
 		out = &du_if->blend[i].out;
 
 		out->width		= rplane->width;
-		out->height		= rplane->height / du_if->interlace;
+		out->height		= rplane->height;
 		out->crop.x		= 0;
 		out->crop.y		= 0;
 		out->crop.width		= rplane->width;
-		out->crop.height	= rplane->height / du_if->interlace;
+		out->crop.height	= rplane->height;
 		/* In the case of LIF, you can set any format */
 		/* as long as it is a RGB format.             */
 		out->format		= VSPD_FMT_XRGB8888;
+		out->flag		= du_if->interlace == 1 ?
+					  VSPD_FLAG_PROGRESSIVE : ip_flag[i];
 
 		/* for write back in LIF (or mem to mem) */
 		out->addr_y		= 0;
@@ -324,7 +330,6 @@ int vsp_du_if_setup_base(void *handle, struct rcar_du_plane *rplane,
 		out->dist.y		= 0;
 		out->dist.width		= 0;
 		out->dist.height	= 0;
-		out->flag		= 0;
 	}
 
 	set_plane_param(du_if, 0, rplane);
@@ -507,7 +512,7 @@ int vsp_du_if_write_back(void *handle, struct rcar_du_screen_shot *sh)
 	}
 
 	if ((sh->width != (out->crop.width)) ||
-	    (sh->height != (out->crop.height * du_if->interlace))) {
+	    (sh->height != (out->crop.height))) {
 		mutex_unlock(&du_if->lock);
 		ret = -EINVAL;
 		goto error_param;

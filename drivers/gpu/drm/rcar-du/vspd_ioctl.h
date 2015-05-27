@@ -56,6 +56,10 @@ enum {
 #define VSPD_FLAG_COLOR_CONV_BT601	(0 << 2) /* for RGB <-> YUV */
 #define VSPD_FLAG_COLOR_CONV_BT709	(1 << 2) /* for RGB <-> YUV */
  #define VSPD_FLAG_COLOR_CONV_MASK	(1 << 2)
+#define  VSPD_FLAG_PROGRESSIVE		(0 << 3)
+#define  VSPD_FLAG_INTERLACE_TOP	(1 << 3)
+#define  VSPD_FLAG_INTERLACE_BOTTOM	(2 << 3)
+ #define VSPD_FLAG_IP_MASK		(3 << 3)
 
 struct vspd_rect {
 	unsigned long x;

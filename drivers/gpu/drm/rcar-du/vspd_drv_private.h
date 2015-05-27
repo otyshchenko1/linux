@@ -182,7 +182,9 @@
 /* Up Down Scaler */
 /* index:0-2 */
 #define VI6_UDSn_CTRL(index)		(0x2300 + (index * 0x100))
+ #define VI6_UDSn_CTRL_AMD		(1 << 30)
  #define VI6_UDSn_CTRL_AON		(1 << 25)
+ #define VI6_UDSn_CTRL_BC		(1 << 20)
  #define VI6_UDSn_CTRL_TDIPC		(1 << 1)
 #define VI6_UDSn_SCALE(index)		(0x2304 + (index * 0x100))
 #define VI6_UDSn_ALPTH(index)		(0x2308 + (index * 0x100))
@@ -193,6 +195,12 @@
  #define VI6_UDSn_IPC_FIELD_BOTTOM	(1 << 27)
 #define VI6_UDSn_CLIP_SIZE(index)	(0x2324 + (index * 0x100))
 #define VI6_UDSn_FILL_COLOR(index)	(0x2328 + (index * 0x100))
+
+
+#define VI6_UDSn_VSZCLIP(index)		(0x2320 + (index * 0x100))
+ #define VI6_UDSn_VSZCLIP_VCEN		(1 << 28)
+ #define VI6_UDSn_VSZCLIP_OFST(val)	((val) << 16)
+ #define VI6_UDSn_VSZCLIP_SIZE(val)	((val) << 0)
 
 /* LIF control registers */
 #define VI6_LIF_CTRL	0x3b00
