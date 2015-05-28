@@ -872,6 +872,8 @@ static int rsnd_src_probe_gen2(struct rsnd_mod *mod,
 
 	len = strlen(dev_name(dev)) + 16;
 	name = devm_kzalloc(dev, len, GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
 	snprintf(name, len, "%s  src.%d", dev_name(dev),
 					rsnd_mod_id(&src->mod));
 
