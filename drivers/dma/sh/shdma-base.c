@@ -75,6 +75,8 @@ static dma_cookie_t shdma_tx_submit(struct dma_async_tx_descriptor *tx)
 	struct shdma_desc *chunk, *c, *desc =
 		container_of(tx, struct shdma_desc, async_tx);
 	struct shdma_chan *schan = to_shdma_chan(tx->chan);
+	struct shdma_dev *sdev;
+	const struct shdma_ops *ops;
 	dma_async_tx_callback callback = tx->callback;
 	dma_cookie_t cookie;
 	bool power_up;
@@ -113,37 +115,23 @@ static dma_cookie_t shdma_tx_submit(struct dma_async_tx_descriptor *tx)
 	}
 
 	if (power_up) {
-		int ret;
 		schan->pm_state = SHDMA_PM_BUSY;
 
-		ret = pm_runtime_get(schan->dev);
+		sdev = to_shdma_dev(schan->dma_chan.device);
+		ops = sdev->ops;
 
-		spin_unlock_irqrestore(&schan->chan_lock, flags);
-		if (ret < 0)
-			dev_dbg(schan->dev, "%s(): GET = %d\n", __func__, ret);
+		dev_dbg(schan->dev, "Bring up channel %d\n",
+			schan->id);
+		/*
+		 * TODO: .xfer_setup() might fail on some platforms.
+		 * Make it int then, on error remove chunks from the
+		 * queue again
+		 */
+		ops->setup_xfer(schan, schan->slave_id);
 
-		pm_runtime_barrier(schan->dev);
-
-		spin_lock_irqsave(&schan->chan_lock, flags);
-
-		/* Have we been reset, while waiting? */
-		if (schan->pm_state != SHDMA_PM_ESTABLISHED) {
-			struct shdma_dev *sdev =
-				to_shdma_dev(schan->dma_chan.device);
-			const struct shdma_ops *ops = sdev->ops;
-			dev_dbg(schan->dev, "Bring up channel %d\n",
-				schan->id);
-			/*
-			 * TODO: .xfer_setup() might fail on some platforms.
-			 * Make it int then, on error remove chunks from the
-			 * queue again
-			 */
-			ops->setup_xfer(schan, schan->slave_id);
-
-			if (schan->pm_state == SHDMA_PM_PENDING)
-				shdma_chan_xfer_ld_queue(schan);
-			schan->pm_state = SHDMA_PM_ESTABLISHED;
-		}
+		if (schan->pm_state == SHDMA_PM_PENDING)
+			shdma_chan_xfer_ld_queue(schan);
+		schan->pm_state = SHDMA_PM_ESTABLISHED;
 	} else {
 		/*
 		 * Tell .device_issue_pending() not to run the queue, interrupts
@@ -255,6 +243,7 @@ static int shdma_alloc_chan_resources(struct dma_chan *chan)
 	struct shdma_slave *slave = chan->private;
 	int ret, i;
 
+	pm_runtime_get_sync(schan->dev);
 	/*
 	 * This relies on the guarantee from dmaengine that alloc_chan_resources
 	 * never runs concurrently with itself or free_chan_resources.
@@ -293,6 +282,7 @@ edescalloc:
 esetslave:
 		clear_bit(slave->slave_id, shdma_slave_used);
 	chan->private = NULL;
+	pm_runtime_put(schan->dev);
 	return ret;
 }
 
@@ -389,7 +379,6 @@ static dma_async_tx_callback __ld_cleanup(struct shdma_chan *schan, bool all)
 
 			if (list_empty(&schan->ld_queue)) {
 				dev_dbg(schan->dev, "Bring down channel %d\n", schan->id);
-				pm_runtime_put(schan->dev);
 				schan->pm_state = SHDMA_PM_ESTABLISHED;
 			}
 		}
@@ -460,6 +449,8 @@ static void shdma_free_chan_resources(struct dma_chan *chan)
 	spin_unlock_irqrestore(&schan->chan_lock, flags);
 
 	kfree(schan->desc);
+
+	pm_runtime_put(schan->dev);
 }
 
 /**
@@ -828,10 +819,9 @@ bool shdma_reset(struct shdma_dev *sdev)
 
 		list_splice_init(&schan->ld_queue, &dl);
 
-		if (!list_empty(&dl)) {
+		if (!list_empty(&dl))
 			dev_dbg(schan->dev, "Bring down channel %d\n", schan->id);
-			pm_runtime_put(schan->dev);
-		}
+
 		schan->pm_state = SHDMA_PM_ESTABLISHED;
 
 		spin_unlock(&schan->chan_lock);

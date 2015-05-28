@@ -981,8 +981,6 @@ static int sh_dmae_probe(struct platform_device *pdev)
 	return err;
 
 edmadevreg:
-	pm_runtime_get(&pdev->dev);
-
 chan_probe_err:
 	sh_dmae_chan_remove(shdev);
 
