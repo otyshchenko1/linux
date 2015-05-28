@@ -51,7 +51,7 @@ module_param(slave_num, uint, 0444);
 /* A bitmask with slave_num bits */
 static unsigned long *shdma_slave_used;
 
-/* Called under spin_lock_irq(&schan->chan_lock") */
+/* Called under spin_lock_irqsave(&schan->chan_lock",...) */
 static void shdma_chan_xfer_ld_queue(struct shdma_chan *schan)
 {
 	struct shdma_dev *sdev = to_shdma_dev(schan->dma_chan.device);
@@ -78,8 +78,9 @@ static dma_cookie_t shdma_tx_submit(struct dma_async_tx_descriptor *tx)
 	dma_async_tx_callback callback = tx->callback;
 	dma_cookie_t cookie;
 	bool power_up;
+	unsigned long flags;
 
-	spin_lock_irq(&schan->chan_lock);
+	spin_lock_irqsave(&schan->chan_lock, flags);
 
 	power_up = list_empty(&schan->ld_queue);
 
@@ -117,13 +118,13 @@ static dma_cookie_t shdma_tx_submit(struct dma_async_tx_descriptor *tx)
 
 		ret = pm_runtime_get(schan->dev);
 
-		spin_unlock_irq(&schan->chan_lock);
+		spin_unlock_irqrestore(&schan->chan_lock, flags);
 		if (ret < 0)
 			dev_dbg(schan->dev, "%s(): GET = %d\n", __func__, ret);
 
 		pm_runtime_barrier(schan->dev);
 
-		spin_lock_irq(&schan->chan_lock);
+		spin_lock_irqsave(&schan->chan_lock, flags);
 
 		/* Have we been reset, while waiting? */
 		if (schan->pm_state != SHDMA_PM_ESTABLISHED) {
@@ -151,7 +152,7 @@ static dma_cookie_t shdma_tx_submit(struct dma_async_tx_descriptor *tx)
 		schan->pm_state = SHDMA_PM_PENDING;
 	}
 
-	spin_unlock_irq(&schan->chan_lock);
+	spin_unlock_irqrestore(&schan->chan_lock, flags);
 
 	return cookie;
 }
@@ -431,12 +432,13 @@ static void shdma_free_chan_resources(struct dma_chan *chan)
 	struct shdma_chan *schan = to_shdma_chan(chan);
 	struct shdma_dev *sdev = to_shdma_dev(chan->device);
 	const struct shdma_ops *ops = sdev->ops;
+	unsigned long flags;
 	LIST_HEAD(list);
 
 	/* Protect against ISR */
-	spin_lock_irq(&schan->chan_lock);
+	spin_lock_irqsave(&schan->chan_lock, flags);
 	ops->halt_channel(schan);
-	spin_unlock_irq(&schan->chan_lock);
+	spin_unlock_irqrestore(&schan->chan_lock, flags);
 
 	/* Now no new interrupts will occur */
 
@@ -450,12 +452,12 @@ static void shdma_free_chan_resources(struct dma_chan *chan)
 		chan->private = NULL;
 	}
 
-	spin_lock_irq(&schan->chan_lock);
+	spin_lock_irqsave(&schan->chan_lock, flags);
 
 	list_splice_init(&schan->ld_free, &list);
 	schan->desc_num = 0;
 
-	spin_unlock_irq(&schan->chan_lock);
+	spin_unlock_irqrestore(&schan->chan_lock, flags);
 
 	kfree(schan->desc);
 }
@@ -760,13 +762,14 @@ static int shdma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 static void shdma_issue_pending(struct dma_chan *chan)
 {
 	struct shdma_chan *schan = to_shdma_chan(chan);
+	unsigned long flags;
 
-	spin_lock_irq(&schan->chan_lock);
+	spin_lock_irqsave(&schan->chan_lock, flags);
 	if (schan->pm_state == SHDMA_PM_ESTABLISHED)
 		shdma_chan_xfer_ld_queue(schan);
 	else
 		schan->pm_state = SHDMA_PM_PENDING;
-	spin_unlock_irq(&schan->chan_lock);
+	spin_unlock_irqrestore(&schan->chan_lock, flags);
 }
 
 static enum dma_status shdma_tx_status(struct dma_chan *chan,
@@ -874,8 +877,9 @@ static irqreturn_t chan_irqt(int irq, void *dev)
 	const struct shdma_ops *ops =
 		to_shdma_dev(schan->dma_chan.device)->ops;
 	struct shdma_desc *sdesc;
+	unsigned long flags;
 
-	spin_lock_irq(&schan->chan_lock);
+	spin_lock_irqsave(&schan->chan_lock, flags);
 	list_for_each_entry(sdesc, &schan->ld_queue, node) {
 		if (sdesc->mark == DESC_SUBMITTED &&
 		    ops->desc_completed(schan, sdesc)) {
@@ -887,7 +891,7 @@ static irqreturn_t chan_irqt(int irq, void *dev)
 	}
 	/* Next desc */
 	shdma_chan_xfer_ld_queue(schan);
-	spin_unlock_irq(&schan->chan_lock);
+	spin_unlock_irqrestore(&schan->chan_lock, flags);
 
 	shdma_chan_ld_cleanup(schan, false);
 

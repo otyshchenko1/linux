@@ -798,6 +798,7 @@ static int sh_dmae_probe(struct platform_device *pdev)
 	struct sh_dmae_device *shdev;
 	struct dma_device *dma_dev;
 	struct resource *chan, *dmars, *errirq_res, *chanirq_res;
+	unsigned long flags;
 
 	if (pdev->dev.of_node)
 		pdata = of_match_device(sh_dmae_of_match, &pdev->dev)->data;
@@ -884,9 +885,9 @@ static int sh_dmae_probe(struct platform_device *pdev)
 	if (err < 0)
 		dev_err(&pdev->dev, "%s(): GET = %d\n", __func__, err);
 
-	spin_lock_irq(&sh_dmae_lock);
+	spin_lock_irqsave(&sh_dmae_lock, flags);
 	list_add_tail_rcu(&shdev->node, &sh_dmae_devices);
-	spin_unlock_irq(&sh_dmae_lock);
+	spin_unlock_irqrestore(&sh_dmae_lock, flags);
 
 	/* reset dma controller - only needed as a test */
 	err = sh_dmae_rst(shdev);
@@ -989,9 +990,9 @@ chan_probe_err:
 eirq_err:
 #endif
 rst_err:
-	spin_lock_irq(&sh_dmae_lock);
+	spin_lock_irqsave(&sh_dmae_lock, flags);
 	list_del_rcu(&shdev->node);
-	spin_unlock_irq(&sh_dmae_lock);
+	spin_unlock_irqrestore(&sh_dmae_lock, flags);
 
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
@@ -1008,12 +1009,13 @@ static int sh_dmae_remove(struct platform_device *pdev)
 {
 	struct sh_dmae_device *shdev = platform_get_drvdata(pdev);
 	struct dma_device *dma_dev = &shdev->shdma_dev.dma_dev;
+	unsigned long flags;
 
 	dma_async_device_unregister(dma_dev);
 
-	spin_lock_irq(&sh_dmae_lock);
+	spin_lock_irqsave(&sh_dmae_lock, flags);
 	list_del_rcu(&shdev->node);
-	spin_unlock_irq(&sh_dmae_lock);
+	spin_unlock_irqrestore(&sh_dmae_lock, flags);
 
 	pm_runtime_disable(&pdev->dev);
 
