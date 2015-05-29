@@ -61,6 +61,28 @@ enum vsp1_update_crop_state {
 	VSP1_UPDATE_CROP_UPDATE,
 };
 
+enum vsp1_piconv_scale_range {
+	VSP1_PICONV_SCALE_NONE,		/* not scaling */
+	VSP1_PICONV_SCALE_DOWN_HALF,	/* scale <= 1/2 */
+	VSP1_PICONV_SCALE_DOWN,		/* 1/2 < scale < 1 */
+	VSP1_PICONV_SCALE_SAME,		/* scale = 1 */
+	VSP1_PICONV_SCALE_UP,		/* 1 < scale < 3 */
+	VSP1_PICONV_SCALE_UP_OVER3,	/* scale <= 3 */
+};
+
+static inline bool vsp1_is_piconv_scaling(unsigned int vscaling)
+{
+	int ret = false;
+
+	if (vscaling == VSP1_PICONV_SCALE_DOWN
+	    || vscaling == VSP1_PICONV_SCALE_SAME
+	    || vscaling == VSP1_PICONV_SCALE_UP
+	    || vscaling == VSP1_PICONV_SCALE_UP_OVER3)
+		ret = true;
+
+	return ret;
+}
+
 /*
  * struct vsp1_pipeline - A VSP1 hardware pipeline
  * @media: the media pipeline
@@ -89,6 +111,9 @@ struct vsp1_pipeline {
 	struct vsp1_entity *uds_input;
 
 	struct list_head entities;
+
+	unsigned int vscaling;
+	int rpf_master_id;
 };
 
 static inline struct vsp1_pipeline *to_vsp1_pipeline(struct media_entity *e)

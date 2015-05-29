@@ -346,12 +346,25 @@ static void vsp1_update_reg(struct vsp1_pipeline *pipe,
 					struct vsp1_video_buffer *buf)
 {
 	struct vsp1_entity *entity;
+	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
+
 	if (buf->update_reg == true) {
 		list_for_each_entry(entity, &pipe->entities, list_pipe)
 			v4l2_subdev_call(&entity->subdev, video,
 				       s_stream, 1);
 		buf->update_reg = false;
 		video->update_crop = VSP1_UPDATE_CROP_NORMAL;
+
+	} else if (V4L2_FIELD_IS_PICONV(vsp1->piconv_mode)
+	    && vsp1_is_piconv_scaling(pipe->vscaling)) {
+
+		list_for_each_entry(entity, &pipe->entities, list_pipe) {
+			if (entity->type == VSP1_ENTITY_RPF
+			    || entity->type == VSP1_ENTITY_UDS
+			    || entity->type == VSP1_ENTITY_WPF)
+				v4l2_subdev_call(&entity->subdev, video,
+					       s_stream, 1);
+		}
 	}
 }
 
@@ -527,10 +540,37 @@ error:
 	return ret;
 }
 
+static unsigned int vsp1_pipeline_get_vscaling(struct vsp1_entity *uds)
+{
+	const struct v4l2_mbus_framefmt *output;
+	const struct v4l2_mbus_framefmt *input;
+	unsigned int vscale;
+	unsigned int ret = VSP1_PICONV_SCALE_NONE;
+
+	input = &uds->formats[UDS_PAD_SINK];
+	output = &uds->formats[UDS_PAD_SOURCE];
+
+	vscale = uds_compute_ratio(input->height, output->height);
+
+	if (vscale <= 1365)		/* 3 <= scale */
+		ret = VSP1_PICONV_SCALE_UP_OVER3;
+	else if (vscale < 4096)		/* 1 < scale < 3 */
+		ret = VSP1_PICONV_SCALE_UP;
+	else if (vscale == 4096)	/* scale = 1 */
+		ret = VSP1_PICONV_SCALE_SAME;
+	else if (vscale < 8192)		/* 1/2 < scale < 1 */
+		ret = VSP1_PICONV_SCALE_DOWN;
+	else				/* scale <= 1/2 */
+		ret = VSP1_PICONV_SCALE_DOWN_HALF;
+
+	return ret;
+}
+
 static int vsp1_pipeline_init(struct vsp1_pipeline *pipe,
 			      struct vsp1_video *video)
 {
 	int ret;
+	struct vsp1_device *vsp1;
 
 	mutex_lock(&pipe->lock);
 
@@ -539,6 +579,20 @@ static int vsp1_pipeline_init(struct vsp1_pipeline *pipe,
 		ret = vsp1_pipeline_validate(pipe, video);
 		if (ret < 0)
 			goto done;
+	}
+
+	/* Initialize master layer of RPF in blending  */
+	pipe->rpf_master_id = -1;
+
+	vsp1 = pipe->output->entity.vsp1;
+	if (V4L2_FIELD_IS_PICONV(vsp1->piconv_mode)) {
+		pipe->vscaling = VSP1_PICONV_SCALE_NONE;
+
+		if (pipe->uds) {
+			pipe->vscaling = vsp1_pipeline_get_vscaling(pipe->uds);
+			if (pipe->vscaling == VSP1_PICONV_SCALE_UP && pipe->bru)
+				pipe->rpf_master_id = pipe->uds_input->index;
+		}
 	}
 
 	pipe->use_count++;

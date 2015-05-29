@@ -1,7 +1,7 @@
 /*
  * vsp1_wpf.c  --  R-Car VSP1 Write Pixel Formatter
  *
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -84,6 +84,7 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	u32 stride_y = 0;
 	u32 stride_c = 0;
 	u32 height = crop->height;
+	unsigned int vcl_ofst = crop->top;
 
 	ret = vsp1_entity_set_streaming(&wpf->entity, enable);
 	if (ret < 0)
@@ -100,16 +101,28 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	 * inputs as sub-layers and select the virtual RPF as the master
 	 * layer.
 	 */
-	for (i = 0; i < pipe->num_inputs; ++i) {
-		struct vsp1_rwpf *input = pipe->inputs[i];
+	if (V4L2_FIELD_IS_PICONV(vsp1->piconv_mode)
+	    && pipe->rpf_master_id >= 0) {
+		for (i = 0; i < pipe->num_inputs; ++i) {
+			struct vsp1_rwpf *input = pipe->inputs[i];
 
-		srcrpf |= (!pipe->bru && pipe->num_inputs == 1)
-			? VI6_WPF_SRCRPF_RPF_ACT_MST(input->entity.index)
-			: VI6_WPF_SRCRPF_RPF_ACT_SUB(input->entity.index);
+			srcrpf |= (input->entity.index == pipe->rpf_master_id)
+			    ? VI6_WPF_SRCRPF_RPF_ACT_MST(input->entity.index)
+			    : VI6_WPF_SRCRPF_RPF_ACT_SUB(input->entity.index);
+		}
+
+	} else {
+		for (i = 0; i < pipe->num_inputs; ++i) {
+			struct vsp1_rwpf *input = pipe->inputs[i];
+
+			srcrpf |= (!pipe->bru && pipe->num_inputs == 1)
+			    ? VI6_WPF_SRCRPF_RPF_ACT_MST(input->entity.index)
+			    : VI6_WPF_SRCRPF_RPF_ACT_SUB(input->entity.index);
+		}
+
+		if (pipe->bru || pipe->num_inputs > 1)
+			srcrpf |= VI6_WPF_SRCRPF_VIRACT_MST;
 	}
-
-	if (pipe->bru || pipe->num_inputs > 1)
-		srcrpf |= VI6_WPF_SRCRPF_VIRACT_MST;
 
 	vsp1_wpf_write(wpf, VI6_WPF_SRCRPF, srcrpf);
 
@@ -132,14 +145,19 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 				       stride_c);
 	}
 
-	if (V4L2_FIELD_IS_PICONV(vsp1->piconv_mode))
+	if (V4L2_FIELD_IS_PICONV(vsp1->piconv_mode)) {
 		height = height / 2;
+
+		if (pipe->vscaling == VSP1_PICONV_SCALE_UP
+		    && vsp1->display_field == V4L2_FIELD_BOTTOM)
+			vcl_ofst += 1;
+	}
 
 	vsp1_wpf_write(wpf, VI6_WPF_HSZCLIP, VI6_WPF_SZCLIP_EN |
 		       (crop->left << VI6_WPF_SZCLIP_OFST_SHIFT) |
 		       (crop->width << VI6_WPF_SZCLIP_SIZE_SHIFT));
 	vsp1_wpf_write(wpf, VI6_WPF_VSZCLIP, VI6_WPF_SZCLIP_EN |
-		       (crop->top << VI6_WPF_SZCLIP_OFST_SHIFT) |
+		       (vcl_ofst << VI6_WPF_SZCLIP_OFST_SHIFT) |
 		       (height << VI6_WPF_SZCLIP_SIZE_SHIFT));
 
 	/* Format */

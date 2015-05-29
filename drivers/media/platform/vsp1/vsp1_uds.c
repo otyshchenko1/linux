@@ -1,7 +1,7 @@
 /*
  * vsp1_uds.c  --  R-Car VSP1 Up and Down Scaler
  *
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -18,6 +18,7 @@
 
 #include "vsp1.h"
 #include "vsp1_uds.h"
+#include "vsp1_video.h"
 
 #define UDS_MIN_SIZE				4U
 #define UDS_MAX_SIZE				8190U
@@ -104,7 +105,7 @@ static unsigned int uds_passband_width(unsigned int ratio)
 	}
 }
 
-static unsigned int uds_compute_ratio(unsigned int input, unsigned int output)
+unsigned int uds_compute_ratio(unsigned int input, unsigned int output)
 {
 	/* TODO: This is an approximation that will need to be refined. */
 	return (input - 1) * 4096 / (output - 1);
@@ -116,32 +117,33 @@ static unsigned int uds_compute_ratio(unsigned int input, unsigned int output)
 
 static int uds_s_stream(struct v4l2_subdev *subdev, int enable)
 {
+	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&subdev->entity);
 	struct vsp1_uds *uds = to_uds(subdev);
 	struct vsp1_device *vsp1 = uds->entity.vsp1;
 	const struct v4l2_mbus_framefmt *output;
 	const struct v4l2_mbus_framefmt *input;
-	unsigned int in_height;
-	unsigned int out_height;
 	unsigned int hscale;
 	unsigned int vscale;
+	unsigned int hbwidth;
+	unsigned int vbwidth;
+	unsigned int vszclip;
+	unsigned int vphase;
+	unsigned int clip_size;
 	bool multitap;
+	bool piconv = false;
 
 	if (!enable)
 		return 0;
 
 	input = &uds->entity.formats[UDS_PAD_SINK];
 	output = &uds->entity.formats[UDS_PAD_SOURCE];
-
-	if (V4L2_FIELD_IS_PICONV(vsp1->piconv_mode)) {
-		in_height = input->height / 2;
-		out_height = output->height / 2;
-	} else {
-		in_height = input->height;
-		out_height = output->height;
-	}
+	clip_size = output->height;
 
 	hscale = uds_compute_ratio(input->width, output->width);
-	vscale = uds_compute_ratio(in_height, out_height);
+	vscale = uds_compute_ratio(input->height, output->height);
+
+	hbwidth = uds_passband_width(hscale);
+	vbwidth = uds_passband_width(vscale);
 
 	dev_dbg(uds->entity.vsp1->dev, "hscale %u vscale %u\n", hscale, vscale);
 
@@ -154,16 +156,83 @@ static int uds_s_stream(struct v4l2_subdev *subdev, int enable)
 	else
 		multitap = true;
 
+	if (V4L2_FIELD_IS_PICONV(vsp1->piconv_mode)) {
+		unsigned int vfrac = vscale & 0x0FFF;
+
+		vphase = 0;
+		vszclip = 0;
+
+		switch (pipe->vscaling) {
+		case VSP1_PICONV_SCALE_UP_OVER3:	/* 3 <= scale */
+			if (vsp1->display_field == V4L2_FIELD_TOP)
+				vphase = (((4096 - vfrac) / 2) & 0xFFF)
+					<< VI6_UDS_IPC_VSTP_SHIFT;
+			else
+				vphase = (((4096 - (vfrac * 3)) / 2) & 0xFFF)
+					<< VI6_UDS_IPC_VSTP_SHIFT;
+			vphase |= ((4096 - vfrac) / 2) & 0xFFF;
+
+			clip_size = clip_size / 2;
+			break;
+
+		case VSP1_PICONV_SCALE_UP:		/* 1 < scale < 3 */
+			if (vsp1->display_field == V4L2_FIELD_TOP) {
+				vphase = (((4096 - vfrac) / 2) & 0xFFF)
+					 << VI6_UDS_IPC_VSTP_SHIFT;
+				clip_size = clip_size / 2;
+			} else {
+				vphase = (((4096 + vfrac) / 2) & 0xFFF)
+					 << VI6_UDS_IPC_VSTP_SHIFT;
+				clip_size = clip_size / 2 + 1;
+			}
+			vphase |= ((4096 - vfrac) / 2) & 0xFFF;
+			break;
+
+		case VSP1_PICONV_SCALE_SAME:		/* scale = 1 */
+			if (vsp1->display_field == V4L2_FIELD_BOTTOM)
+				vszclip = VI6_UDS_VSZCLIP_VCEN
+					| (1 << VI6_UDS_VSZCLIP_OFST_SHIFT)
+					| ((input->height - 1)
+					   << VI6_UDS_VSZCLIP_SIZE_SHIFT);
+
+			clip_size = clip_size / 2;
+			break;
+
+		case VSP1_PICONV_SCALE_DOWN:		/* 1/2 < scale < 1 */
+			if (vsp1->display_field == V4L2_FIELD_BOTTOM) {
+				vszclip = VI6_UDS_VSZCLIP_VCEN
+					| (2 << VI6_UDS_VSZCLIP_OFST_SHIFT)
+					| ((input->height - 2)
+					   << VI6_UDS_VSZCLIP_SIZE_SHIFT);
+				vphase = (4096 - vfrac)
+					 << VI6_UDS_IPC_VSTP_SHIFT;
+			}
+
+			clip_size = clip_size / 2;
+			break;
+
+		default:
+			clip_size = clip_size / 2;
+		}
+
+		if (vsp1_is_piconv_scaling(pipe->vscaling)) {
+			vsp1_uds_write(uds, VI6_UDS_IPC, vphase);
+			vsp1_uds_write(uds, VI6_UDS_VSZCLIP, vszclip);
+
+			vscale *= 2;
+			piconv = true;
+		}
+	}
+
 	vsp1_uds_write(uds, VI6_UDS_CTRL,
 		       (uds->scale_alpha ? VI6_UDS_CTRL_AON : 0) |
 		       (multitap ? VI6_UDS_CTRL_BC : 0) |
-		       VI6_UDS_CTRL_AMD);
+		       VI6_UDS_CTRL_AMD |
+		       (piconv ? VI6_UDS_CTRL_TDIPC : 0));
 
 	vsp1_uds_write(uds, VI6_UDS_PASS_BWIDTH,
-		       (uds_passband_width(hscale)
-				<< VI6_UDS_PASS_BWIDTH_H_SHIFT) |
-		       (uds_passband_width(vscale)
-				<< VI6_UDS_PASS_BWIDTH_V_SHIFT));
+		       (hbwidth << VI6_UDS_PASS_BWIDTH_H_SHIFT) |
+		       (vbwidth << VI6_UDS_PASS_BWIDTH_V_SHIFT));
 
 	/* Set the scaling ratios and the output size. */
 	vsp1_uds_write(uds, VI6_UDS_SCALE,
@@ -171,7 +240,7 @@ static int uds_s_stream(struct v4l2_subdev *subdev, int enable)
 		       (vscale << VI6_UDS_SCALE_VFRAC_SHIFT));
 	vsp1_uds_write(uds, VI6_UDS_CLIP_SIZE,
 		       (output->width << VI6_UDS_CLIP_SIZE_HSIZE_SHIFT) |
-		       (out_height << VI6_UDS_CLIP_SIZE_VSIZE_SHIFT));
+		       (clip_size << VI6_UDS_CLIP_SIZE_VSIZE_SHIFT));
 
 	return 0;
 }

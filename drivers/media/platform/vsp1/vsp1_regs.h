@@ -1,7 +1,7 @@
 /*
  * vsp1_regs.h  --  R-Car VSP1 Registers Definitions
  *
- * Copyright (C) 2013 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -405,8 +405,14 @@
 
 #define VI6_UDS_IPC			0x2318
 #define VI6_UDS_IPC_FIELD		(1 << 27)
+#define VI6_UDS_IPC_VSTP_SHIFT		16
 #define VI6_UDS_IPC_VEDP_MASK		(0xfff << 0)
 #define VI6_UDS_IPC_VEDP_SHIFT		0
+
+#define VI6_UDS_VSZCLIP			0x2320
+#define VI6_UDS_VSZCLIP_VCEN		(1 << 28)
+#define VI6_UDS_VSZCLIP_OFST_SHIFT	16
+#define VI6_UDS_VSZCLIP_SIZE_SHIFT	0
 
 #define VI6_UDS_CLIP_SIZE		0x2324
 #define VI6_UDS_CLIP_SIZE_HSIZE_MASK	(0x1fff << 16)

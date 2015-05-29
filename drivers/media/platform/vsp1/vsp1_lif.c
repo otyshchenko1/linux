@@ -44,6 +44,7 @@ static int lif_s_stream(struct v4l2_subdev *subdev, int enable)
 {
 	const struct v4l2_mbus_framefmt *format;
 	struct vsp1_lif *lif = to_lif(subdev);
+	struct vsp1_device *vsp1 = lif->entity.vsp1;
 	unsigned int hbth = 1536;
 	unsigned int obth = 128;
 	unsigned int lbth = 1520;
@@ -55,7 +56,12 @@ static int lif_s_stream(struct v4l2_subdev *subdev, int enable)
 
 	format = &lif->entity.formats[LIF_PAD_SOURCE];
 
-	obth = min(obth, (format->width + 1) / 2 * format->height - 4);
+	if (V4L2_FIELD_IS_PICONV(vsp1->piconv_mode))
+		obth = min(obth,
+			  (format->width + 1) / 2 * (format->height / 2) - 4);
+	else
+		obth = min(obth,
+			  (format->width + 1) / 2 * format->height - 4);
 
 	vsp1_lif_write(lif, VI6_LIF_CSBTH,
 			(hbth << VI6_LIF_CSBTH_HBTH_SHIFT) |

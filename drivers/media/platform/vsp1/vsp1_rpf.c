@@ -22,6 +22,18 @@
 #define RPF_MAX_WIDTH				8190
 #define RPF_MAX_HEIGHT				8190
 
+static inline bool rpf_is_piconv_scaling(struct vsp1_pipeline *pipe,
+					 unsigned int index)
+{
+	int ret = true;
+
+	if (!vsp1_is_piconv_scaling(pipe->vscaling)
+	    || (pipe->uds_input && index != pipe->uds_input->index))
+		ret = false;
+
+	return ret;
+}
+
 /* -----------------------------------------------------------------------------
  * Device Access
  */
@@ -74,6 +86,7 @@ static const struct v4l2_ctrl_ops rpf_ctrl_ops = {
 
 static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 {
+	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&subdev->entity);
 	struct vsp1_rwpf *rpf = to_rwpf(subdev);
 	struct vsp1_device *vsp1 = rpf->entity.vsp1;
 	const struct vsp1_format_info *fmtinfo = rpf->video.fmtinfo;
@@ -85,6 +98,7 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	u32 stride_y = 0;
 	u32 stride_c = 0;
 	u32 height = 0;
+	unsigned int loc_top;
 
 	ret = vsp1_entity_set_streaming(&rpf->entity, enable);
 	if (ret < 0)
@@ -101,13 +115,23 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	 */
 	stride_y = format->plane_fmt[0].bytesperline;
 	height = crop->height;
+	loc_top = rpf->location.top;
 	if (format->num_planes > 1)
 		stride_c = format->plane_fmt[1].bytesperline;
 
 	if (V4L2_FIELD_IS_PICONV(vsp1->piconv_mode)) {
-		stride_y = stride_y * 2;
-		stride_c = stride_c * 2;
-		height = height / 2;
+		loc_top = loc_top / 2;
+
+		if (!rpf_is_piconv_scaling(pipe, rpf->entity.index)) {
+			stride_y = stride_y * 2;
+			stride_c = stride_c * 2;
+			height = height / 2;
+		}
+
+		if (pipe->rpf_master_id >= 0
+		    && vsp1->display_field == V4L2_FIELD_BOTTOM
+		    && pipe->rpf_master_id != rpf->entity.index)
+			loc_top += 1;
 	}
 	vsp1_rpf_write(rpf, VI6_RPF_SRC_BSIZE,
 		       (crop->width << VI6_RPF_SRC_BSIZE_BHSIZE_SHIFT) |
@@ -159,7 +183,7 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	/* Output location */
 	vsp1_rpf_write(rpf, VI6_RPF_LOC,
 		       (rpf->location.left << VI6_RPF_LOC_HCOORD_SHIFT) |
-		       (rpf->location.top << VI6_RPF_LOC_VCOORD_SHIFT));
+		       (loc_top << VI6_RPF_LOC_VCOORD_SHIFT));
 
 	/* Use the alpha channel (extended to 8 bits) when available or an
 	 * alpha value set through the V4L2_CID_ALPHA_COMPONENT control
@@ -215,7 +239,8 @@ static void rpf_vdev_queue(struct vsp1_video *video,
 		return;
 
 	if (V4L2_FIELD_IS_PICONV(vsp1->piconv_mode)
-		&& vsp1->display_field == V4L2_FIELD_BOTTOM) {
+	    && !rpf_is_piconv_scaling(pipe, rpf->entity.index)
+	    && vsp1->display_field == V4L2_FIELD_BOTTOM) {
 		vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_Y,
 			       buf->addr_btm[0] + rpf->offsets[0]);
 		if (buf->buf.num_planes > 1)
