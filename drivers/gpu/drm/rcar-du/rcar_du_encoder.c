@@ -187,6 +187,7 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	struct rcar_du_encoder *renc;
 	unsigned int encoder_type;
 	int ret;
+	u32 val;
 	struct i2c_adapter *adapter;
 	struct i2c_board_info info[] = {
 		{
@@ -208,6 +209,9 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	};
 
 	info->of_node = of_find_node_by_name(NULL, "adv7511");
+
+	if (of_property_read_u32(info->of_node, "adi,reg", &val) == 0)
+		info->addr = val;
 
 	renc = devm_kzalloc(rcdu->dev, sizeof(*renc), GFP_KERNEL);
 	if (renc == NULL)
