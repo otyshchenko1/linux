@@ -930,9 +930,9 @@ static int adv7511_parse_dt(struct device_node *np, struct adv7511_link_config *
 
 	return 0;
 }
-static const int edid_i2c_addr = 0x7e;
-static const int packet_i2c_addr = 0x70;
-static const int cec_i2c_addr = 0x78;
+static int edid_i2c_addr = 0x7e;
+static int packet_i2c_addr = 0x70;
+static int cec_i2c_addr = 0x78;
 
 static int adv7511_probe(struct i2c_client *i2c,
 	const struct i2c_device_id *id)
@@ -1000,6 +1000,13 @@ static int adv7511_probe(struct i2c_client *i2c,
 		ARRAY_SIZE(adv7511_fixed_registers));
 	if (ret)
 		return ret;
+
+	/* possible i2c main addresses are 0x39 and 0x3d,
+	 * to avoid conflicts add offset for subchips
+	 */
+	edid_i2c_addr += 4;
+	packet_i2c_addr += 4;
+	cec_i2c_addr += 4;
 
 	regmap_write(adv7511->regmap, ADV7511_REG_EDID_I2C_ADDR, edid_i2c_addr);
 	regmap_write(adv7511->regmap, ADV7511_REG_PACKET_I2C_ADDR, packet_i2c_addr);
