@@ -1469,8 +1469,11 @@ int tmio_mmc_host_suspend(struct device *dev)
 	struct tmio_mmc_host *host = mmc_priv(mmc);
 	int ret = mmc_suspend_host(mmc);
 
-	if (!ret)
+	if (!ret) {
+		pm_runtime_get_sync(dev);
 		tmio_mmc_disable_mmc_irqs(host, TMIO_MASK_ALL);
+		pm_runtime_put(dev);
+	}
 
 	return ret;
 }
