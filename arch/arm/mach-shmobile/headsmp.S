@@ -1,7 +1,7 @@
 /*
  * SMP support for R-Mobile / SH-Mobile
  *
- * Copyright (C) 2014  Renesas Electronics Corporation
+ * Copyright (C) 2014-2015  Renesas Electronics Corporation
  * Copyright (C) 2010  Magnus Damm
  * Copyright (C) 2010  Takashi Yoshii
  *
@@ -59,8 +59,8 @@ ENDPROC(rcar_cpu_resume)
 
 ENTRY(rcar_l2_restore)
 	ldr	r1, 2f
-	tst	r0, #1			@ is CA15
-	bne	_exit_init_l2_a15
+	tst	r1, #1			@ is CA15
+	beq	_exit_init_l2_a15	@ is CA7, skip L2CTLR setting
 
 	ldr	r1, 3f
 	mcr 	p15, 1, r1, c9 , c0, 2
