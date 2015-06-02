@@ -126,6 +126,7 @@ struct sh_mobile_i2c_data {
 	struct i2c_adapter adap;
 	unsigned long bus_speed;
 	unsigned int clks_per_count;
+	enum i2c_sh_mobile_clk_calc_type clk_type;
 	struct clk *clk;
 	u_int8_t icic;
 	u_int8_t flags;
@@ -142,6 +143,7 @@ struct sh_mobile_i2c_data {
 
 struct sh_mobile_dt_config {
 	int clks_per_count;
+	enum i2c_sh_mobile_clk_calc_type clk_type;
 };
 
 #define IIC_FLAG_HAS_ICIC67	(1 << 0)
@@ -237,6 +239,7 @@ static int sh_mobile_i2c_init(struct sh_mobile_i2c_data *pd)
 {
 	unsigned long i2c_clk_khz;
 	u32 tHIGH, tLOW, tf;
+	u32 rHIGH, rLOW;
 	uint16_t max_val;
 
 	/* Get clock rate after clock is enabled */
@@ -245,22 +248,41 @@ static int sh_mobile_i2c_init(struct sh_mobile_i2c_data *pd)
 	clk_disable_unprepare(pd->clk);
 	i2c_clk_khz /= pd->clks_per_count;
 
-	if (pd->bus_speed == STANDARD_MODE) {
-		tLOW	= 47;	/* tLOW = 4.7 us */
-		tHIGH	= 40;	/* tHD;STA = tHIGH = 4.0 us */
-		tf	= 3;	/* tf = 0.3 us */
-	} else if (pd->bus_speed == FAST_MODE) {
-		tLOW	= 13;	/* tLOW = 1.3 us */
-		tHIGH	= 6;	/* tHD;STA = tHIGH = 0.6 us */
-		tf	= 3;	/* tf = 0.3 us */
+	if (pd->clk_type == I2C_SHMOBILE_CLK_CALC_TYPE_LEGACY) {
+		if (pd->bus_speed == STANDARD_MODE) {
+			tLOW	= 47;	/* tLOW = 4.7 us */
+			tHIGH	= 40;	/* tHD;STA = tHIGH = 4.0 us */
+			tf	= 3;	/* tf = 0.3 us */
+		} else if (pd->bus_speed == FAST_MODE) {
+			tLOW	= 13;	/* tLOW = 1.3 us */
+			tHIGH	= 6;	/* tHD;STA = tHIGH = 0.6 us */
+			tf	= 3;	/* tf = 0.3 us */
+		} else {
+			dev_err(pd->dev, "unrecognized bus speed %lu Hz\n",
+				pd->bus_speed);
+			return -EINVAL;
+		}
+		pd->iccl = sh_mobile_i2c_iccl(i2c_clk_khz, tLOW, tf);
+		pd->icch = sh_mobile_i2c_icch(i2c_clk_khz, tHIGH, tf);
+	} else if (pd->clk_type == I2C_SHMOBILE_CLK_CALC_TYPE_GEN2) {
+		if ((pd->bus_speed == STANDARD_MODE) ||
+			(pd->bus_speed == FAST_MODE)) {
+			/* High : Low = 4 : 5 clock ratio */
+			rHIGH	= 4;
+			rLOW	= 5;
+		} else {
+			dev_err(pd->dev, "unrecognized bus speed %lu Hz\n",
+				pd->bus_speed);
+			return -EINVAL;
+		}
+		pd->iccl = ((i2c_clk_khz * 1000 / pd->bus_speed * rLOW
+				 / (rHIGH + rLOW)) - 1) / 2;
+		pd->icch = ((i2c_clk_khz * 1000 / pd->bus_speed * rHIGH
+				 / (rHIGH + rLOW)) - 5) / 2;
 	} else {
-		dev_err(pd->dev, "unrecognized bus speed %lu Hz\n",
-			pd->bus_speed);
+		dev_err(pd->dev, "unspecified clock calculation method\n");
 		return -EINVAL;
 	}
-
-	pd->iccl = sh_mobile_i2c_iccl(i2c_clk_khz, tLOW, tf);
-	pd->icch = sh_mobile_i2c_icch(i2c_clk_khz, tHIGH, tf);
 
 	max_val = pd->flags & IIC_FLAG_HAS_ICIC67 ? 0x1ff : 0xff;
 	if (pd->iccl > max_val || pd->icch > max_val) {
@@ -624,20 +646,27 @@ static struct i2c_algorithm sh_mobile_i2c_algorithm = {
 
 static const struct sh_mobile_dt_config default_dt_config = {
 	.clks_per_count = 1,
+	.clk_type = I2C_SHMOBILE_CLK_CALC_TYPE_LEGACY,
 };
 
 static const struct sh_mobile_dt_config fast_clock_dt_config = {
 	.clks_per_count = 2,
+	.clk_type = I2C_SHMOBILE_CLK_CALC_TYPE_LEGACY,
+};
+
+static const struct sh_mobile_dt_config gen2_clock_dt_config = {
+	.clks_per_count = 1,
+	.clk_type = I2C_SHMOBILE_CLK_CALC_TYPE_GEN2,
 };
 
 static const struct of_device_id sh_mobile_i2c_dt_ids[] = {
 	{ .compatible = "renesas,rmobile-iic", .data = &default_dt_config },
 	{ .compatible = "renesas,iic-r8a73a4", .data = &fast_clock_dt_config },
-	{ .compatible = "renesas,iic-r8a7790", .data = &fast_clock_dt_config },
-	{ .compatible = "renesas,iic-r8a7791", .data = &fast_clock_dt_config },
-	{ .compatible = "renesas,iic-r8a7792", .data = &fast_clock_dt_config },
-	{ .compatible = "renesas,iic-r8a7793", .data = &fast_clock_dt_config },
-	{ .compatible = "renesas,iic-r8a7794", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a7790", .data = &gen2_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a7791", .data = &gen2_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a7792", .data = &gen2_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a7793", .data = &gen2_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a7794", .data = &gen2_clock_dt_config },
 	{ .compatible = "renesas,iic-sh73a0", .data = &fast_clock_dt_config },
 	{},
 };
@@ -701,6 +730,7 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	pd->bus_speed = ret ? STANDARD_MODE : bus_speed;
 
 	pd->clks_per_count = 1;
+	pd->clk_type = I2C_SHMOBILE_CLK_CALC_TYPE_LEGACY;
 
 	if (dev->dev.of_node) {
 		const struct of_device_id *match;
@@ -711,12 +741,15 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 
 			config = match->data;
 			pd->clks_per_count = config->clks_per_count;
+			pd->clk_type = config->clk_type;
 		}
 	} else {
 		if (pdata && pdata->bus_speed)
 			pd->bus_speed = pdata->bus_speed;
 		if (pdata && pdata->clks_per_count)
 			pd->clks_per_count = pdata->clks_per_count;
+		if (pdata && pdata->clk_type)
+			pd->clk_type = pdata->clk_type;
 	}
 
 	/* The IIC blocks on SH-Mobile ARM processors
