@@ -2063,6 +2063,13 @@ static const unsigned int avb_avtp_match_pins[] = {
 static const unsigned int avb_avtp_match_mux[] = {
 	AVB_AVTP_MATCH_MARK,
 };
+/* - MLB-3pin --------------------------------------------------------------- */
+static const unsigned int mlb3pin_pins[] = {
+	RCAR_GP_PIN(4, 0), RCAR_GP_PIN(4, 1), RCAR_GP_PIN(4, 2),
+};
+static const unsigned int mlb3pin_mux[] = {
+	MLB_CLK_MARK, MLB_SIG_MARK, MLB_DAT_MARK,
+};
 /* - HSCIF0 ----------------------------------------------------------------- */
 static const unsigned int hscif0_data_pins[] = {
 	/* RX, TX */
@@ -4233,6 +4240,7 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(avb_mdio),
 	SH_PFC_PIN_GROUP(avb_gmii),
 	SH_PFC_PIN_GROUP(avb_avtp_match),
+	SH_PFC_PIN_GROUP(mlb3pin),
 	SH_PFC_PIN_GROUP(hscif0_data),
 	SH_PFC_PIN_GROUP(hscif0_clk),
 	SH_PFC_PIN_GROUP(hscif0_ctrl),
@@ -4582,6 +4590,10 @@ static const char * const avb_groups[] = {
 	"avb_mdio",
 	"avb_gmii",
 	"avb_avtp_match",
+};
+
+static const char * const mlb3pin_groups[] = {
+	"mlb3pin",
 };
 
 static const char * const hscif0_groups[] = {
@@ -5023,6 +5035,7 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(du2),
 	SH_PFC_FUNCTION(eth),
 	SH_PFC_FUNCTION(avb),
+	SH_PFC_FUNCTION(mlb3pin),
 	SH_PFC_FUNCTION(hscif0),
 	SH_PFC_FUNCTION(hscif1),
 	SH_PFC_FUNCTION(i2c0),

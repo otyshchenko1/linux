@@ -230,6 +230,11 @@
 		renesas,function = "avb";
 	};
 
+	mlb3_pins: mlp {
+		renesas,groups = "mlb3pin";
+		renesas,function = "mlb3pin";
+	};
+
 	phy1_pins: phy1 {
 		renesas,groups = "intc_irq0";
 		renesas,function = "intc";
@@ -471,6 +476,12 @@
 };
 
 &usbphy {
+	status = "okay";
+};
+
+&mlp {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mlb3_pins>;
 	status = "okay";
 };
 
