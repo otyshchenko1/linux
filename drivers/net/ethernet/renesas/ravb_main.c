@@ -2141,6 +2141,7 @@ static struct ravb_plat_data *ravb_parse_dt(struct device *dev,
 
 static const struct of_device_id ravb_match_table[] = {
 	{ .compatible = "renesas,gether-r8a7790", .data = &r8a779x_data_giga },
+	{ .compatible = "renesas,gether-r8a7791", .data = &r8a779x_data_giga },
 	{ .compatible = "renesas,gether-r8a7794", .data = &r8a779x_data_giga },
 	{ }
 };

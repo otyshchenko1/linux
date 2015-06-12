@@ -229,6 +229,11 @@ dtb-$(CONFIG_ARCH_VT8500) += vt8500-bv07.dtb \
 dtb-$(CONFIG_ARCH_ZYNQ) += zynq-zc702.dtb \
 	zynq-zc706.dtb
 
+# R-Car Gen2 AVB variants
+dtb-$(CONFIG_ARCH_SHMOBILE_MULTI) += \
+	r8a7791-koelsch-eavb.dtb \
+	r8a7790-lager-eavb.dtb
+
 targets += dtbs
 targets += $(dtb-y)
 endif

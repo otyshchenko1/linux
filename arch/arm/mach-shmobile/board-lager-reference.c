@@ -190,7 +190,9 @@ static const struct clk_name clk_names[] __initconst = {
  * This is a really crude hack to work around core platform clock issues
  */
 static const struct clk_name clk_enables[] __initconst = {
+#if IS_ENABLED(CONFIG_RAVB)
 	{ "avb", NULL, "e6800000.ethernet" },
+#endif
 	{ "ehci", NULL, "pci-rcar-gen2.1" },
 	{ "ehci", NULL, "pci-rcar-gen2.2" },
 	{ "dmal", NULL, "sh-dma-engine.0" },
@@ -772,6 +774,7 @@ static struct soc_camera_link cam##idx##_link = {			\
 	.priv = pdata,							\
 }
 
+#if !IS_ENABLED(CONFIG_RAVB)
 LAGER_CAMERA(0, "adv7612", 0x4c, NULL, RCAR_VIN_BT709);
 LAGER_CAMERA(1, "adv7180", 0x20, NULL, RCAR_VIN_BT656);
 
@@ -788,6 +791,7 @@ static void __init lager_add_camera1_device(void)
 				      &cam1_link, sizeof(cam1_link));
 	lager_add_vin_device(1, &vin1_pdata);
 }
+#endif
 
 /* VSP1 */
 #if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1) && \
@@ -996,8 +1000,10 @@ static void __init lager_add_standard_devices(void)
 #if !IS_ENABLED(CONFIG_USB_XHCI_HCD)
 	lager_add_usb2_device();
 #endif
+#if !IS_ENABLED(CONFIG_RAVB)
 	lager_add_camera0_device();
 	lager_add_camera1_device();
+#endif
 #if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1) && \
 !defined(CONFIG_DRM_RCAR_DU_CONNECT_VSP)
 	lager_add_vsp1_devices();

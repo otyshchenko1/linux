@@ -146,7 +146,9 @@ static const struct clk_name clk_names[] __initconst = {
 	{ "lvds0", "lvds.0", "rcar-du-r8a7791" },
 	{ "hsusb", NULL, "usb_phy_rcar_gen2" },
 	{ "vin0", NULL, "r8a7791-vin.0" },
+#if !IS_ENABLED(CONFIG_RAVB)
 	{ "vin1", NULL, "r8a7791-vin.1" },
+#endif
 	{ "vsps", NULL, NULL },
 #if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1) && \
 !defined(CONFIG_DRM_RCAR_DU_CONNECT_VSP)
@@ -173,6 +175,9 @@ static const struct clk_name clk_names[] __initconst = {
  * This is a really crude hack to work around core platform clock issues
  */
 static const struct clk_name clk_enables[] __initconst = {
+#if IS_ENABLED(CONFIG_RAVB)
+	{ "avb", NULL, "e6800000.ethernet" },
+#endif
 	{ "ehci", NULL, "pci-rcar-gen2.1" },
 	{ "dmal", NULL, "sh-dma-engine.0" },
 	{ "dmah", NULL, "sh-dma-engine.1" },
@@ -721,7 +726,9 @@ static struct soc_camera_link cam##idx##_link = {			\
 }
 
 KOELSCH_CAMERA(0, "adv7612", 0x4c, NULL, RCAR_VIN_BT709);
+#if !IS_ENABLED(CONFIG_RAVB)
 KOELSCH_CAMERA(1, "adv7180", 0x20, NULL, RCAR_VIN_BT656);
+#endif
 
 static void __init koelsch_add_camera0_device(void)
 {
@@ -730,12 +737,14 @@ static void __init koelsch_add_camera0_device(void)
 	koelsch_add_vin_device(0, &vin0_pdata);
 }
 
+#if !IS_ENABLED(CONFIG_RAVB)
 static void __init koelsch_add_camera1_device(void)
 {
 	platform_device_register_data(&platform_bus, "soc-camera-pdrv", 1,
 				      &cam1_link, sizeof(cam1_link));
 	koelsch_add_vin_device(1, &vin1_pdata);
 }
+#endif
 
 /* VSP1 */
 #if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1) && \
@@ -963,7 +972,9 @@ static void __init koelsch_add_standard_devices(void)
 	koelsch_add_du_device();
 	koelsch_add_usb_devices();
 	koelsch_add_camera0_device();
+#if !IS_ENABLED(CONFIG_RAVB)
 	koelsch_add_camera1_device();
+#endif
 #if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1) && \
 !defined(CONFIG_DRM_RCAR_DU_CONNECT_VSP)
 	koelsch_add_vsp1_devices();
