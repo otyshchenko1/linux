@@ -13,6 +13,9 @@ menu "Pin controllers"
 config PINMUX
 	bool "Support pin multiplexing controllers"
 
+config PINMUX_CPLD
+	bool "Support CPLD pin multiplexing controllers"
+
 config PINCONF
 	bool "Support pin configuration controllers"
 

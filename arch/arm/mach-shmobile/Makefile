@@ -74,6 +74,7 @@ ifdef CONFIG_ARCH_SHMOBILE_MULTI
 obj-$(CONFIG_MACH_GENMAI)	+= board-genmai-reference.o
 obj-$(CONFIG_MACH_KOELSCH)	+= board-koelsch-reference.o
 obj-$(CONFIG_MACH_LAGER)	+= board-lager-reference.o
+obj-$(CONFIG_MACH_R8A7790STOUT)	+= board-r8a7790stout-reference.o
 obj-$(CONFIG_MACH_GOSE)		+= board-gose-reference.o
 obj-$(CONFIG_MACH_ALT)		+= board-alt-reference.o
 obj-$(CONFIG_MACH_SILK)		+= board-silk-reference.o

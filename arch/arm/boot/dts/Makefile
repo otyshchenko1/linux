@@ -178,6 +178,7 @@ dtb-$(CONFIG_ARCH_SHMOBILE_MULTI) += emev2-kzm9d.dtb \
 	r8a7791-koelsch.dtb \
 	r8a7791-porter.dtb \
 	r8a7790-lager.dtb \
+	r8a7790-stout.dtb \
 	r8a7794-alt.dtb \
 	r8a7794-silk.dtb \
 	r8a7793-gose.dtb \

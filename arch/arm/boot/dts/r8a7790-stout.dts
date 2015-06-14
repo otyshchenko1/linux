@@ -1,0 +1,429 @@
+/*
+ * Device Tree Source for the R8A7790-stout board
+ *
+ * Copyright (C) 2015 Renesas Electronics Europe GmbH
+ * Copyright (C) 2015 Renesas Electronics Corporation
+ * Copyright (C) 2015 Cogent Embedded, Inc.
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+/dts-v1/;
+#include "r8a7790.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+
+/ {
+	model = "R8A7790-stout";
+	compatible = "renesas,r8a7790stout", "renesas,r8a7790";
+
+	aliases {
+		serial0 = &scifa0;
+	};
+
+	chosen {
+		bootargs = "console=ttySC0,38400 ignore_loglevel rw root=/dev/nfs ip=dhcp vmalloc=384M video=HDMI-A-1:1024x768-32@60";
+	};
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0 0x40000000 0 0x40000000>;
+	};
+
+	memory@200000000 {
+		device_type = "memory";
+		reg = <2 0x00000000 0 0x40000000>;
+	};
+
+	lbsc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		button@1 {
+			linux,code = <KEY_1>;
+			label = "SW3-1";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+			gpios = <&gpio1 0 GPIO_ACTIVE_HIGH>;
+		};
+		button@2 {
+			linux,code = <KEY_2>;
+			label = "SW3-2";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+			gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
+		};
+		button@3 {
+			linux,code = <KEY_3>;
+			label = "SW3-3";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+			gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		};
+		button@4 {
+			linux,code = <KEY_4>;
+			label = "SW3-4";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+			gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
+		};
+		button@5 {
+			linux,code = <KEY_5>;
+			label = "SW3-5";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+			gpios = <&gpio0 18 GPIO_ACTIVE_HIGH>;
+		};
+		button@6 {
+			linux,code = <KEY_6>;
+			label = "SW3-6";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+			gpios = <&gpio0 19 GPIO_ACTIVE_HIGH>;
+		};
+		button@7 {
+			linux,code = <KEY_7>;
+			label = "SW3-7";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+			gpios = <&gpio0 20 GPIO_ACTIVE_HIGH>;
+		};
+		button@8 {
+			linux,code = <KEY_8>;
+			label = "SW3-8";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+			gpios = <&gpio0 22 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led1 {
+			gpios = <&gpio4 22 GPIO_ACTIVE_LOW>;
+		};
+		led2 {
+			gpios = <&gpio4 23 GPIO_ACTIVE_LOW>;
+		};
+		led3 {
+			gpios = <&gpio5 17 GPIO_ACTIVE_LOW>;
+		};
+		led5 {
+			gpios = <&gpio4 24 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	vcc_sdhi0: regulator@1 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "SDHI0 Vcc";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&gpio5 24 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	vccq_sdhi0: regulator@2 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "SDHI0 VccQ";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&gpio3 30 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	hdmi_transmitter: adv7511 {
+		compatible = "adi,adv7511";
+		gpios = <&gpio1 23 GPIO_ACTIVE_LOW>;
+
+		adi,reg = <0x39>;
+		adi,input-style = <0x02>;
+		adi,input-id = <0x00>;
+		adi,input-color-depth = <0x03>;
+		adi,sync-pulse = <0x03>;
+		adi,bit-justification = <0x01>;
+		adi,up-conversion = <0x00>;
+		adi,timing-generation-sequence = <0x00>;
+		adi,vsync-polarity = <0x02>;
+		adi,hsync-polarity = <0x02>;
+		adi,clock-delay = <0x03>;
+	};
+
+	cpld_access: cpld {
+		compatible = "pinmux-cpld-access";
+
+		pinmux-cpld-access,sclk-gpio = <&gpio3 24 GPIO_ACTIVE_HIGH>;
+		pinmux-cpld-access,sstbz-gpio = <&gpio3 25 GPIO_ACTIVE_HIGH>;
+		pinmux-cpld-access,mosi-gpio = <&gpio3 26 GPIO_ACTIVE_HIGH>;
+		pinmux-cpld-access,miso-gpio = <&gpio3 27 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&extal_clk {
+	clock-frequency = <20000000>;
+};
+
+&pfc {
+	pinctrl-0 = <&du_pins &du0_pins &usb0_pins &vin0_pins>;
+	pinctrl-names = "default";
+
+	du_pins: du {
+		renesas,groups = "du_rgb888", "du_sync_1", "du_clk_out_0";
+		renesas,function = "du";
+	};
+
+	du0_pins: du0 {
+		renesas,groups = "du0_clk_in";
+		renesas,function = "du0";
+	};
+
+	scifa0_pins: serial0 {
+		renesas,groups = "scifa0_data_b", "scifa0_clk_b";
+		renesas,function = "scifa0";
+	};
+
+	ether_pins: ether {
+		renesas,groups = "eth_link", "eth_mdio", "eth_rmii";
+		renesas,function = "eth";
+	};
+
+	phy1_pins: phy1 {
+		renesas,groups = "intc_irq1";
+		renesas,function = "intc";
+	};
+
+	sdhi0_pins: sd0 {
+		renesas,groups = "sdhi0_data4", "sdhi0_ctrl", "sdhi0_cd";
+		renesas,function = "sdhi0";
+	};
+
+	qspi_pins: spi0 {
+		renesas,groups = "qspi_ctrl", "qspi_data4";
+		renesas,function = "qspi";
+	};
+
+	i2c0_pins: i2c0 {
+		renesas,groups = "i2c0";
+		renesas,function = "i2c0";
+	};
+
+	i2c2_pins: i2c2 {
+		renesas,groups = "i2c2_b";
+		renesas,function = "i2c2";
+	};
+
+	iic3_pins: iic3 {
+		renesas,groups = "iic3";
+		renesas,function = "iic3";
+	};
+
+	vin0_pins: vin0 {
+		renesas,groups = "vin0_b_data10", "vin0_sync_b", "vin0_clk_b";
+		renesas,function = "vin0";
+	};
+
+	usb0_pins: usb0 {
+		renesas,groups = "usb0", "usb0_ovc_vbus";
+		renesas,function = "usb0";
+	};
+};
+
+&ether {
+	pinctrl-0 = <&ether_pins &phy1_pins>;
+	pinctrl-names = "default";
+
+	phy-handle = <&phy1>;
+	renesas,ether-link-active-low;
+	status = "okay";
+
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+		interrupt-parent = <&irqc0>;
+		interrupts = <1 IRQ_TYPE_LEVEL_LOW>;
+		micrel,led-mode = <1>;
+	};
+};
+
+&qspi {
+	pinctrl-0 = <&qspi_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+
+	flash: flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "spansion,s25fl512s";
+		reg = <0>;
+		spi-max-frequency = <30000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		m25p,fast-read;
+		spi-cpol;
+		spi-cpha;
+
+		partition@0 {
+			label = "loader";
+			reg = <0x00000000 0x00080000>;
+			read-only;
+		};
+		partition@40000 {
+			label = "user";
+			reg = <0x00080000 0x00580000>;
+			read-only;
+		};
+		partition@440000 {
+			label = "flash";
+			reg = <0x00600000 0x03a00000>;
+		};
+	};
+};
+
+&scifa0 {
+	pinctrl-0 = <&scifa0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&sdhi0 {
+	pinctrl-0 = <&sdhi0_pins>;
+	pinctrl-names = "default";
+
+	vmmc-supply = <&vcc_sdhi0>;
+	vqmmc-supply = <&vccq_sdhi0>;
+	status = "okay";
+};
+
+&cpu0 {
+	cpu0-supply = <&vdd_dvfs>;
+};
+
+&i2c0 {
+	pinctrl-0 = <&i2c0_pins>;
+	pinctrl-names = "default";
+
+	clock-frequency = <400000>;
+	status = "okay";
+};
+
+&i2c2 {
+	pinctrl-0 = <&i2c2_pins>;
+	pinctrl-names = "default";
+
+	clock-frequency = <400000>;
+	status = "okay";
+};
+
+&iic3 {
+	pinctrl-0 = <&iic3_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	pmic@58 {
+		compatible = "dlg,da9063";
+		reg = <0x58>;
+		interrupt-parent = <&irqc0>;
+		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+
+		regulators {
+			vddcore_reg: bcores-merged {
+				regulator-min-microvolt = <1500000>;
+				regulator-max-microvolt = <1500000>;
+				regulator-always-on;
+			};
+
+			vdd_ddr3_reg: bpro {
+				regulator-min-microvolt = <750000>;
+				regulator-max-microvolt = <750000>;
+				regulator-always-on;
+			};
+
+			vdd_3v3_reg: bperi {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+			};
+
+
+			vdd_buckmem_reg: bmem-bio-merged {
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+			};
+
+			vcc_1v8_iso: ldo2 {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+			};
+
+			vcc_3v3_sd0: ldo3 {
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+			};
+
+			vcc_3v3_sd2: ldo4 {
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+			};
+
+			vcc_3v3_io: ldo5 {
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+			};
+
+			vcc_1v8_io: ldo7 {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+			};
+
+			vdd_rgmii_io: ldo11 {
+				regulator-min-microvolt = <2650000>;
+				regulator-max-microvolt = <2650000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+		};
+
+		rtc {
+			compatible = "dlg,da9063-rtc";
+		};
+
+		wdt {
+			compatible = "dlg,da9063-watchdog";
+		};
+	};
+
+	vdd_dvfs: regulator@68 {
+		compatible = "diasemi,da9210";
+		reg = <0x68>;
+
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <1000000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+};
+
+&usbphy {
+	status = "okay";
+};
+
+&pci0 {
+	pinctrl-0 = <&usb0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};

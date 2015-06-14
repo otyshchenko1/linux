@@ -70,6 +70,11 @@ config MACH_LAGER
 	select MICREL_PHY if SH_ETH
 	select SND_SOC_AK4642 if SND_SIMPLE_CARD
 
+config MACH_R8A7790STOUT
+	bool "R8A7790-stout board"
+	depends on ARCH_R8A7790
+	select MICREL_PHY if SH_ETH
+
 config MACH_GOSE
 	bool "Gose board"
 	depends on ARCH_R8A7793
