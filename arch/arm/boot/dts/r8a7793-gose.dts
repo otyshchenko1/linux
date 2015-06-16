@@ -42,7 +42,7 @@
 	};
 
 	chosen {
-		bootargs = "console=ttySC6,38400 ignore_loglevel rw root=/dev/nfs ip=dhcp";
+		bootargs = "console=ttySC6,38400 ignore_loglevel rw root=/dev/nfs ip=dhcp vmalloc=384M";
 	};
 
 	memory@40000000 {
