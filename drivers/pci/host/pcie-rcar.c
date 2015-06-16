@@ -54,6 +54,13 @@
 #define PCIEMSIAUR		0x0204c
 #define PCIEMSIIER		0x02050
 
+#define PMSR			0x1105C
+#define PMCTLR			0x11060
+#define L1_FALL_EDGE		(0x1 << 31)
+#define L1_INIT			(0x1 << 31)
+#define PM_ENTER_L1RX		(0x1 << 23)
+#define PMSTATE_L0		(0x1 << 16)
+
 /* root port address */
 #define PCIEPRAR(x)		(0x02080 + ((x) * 0x4))
 
@@ -245,6 +252,11 @@ static int rcar_pcie_config_access(struct rcar_pcie *pcie,
 		(PCI_STATUS_REC_MASTER_ABORT | PCI_STATUS_REC_TARGET_ABORT))
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
+	/* Accessing PCIECDR when device link state is L1 will cause external abort.
+	Perform checking device link state and transit host link state to L1 accordingly.*/
+	if ((pci_read_reg(pcie, PMSR) & (PM_ENTER_L1RX | PMSTATE_L0)) == (PM_ENTER_L1RX | PMSTATE_L0))
+		pci_write_reg(pcie, L1_INIT, PMCTLR);
+
 	if (access_type == PCI_ACCESS_READ)
 		*data = pci_read_reg(pcie, PCIECDR);
 	else
@@ -252,6 +264,9 @@ static int rcar_pcie_config_access(struct rcar_pcie *pcie,
 
 	/* Disable the configuration access */
 	pci_write_reg(pcie, 0, PCIECCTLR);
+
+	/* Clear L1FAEG and PMEL1RX flag in PMSR  */
+	pci_write_reg(pcie, L1_FALL_EDGE | PM_ENTER_L1RX, PMSR);
 
 	return PCIBIOS_SUCCESSFUL;
 }
