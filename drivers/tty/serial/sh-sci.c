@@ -1719,7 +1719,12 @@ static void rx_timer_fn(unsigned long arg)
 {
 	struct sci_port *s = (struct sci_port *)arg;
 	struct uart_port *port = &s->port;
-	u16 scr = serial_port_in(port, SCSCR);
+	u16 scr;
+	unsigned long flags;
+
+	spin_lock_irqsave(&port->lock, flags);
+
+	scr = serial_port_in(port, SCSCR);
 
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB) {
 		scr &= ~SCSCR_RDRQE;
@@ -1727,6 +1732,9 @@ static void rx_timer_fn(unsigned long arg)
 	}
 	serial_port_out(port, SCSCR, scr | SCSCR_RIE);
 	dev_dbg(port->dev, "DMA Rx timed out\n");
+
+	spin_unlock_irqrestore(&port->lock, flags);
+
 	schedule_work(&s->work_rx);
 }
 
