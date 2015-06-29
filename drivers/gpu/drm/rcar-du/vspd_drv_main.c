@@ -358,8 +358,17 @@ static int check_rpf_param(struct vspd_image *in, struct vspd_image *out,
 			crop_height = in->crop.height / 2;
 			crop_y = in->crop.y / 2;
 			dist_y = in->dist.y / 2;
-			break;
+		} else {
+			addr_y = in->addr_y;
+			addr_c0 = in->addr_c0;
+			addr_c1 = addr_c1;
+			stride_y = in->stride_y;
+			stride_c = in->stride_c;
+			crop_height = in->crop.height;
+			crop_y = in->crop.y;
+			dist_y = in->dist.y / 2;
 		}
+		break;
 
 	case VSPD_FLAG_INTERLACE_BOTTOM:
 		if (!is_scaling(in)) {
@@ -371,8 +380,17 @@ static int check_rpf_param(struct vspd_image *in, struct vspd_image *out,
 			crop_height = in->crop.height / 2;
 			crop_y = in->crop.y / 2;
 			dist_y = in->dist.y / 2;
-			break;
+		} else {
+			addr_y = in->addr_y;
+			addr_c0 = in->addr_c0;
+			addr_c1 = addr_c1;
+			stride_y = in->stride_y;
+			stride_c = in->stride_c;
+			crop_height = in->crop.height;
+			crop_y = in->crop.y;
+			dist_y = in->dist.y / 2;
 		}
+		break;
 
 	case VSPD_FLAG_PROGRESSIVE:
 		addr_y = in->addr_y;
