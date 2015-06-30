@@ -595,6 +595,7 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 #endif
 	struct sh_mobile_sdhi_vlt *vlt;
 	u32 pfcs[2], mask;
+	bool use_dma = true;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -693,7 +694,8 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 			dma_priv->slave_id_rx = p->dma_slave_rx;
 			mmc_data->enable_sdbuf_acc32 =
 				sh_mobile_sdhi_enable_sdbuf_acc32;
-		}
+		} else if (p->dma_slave_tx < 0 || p->dma_slave_rx < 0)
+			use_dma = false;
 	}
 
 	if (np && !of_property_read_u32(np, "dma-xmit-sz", &dma_xmit_sz)) {
@@ -707,7 +709,8 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	dma_priv->alignment_shift = shift;
 	dma_priv->filter = shdma_chan_filter;
 
-	mmc_data->dma = dma_priv;
+	if (use_dma)
+		mmc_data->dma = dma_priv;
 
 	/*
 	 * All SDHI blocks support 2-byte and larger block sizes in 4-bit
