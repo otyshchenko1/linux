@@ -75,6 +75,11 @@ config MACH_R8A7790STOUT
 	depends on ARCH_R8A7790
 	select MICREL_PHY if SH_ETH
 
+config MACH_R8A7790STOUT_FULL
+	bool "R8A7790-stout-full board"
+	depends on ARCH_R8A7790
+	select MICREL_PHY if SH_ETH
+
 config MACH_GOSE
 	bool "Gose board"
 	depends on ARCH_R8A7793
