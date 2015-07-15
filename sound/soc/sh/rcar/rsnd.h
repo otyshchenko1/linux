@@ -107,6 +107,7 @@ enum rsnd_reg {
 	RSND_REG_SHARE35,
 	RSND_REG_SHARE36,
 	RSND_REG_SHARE37,
+	RSND_REG_SHARE38,
 
 	RSND_REG_MAX,
 };
@@ -160,6 +161,7 @@ enum rsnd_reg {
 #define RSND_REG_SCU_SYS_INT_EN1	RSND_REG_SHARE35
 #define RSND_REG_SRC_STATUS		RSND_REG_SHARE36
 #define RSND_REG_SRC_INT_EN0		RSND_REG_SHARE37
+#define RSND_REG_SRC_BUSIF_DALIGN	RSND_REG_SHARE38
 
 struct rsnd_of_data;
 struct rsnd_priv;
@@ -183,6 +185,7 @@ void rsnd_write(struct rsnd_priv *priv, struct rsnd_mod *mod,
 void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod, enum rsnd_reg reg,
 		    u32 mask, u32 data);
 u32 rsnd_get_adinr(struct rsnd_mod *mod);
+u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io);
 
 /*
  *	R-Car DMA
