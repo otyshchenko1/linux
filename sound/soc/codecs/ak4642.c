@@ -430,9 +430,8 @@ static int ak4642_set_bias_level(struct snd_soc_codec *codec,
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 	case SND_SOC_BIAS_PREPARE:
-		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_test_bits(codec, PW_MGMT1, PMVCM, PMVCM) > 0) {
 			snd_soc_update_bits(codec, PW_MGMT1, PMVCM, PMVCM);
 
 			/* start stereo input */
