@@ -36,3 +36,8 @@
 
 #define SCI_MAJOR		204
 #define SCI_MINOR_START		8
+
+#ifdef CONFIG_SERIAL_SH_SCI_DMA
+#define SCI_CIRC_FLSH_OFF	0
+#define SCI_CIRC_FLSH_ON	1
+#endif
