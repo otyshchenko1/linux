@@ -80,6 +80,11 @@ config MACH_R8A7790STOUT_FULL
 	depends on ARCH_R8A7790
 	select MICREL_PHY if SH_ETH
 
+config MACH_R8A7790STOUT_VIEW
+	bool "R8A7790-stout-view board"
+	depends on ARCH_R8A7790
+	select MICREL_PHY if SH_ETH
+
 config MACH_GOSE
 	bool "Gose board"
 	depends on ARCH_R8A7793
