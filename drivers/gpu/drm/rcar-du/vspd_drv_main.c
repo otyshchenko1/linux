@@ -352,7 +352,7 @@ static int check_rpf_param(struct vspd_image *in, struct vspd_image *out,
 		if (!is_scaling(in)) {
 			addr_y = in->addr_y;
 			addr_c0 = in->addr_c0;
-			addr_c1 = addr_c1;
+			addr_c1 = in->addr_c1;
 			stride_y = in->stride_y * 2;
 			stride_c = in->stride_c * 2;
 			crop_height = in->crop.height / 2;
@@ -361,7 +361,7 @@ static int check_rpf_param(struct vspd_image *in, struct vspd_image *out,
 		} else {
 			addr_y = in->addr_y;
 			addr_c0 = in->addr_c0;
-			addr_c1 = addr_c1;
+			addr_c1 = in->addr_c1;
 			stride_y = in->stride_y;
 			stride_c = in->stride_c;
 			crop_height = in->crop.height;
@@ -374,7 +374,7 @@ static int check_rpf_param(struct vspd_image *in, struct vspd_image *out,
 		if (!is_scaling(in)) {
 			addr_y = in->addr_y + in->stride_y;
 			addr_c0 = in->addr_c0 + in->stride_c;
-			addr_c1 = addr_c1 + in->stride_c;
+			addr_c1 = in->addr_c1 + in->stride_c;
 			stride_y = in->stride_y * 2;
 			stride_c = in->stride_c * 2;
 			crop_height = in->crop.height / 2;
@@ -383,7 +383,7 @@ static int check_rpf_param(struct vspd_image *in, struct vspd_image *out,
 		} else {
 			addr_y = in->addr_y;
 			addr_c0 = in->addr_c0;
-			addr_c1 = addr_c1;
+			addr_c1 = in->addr_c1;
 			stride_y = in->stride_y;
 			stride_c = in->stride_c;
 			crop_height = in->crop.height;
@@ -395,7 +395,7 @@ static int check_rpf_param(struct vspd_image *in, struct vspd_image *out,
 	case VSPD_FLAG_PROGRESSIVE:
 		addr_y = in->addr_y;
 		addr_c0 = in->addr_c0;
-		addr_c1 = addr_c1;
+		addr_c1 = in->addr_c1;
 		stride_y = in->stride_y;
 		stride_c = in->stride_c;
 		crop_height = in->crop.height;
