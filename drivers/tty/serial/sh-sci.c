@@ -1323,13 +1323,9 @@ static int sci_dma_rx_push(struct sci_port *s, size_t count)
 	} else if (s->active_rx == s->cookie_rx[2]) {
 		active = 2;
 	} else {
-		dev_err(port->dev, "cookie %d not found!\n", s->active_rx);
 		return 0;
 	}
 
-	if (room < count)
-		dev_warn(port->dev, "Rx overrun: dropping %zu bytes\n",
-			 count - room);
 	if (!room)
 		return room;
 
@@ -1449,13 +1445,9 @@ static void sci_submit_rx(struct sci_port *s)
 				async_tx_ack(desc);
 				s->cookie_rx[i] = -EINVAL;
 			}
-			dev_warn(s->port.dev,
-				 "failed to re-start DMA, using PIO\n");
 			sci_rx_dma_release(s, true);
 			return;
 		}
-		dev_dbg(s->port.dev, "%s(): cookie %d to #%d\n",
-			__func__, s->cookie_rx[i], i);
 
 		if (i == 0) {
 			s->active_rx = s->cookie_rx[0];
@@ -1487,7 +1479,6 @@ static void work_fn_rx(struct work_struct *work)
 	} else if (s->active_rx == s->cookie_rx[2]) {
 		new = 2;
 	} else {
-		dev_err(port->dev, "cookie %d not found!\n", s->active_rx);
 		goto out;
 	}
 	desc = s->desc_rx[new];
@@ -1501,8 +1492,6 @@ static void work_fn_rx(struct work_struct *work)
 		int count;
 
 		chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
-		dev_dbg(port->dev, "Read %zu bytes with cookie %d\n",
-			sh_desc->partial, sh_desc->cookie);
 
 		count = sci_dma_rx_push(s, sh_desc->partial);
 
@@ -1520,7 +1509,6 @@ static void work_fn_rx(struct work_struct *work)
 		if (new != 0) {
 			s->cookie_rx[new] = desc->tx_submit(desc);
 			if (s->cookie_rx[new] < 0) {
-				dev_warn(port->dev, "Failed submitting Rx DMA descriptor\n");
 				sci_rx_dma_release(s, true);
 				goto out;
 			}
@@ -1529,7 +1517,6 @@ static void work_fn_rx(struct work_struct *work)
 	} else {
 		s->cookie_rx[new] = desc->tx_submit(desc);
 		if (s->cookie_rx[new] < 0) {
-			dev_warn(port->dev, "Failed submitting Rx DMA descriptor\n");
 			sci_rx_dma_release(s, true);
 			goto out;
 		}
@@ -1538,8 +1525,6 @@ static void work_fn_rx(struct work_struct *work)
 
 	s->active_rx = s->cookie_rx[next];
 
-	dev_dbg(port->dev, "%s: cookie %d #%d, new active #%d\n",
-		__func__, s->cookie_rx[new], new, s->active_rx);
 out:
 	spin_unlock_irqrestore(&port->lock, flags);
 }
@@ -1741,9 +1726,9 @@ static void rx_timer_fn(unsigned long arg)
 		enable_irq(s->irqs[SCIx_RXI_IRQ]);
 	}
 	serial_port_out(port, SCSCR, scr | SCSCR_RIE);
-	dev_dbg(port->dev, "DMA Rx timed out\n");
 
 	spin_unlock_irqrestore(&port->lock, flags);
+	dev_dbg(port->dev, "DMA Rx timed out\n");
 
 	schedule_work(&s->work_rx);
 }
