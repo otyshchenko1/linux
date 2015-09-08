@@ -1126,6 +1126,9 @@ static void rsnd_of_parse_src(struct platform_device *pdev,
 		i++;
 
 		src_info = info->src_info + i;
+		of_property_read_u32(np, "unused", &src_info->unused);
+		if (src_info->unused)
+			continue;
 
 		src_info->irq_id = irq_of_parse_and_map(np, 0);
 		of_property_read_u32(np, "convert-rate",
