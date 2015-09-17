@@ -1,7 +1,7 @@
 /*
  * SuperH Mobile SDHI
  *
- * Copyright (C) 2014 Renesas Electronics Corporation
+ * Copyright (C) 2014-2015 Renesas Electronics Corporation
  * Copyright (C) 2009 Magnus Damm
  *
  * This program is free software; you can redistribute it and/or modify
@@ -628,6 +628,7 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 
 	if (np && !of_property_read_u32(np, "renesas,clk-rate", &clk_rate)) {
 		if (clk_rate) {
+			clk_prepare_enable(priv->clk);
 #ifdef R8A7790_ES1_SDHI_WORKAROUND
 			product_reg = ioremap_nocache(PRODUCT_REGISTER, 0x04);
 			if (!product_reg) {
@@ -646,6 +647,8 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 			if (ret < 0)
 				dev_err(&pdev->dev,
 					"cannot set clock rate: %d\n", ret);
+
+			clk_disable_unprepare(priv->clk);
 		}
 	}
 
