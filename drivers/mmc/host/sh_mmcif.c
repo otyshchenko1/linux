@@ -1,7 +1,7 @@
 /*
  * MMCIF eMMC driver.
  *
- * Copyright (C) 2014 Renesas Electronics Corporation
+ * Copyright (C) 2014-2015 Renesas Electronics Corporation
  * Copyright (C) 2010 Renesas Solutions Corp.
  * Yusuke Goda <yusuke.goda.sx@renesas.com>
  *
@@ -1448,10 +1448,12 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 
 	if (np && !of_property_read_u32(np, "renesas,clk-rate", &clk_rate)) {
 		if (clk_rate) {
+			clk_prepare_enable(host->hclk);
 			ret = clk_set_rate(host->hclk, clk_rate);
 			if (ret < 0)
 				dev_err(&pdev->dev,
 					"cannot set clock rate: %d\n", ret);
+			clk_disable_unprepare(host->hclk);
 		}
 	}
 
