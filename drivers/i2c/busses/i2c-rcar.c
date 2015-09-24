@@ -520,6 +520,7 @@ static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 		 */
 		dev_dbg(dev, "Arbitration Lost\n");
 		rcar_i2c_flags_set(priv, (ID_DONE | ID_ARBLOST));
+		rcar_i2c_write(priv, ICMCR, 0);
 		rcar_i2c_status_clear(priv);
 		goto out;
 	}
