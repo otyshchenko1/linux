@@ -770,8 +770,6 @@ static int ravb_dmac_init(struct net_device *ndev, bool start)
 	if (start) {
 		/* Frame Receive */
 		ravb_write(ndev, 0x00000003, RIC0);
-		/* Receive FIFO full warning */
-		ravb_write(ndev, 0x80000000, RIC1);
 		/* Receive FIFO full error, Descriptor Empty */
 		ravb_write(ndev, 0x80000003, RIC2);
 		/* Frame Transmited, Timestamp FIFO updated */
