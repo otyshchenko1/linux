@@ -183,12 +183,11 @@ int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
 	if (use_busif) {
 		u32 val = rsnd_get_dalign(ssi_mod, io);
 
+		rsnd_mod_write(ssi_mod, BUSIF_DALIGN, val);
 		rsnd_mod_write(ssi_mod, SSI_BUSIF_ADINR,
 			       rsnd_get_adinr(ssi_mod));
 		rsnd_mod_write(ssi_mod, SSI_BUSIF_MODE,  1);
 		rsnd_mod_write(ssi_mod, SSI_CTRL, 0x1);
-
-		rsnd_mod_write(ssi_mod, BUSIF_DALIGN, val);
 	}
 
 	return 0;
@@ -567,7 +566,9 @@ static int rsnd_src_probe_gen1(struct rsnd_mod *mod,
 static int rsnd_src_init_gen1(struct rsnd_mod *mod,
 			      struct rsnd_dai *rdai)
 {
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	int ret;
+	u32 val;
 
 	ret = rsnd_src_init(mod, rdai);
 	if (ret < 0)
@@ -585,6 +586,8 @@ static int rsnd_src_init_gen1(struct rsnd_mod *mod,
 	if (ret < 0)
 		return ret;
 
+	val = rsnd_get_dalign(mod, io);
+	rsnd_mod_write(mod, SRC_BUSIF_DALIGN, val);
 	rsnd_mod_write(mod, SRC_SRCIR, 0);
 
 	return 0;
@@ -895,8 +898,10 @@ static int rsnd_src_remove_gen2(struct rsnd_mod *mod,
 static int rsnd_src_init_gen2(struct rsnd_mod *mod,
 			      struct rsnd_dai *rdai)
 {
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	int ret;
+	u32 val;
 
 	src->err_uf_srco = 0;
 	src->err_of_srco = 0;
@@ -914,6 +919,10 @@ static int rsnd_src_init_gen2(struct rsnd_mod *mod,
 	ret = rsnd_src_set_convert_timing_gen2(mod, rdai);
 	if (ret < 0)
 		return ret;
+
+	val = rsnd_get_dalign(mod, io);
+	rsnd_mod_write(mod, SRC_BUSIF_DALIGN, val);
+	rsnd_mod_write(mod, SRC_SRCIR, 0);
 
 	return 0;
 }
@@ -933,10 +942,6 @@ static int rsnd_src_start_gen2(struct rsnd_mod *mod,
 {
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	u32 val;
-
-	val = rsnd_get_dalign(mod, io);
-
-	rsnd_mod_write(mod, SRC_BUSIF_DALIGN, val);
 
 	if (rsnd_src_use_syncsrc(mod))
 		val = 0x11;
@@ -1006,9 +1011,7 @@ static int rsnd_src_dma_stop(struct rsnd_mod *mod,
 static int rsnd_src_stop_start_gen2(struct rsnd_mod *mod,
 			      struct rsnd_dai *rdai)
 {
-	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
-	u32 val;
 
 	/* STOP */
 	rsnd_src_irq_disable(mod, rdai);
@@ -1018,15 +1021,9 @@ static int rsnd_src_stop_start_gen2(struct rsnd_mod *mod,
 	/* START */
 	if (rsnd_src_convert_rate(src) || rsnd_src_use_syncsrc(mod))
 		rsnd_mod_bset(mod, SRC_ROUTE_MODE0, 1, 1);
-	if (rsnd_src_use_syncsrc(mod))
-		val = 0x11;
-	else
-		val = rsnd_io_has_cmd(io) ? 0x01 : 0x11;
-	rsnd_mod_write(mod, SRC_CTRL, val);
-	rsnd_src_irq_enable(mod, rdai);
+	rsnd_src_start_gen2(mod, rdai);
 
 	return 0;
-
 }
 
 static int rsnd_src_reconvert_rate_info(struct snd_kcontrol *kctrl,
