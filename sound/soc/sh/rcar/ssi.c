@@ -453,6 +453,14 @@ static irqreturn_t rsnd_ssi_pio_interrupt(int irq, void *data)
 	struct device *dev = rsnd_priv_to_dev(priv);
 	u32 status = rsnd_mod_read(mod, SSISR);
 	irqreturn_t ret = IRQ_NONE;
+	unsigned long flags;
+	bool elapsed = false;
+
+	rsnd_lock(priv, flags);
+
+	/* ignore all cases if not working */
+	if (!rsnd_io_is_working(io))
+		goto rsnd_ssi_pio_interrupt_out;
 
 	if (io && (status & (UIRQ | OIRQ))) {
 		struct rsnd_dai *rdai = ssi->rdai;
@@ -469,7 +477,8 @@ static irqreturn_t rsnd_ssi_pio_interrupt(int irq, void *data)
 		rsnd_ssi_init_irq(mod, rdai);
 		rsnd_ssi_pio_start(mod, rdai);
 
-		return IRQ_HANDLED;
+		ret = IRQ_HANDLED;
+		goto rsnd_ssi_pio_interrupt_out;
 	}
 
 	if (io && (status & DIRQ)) {
@@ -488,10 +497,16 @@ static irqreturn_t rsnd_ssi_pio_interrupt(int irq, void *data)
 		else
 			*buf = rsnd_mod_read(mod, SSIRDR);
 
-		rsnd_dai_pointer_update(io, sizeof(*buf));
+		elapsed = rsnd_dai_pointer_update(io, sizeof(*buf));
 
 		ret = IRQ_HANDLED;
 	}
+
+rsnd_ssi_pio_interrupt_out:
+	rsnd_unlock(priv, flags);
+
+	if (elapsed)
+		rsnd_dai_period_elapsed(io);
 
 	return ret;
 }
@@ -524,7 +539,7 @@ static int rsnd_ssi_pio_start(struct rsnd_mod *mod,
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 
 	/* enable PIO IRQ */
-	ssi->cr_etc = UIEN | OIEN | DIEN;
+	ssi->cr_etc = DIEN;
 
 	rsnd_src_ssiu_start(mod, rdai, 0);
 
@@ -577,6 +592,10 @@ static irqreturn_t rsnd_ssi_dma_interrupt(int irq, void *data)
 
 	rsnd_lock(priv, flags);
 
+	/* ignore all cases if not working */
+	if (!rsnd_io_is_working(io))
+		goto rsnd_ssi_dma_interrupt_out;
+
 	status = rsnd_mod_read(mod, SSISR);
 
 	if (io && (status & (UIRQ | OIRQ))) {
@@ -592,6 +611,7 @@ static irqreturn_t rsnd_ssi_dma_interrupt(int irq, void *data)
 		ret = IRQ_HANDLED;
 	}
 
+rsnd_ssi_dma_interrupt_out:
 	rsnd_unlock(priv, flags);
 
 	return ret;

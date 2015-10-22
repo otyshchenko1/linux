@@ -283,6 +283,8 @@ struct rsnd_dai_stream {
 #define rsnd_io_to_mod_dvc(io)	((io)->mod[RSND_MOD_DVC])
 #define rsnd_io_has_cmd(io)	(!!((io)->mod[RSND_MOD_DVC])) /* add more */
 
+int rsnd_io_is_working(struct rsnd_dai_stream *io);
+
 struct rsnd_dai {
 	char name[RSND_DAI_NAME_SIZE];
 	struct rsnd_dai_platform_info *info; /* rcar_snd.h */
@@ -309,9 +311,11 @@ int rsnd_dai_id(struct rsnd_priv *priv, struct rsnd_dai *rdai);
 #define rsnd_dai_get_platform_info(rdai) ((rdai)->info)
 #define rsnd_io_to_runtime(io) ((io)->substream->runtime)
 
-void rsnd_dai_pointer_update(struct rsnd_dai_stream *io, int cnt);
+bool rsnd_dai_pointer_update(struct rsnd_dai_stream *io, int cnt);
 int rsnd_dai_pointer_offset(struct rsnd_dai_stream *io, int additional);
 #define rsnd_dai_is_clk_master(rdai) ((rdai)->clk_master)
+
+void rsnd_dai_period_elapsed(struct rsnd_dai_stream *io);
 
 /*
  *	R-Car Gen1/Gen2

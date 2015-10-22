@@ -738,6 +738,10 @@ static irqreturn_t rsnd_src_interrupt_gen2(int irq, void *data)
 
 	rsnd_lock(priv, flags);
 
+	/* ignore all cases if not working */
+	if (!rsnd_io_is_working(io))
+		goto rsnd_src_interrupt_gen2_out;
+
 	sys_status0 = rsnd_mod_read(mod, SCU_SYS_STATUS0);
 	sys_status1 = rsnd_mod_read(mod, SCU_SYS_STATUS1);
 	status = rsnd_mod_read(mod, SRC_STATUS);
@@ -762,6 +766,7 @@ static irqreturn_t rsnd_src_interrupt_gen2(int irq, void *data)
 		ret = IRQ_HANDLED;
 	}
 
+rsnd_src_interrupt_gen2_out:
 	rsnd_unlock(priv, flags);
 
 	return ret;

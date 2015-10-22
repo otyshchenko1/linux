@@ -176,6 +176,12 @@ void rsnd_mod_quit(struct rsnd_mod *mod)
 		clk_unprepare(mod->clk);
 }
 
+int rsnd_io_is_working(struct rsnd_dai_stream *io)
+{
+	/* see rsnd_dai_stream_init/quit() */
+	return !!io->substream;
+}
+
 /*
  *	rsnd_dma functions
  */
@@ -189,6 +195,10 @@ static void rsnd_dma_complete(void *data)
 	struct rsnd_dma *dma = (struct rsnd_dma *)data;
 	struct rsnd_mod *mod = rsnd_dma_to_mod(dma);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	unsigned long flags;
+	bool elapsed = false;
+
 
 	/*
 	 * Renesas sound Gen1 needs 1 DMAC,
@@ -202,7 +212,16 @@ static void rsnd_dma_complete(void *data)
 	 * ant it will breaks io->byte_pos
 	 */
 
-	rsnd_dai_pointer_update(io, io->byte_per_period);
+	rsnd_lock(priv, flags);
+
+	if (rsnd_io_is_working(io))
+		elapsed = rsnd_dai_pointer_update(io, io->byte_per_period);
+
+	rsnd_unlock(priv, flags);
+
+	if (elapsed)
+		rsnd_dai_period_elapsed(io);
+
 }
 
 void rsnd_dma_start(struct rsnd_dma *dma)
@@ -550,7 +569,7 @@ int rsnd_dai_pointer_offset(struct rsnd_dai_stream *io, int additional)
 	return pos;
 }
 
-void rsnd_dai_pointer_update(struct rsnd_dai_stream *io, int byte)
+bool rsnd_dai_pointer_update(struct rsnd_dai_stream *io, int byte)
 {
 	io->byte_pos += byte;
 
@@ -567,8 +586,24 @@ void rsnd_dai_pointer_update(struct rsnd_dai_stream *io, int byte)
 			io->next_period_byte = io->byte_per_period;
 		}
 
-		snd_pcm_period_elapsed(substream);
+		return true;
 	}
+
+	return false;
+}
+
+void rsnd_dai_period_elapsed(struct rsnd_dai_stream *io)
+{
+	struct snd_pcm_substream *substream = io->substream;
+
+	/*
+	 * this function should be called...
+	 *
+	 * - if rsnd_dai_pointer_update() returns true
+	 * - without spin lock
+	 */
+
+	snd_pcm_period_elapsed(substream);
 }
 
 static int rsnd_dai_stream_init(struct rsnd_dai_stream *io,
@@ -585,6 +620,11 @@ static int rsnd_dai_stream_init(struct rsnd_dai_stream *io,
 	io->next_period_byte	= io->byte_per_period;
 
 	return 0;
+}
+
+static void rsnd_dai_stream_quit(struct rsnd_dai_stream *io)
+{
+	io->substream		= NULL;
 }
 
 static
@@ -649,6 +689,9 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 		ret = rsnd_platform_call(priv, dai, stop, ssi_id);
 		if (ret < 0)
 			goto dai_trigger_end;
+
+		rsnd_dai_stream_quit(io);
+
 		break;
 	default:
 		ret = -EINVAL;
