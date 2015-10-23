@@ -2023,9 +2023,9 @@ static void sci_baud_calc_hscif(unsigned int bps, unsigned long freq,
 
 static void sci_flush_buffer(struct uart_port *port)
 {
+#ifdef CONFIG_SERIAL_SH_SCI_DMA
 	struct sci_port *s = to_sci_port(port);
 
-#ifdef CONFIG_SERIAL_SH_SCI_DMA
 	s->circ_flush_flag = SCI_CIRC_FLSH_ON;
 #endif
 }
