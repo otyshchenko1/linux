@@ -119,6 +119,7 @@ struct sci_port {
 	struct sh_dmae_slave		param_rx;
 	struct work_struct		work_tx;
 	struct work_struct		work_rx;
+	pid_t				work_rx_pid;
 	struct timer_list		rx_timer;
 	unsigned int			rx_timeout;
 	int				rx_flag;
@@ -136,7 +137,7 @@ static void sci_start_tx(struct uart_port *port);
 static void sci_stop_tx(struct uart_port *port);
 static void sci_start_rx(struct uart_port *port);
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
-static void work_fn_rx(struct work_struct *work);
+static void work_fn_rx_complete(struct sci_port *s);
 #endif
 
 #define SCI_NPORTS CONFIG_SERIAL_SH_SCI_NR_UARTS
@@ -1345,10 +1346,9 @@ static void sci_dma_rx_complete(void *arg)
 	unsigned long flags;
 	int count;
 
-	dev_dbg(port->dev, "%s(%d) active #%d\n",
-		__func__, port->line, s->active_rx);
 
-	spin_lock_irqsave(&port->lock, flags);
+	if (!s->work_rx_pid || s->work_rx_pid != task_pid_nr(current))
+		spin_lock_irqsave(&port->lock, flags);
 
 	s->rx_flag = 1;
 
@@ -1361,12 +1361,12 @@ static void sci_dma_rx_complete(void *arg)
 
 	mod_timer(&s->rx_timer, jiffies + s->rx_timeout);
 
-	spin_unlock_irqrestore(&port->lock, flags);
-
 	if (count)
 		tty_flip_buffer_push(&port->state->port);
 
-	work_fn_rx(&s->work_rx);
+	work_fn_rx_complete(s);
+	if (!s->work_rx_pid || s->work_rx_pid != task_pid_nr(current))
+		spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static void sci_rx_dma_release(struct sci_port *s, bool enable_pio)
@@ -1461,13 +1461,64 @@ static void sci_submit_rx(struct sci_port *s)
 
 }
 
+static int get_new_cookie_num(struct sci_port *s)
+{
+	int new;
+
+	if (s->active_rx == s->cookie_rx[0])
+		new = 0;
+	else if (s->active_rx == s->cookie_rx[1])
+		new = 1;
+	else if (s->active_rx == s->cookie_rx[2])
+		new = 2;
+	else
+		new = -1;
+
+	return new;
+}
+
+static void work_fn_rx_complete(struct sci_port *s)
+{
+	struct uart_port *port = &s->port;
+	struct dma_async_tx_descriptor *desc;
+	int new;
+	int next;
+
+	if (s->chan_rx == NULL)
+		return;
+
+	new = get_new_cookie_num(s);
+	if (new < 0)
+		return;
+	desc = s->desc_rx[new];
+
+	if (port->type == PORT_SCIF || port->type == PORT_HSCIF) {
+		if (new != 0) {
+			s->cookie_rx[new] = desc->tx_submit(desc);
+			if (s->cookie_rx[new] < 0) {
+				sci_rx_dma_release(s, true);
+				return;
+			}
+		}
+		next = new % 2 + 1;
+	} else {
+		s->cookie_rx[new] = desc->tx_submit(desc);
+		if (s->cookie_rx[new] < 0) {
+			sci_rx_dma_release(s, true);
+			return;
+		}
+		next = !new;
+	}
+	s->active_rx = s->cookie_rx[next];
+
+}
+
 static void work_fn_rx(struct work_struct *work)
 {
 	struct sci_port *s = container_of(work, struct sci_port, work_rx);
 	struct uart_port *port = &s->port;
 	struct dma_async_tx_descriptor *desc;
 	int new;
-	int next;
 	unsigned long flags;
 
 	if (s->chan_rx == NULL) {
@@ -1476,15 +1527,12 @@ static void work_fn_rx(struct work_struct *work)
 	}
 
 	spin_lock_irqsave(&port->lock, flags);
-	if (s->active_rx == s->cookie_rx[0]) {
-		new = 0;
-	} else if (s->active_rx == s->cookie_rx[1]) {
-		new = 1;
-	} else if (s->active_rx == s->cookie_rx[2]) {
-		new = 2;
-	} else {
+	s->work_rx_pid = task_pid_nr(current);
+
+	new = get_new_cookie_num(s);
+	if (new < 0)
 		goto out;
-	}
+
 	desc = s->desc_rx[new];
 
 	if (dma_async_is_tx_complete(s->chan_rx, s->active_rx, NULL, NULL) !=
@@ -1502,34 +1550,23 @@ static void work_fn_rx(struct work_struct *work)
 		if (count)
 			tty_flip_buffer_push(&port->state->port);
 
-		if (!s->rx_release_flag)
-			sci_submit_rx(s);
-	    s->rx_flag = 0;
+		if (!s->rx_release_flag) {
+			u16 scr = serial_port_in(port, SCSCR);
 
-		goto out;
-	}
-
-	if (port->type == PORT_SCIF || port->type == PORT_HSCIF) {
-		if (new != 0) {
-			s->cookie_rx[new] = desc->tx_submit(desc);
-			if (s->cookie_rx[new] < 0) {
-				sci_rx_dma_release(s, true);
-				goto out;
+			if (port->type == PORT_SCIFA ||
+				port->type == PORT_SCIFB) {
+				scr &= ~SCSCR_RDRQE;
+				enable_irq(s->irqs[SCIx_RXI_IRQ]);
 			}
+			serial_port_out(port, SCSCR, scr | SCSCR_RIE);
+
+			sci_submit_rx(s);
 		}
-		next = new % 2 + 1;
-	} else {
-		s->cookie_rx[new] = desc->tx_submit(desc);
-		if (s->cookie_rx[new] < 0) {
-			sci_rx_dma_release(s, true);
-			goto out;
-		}
-		next = !new;
+
+		s->rx_flag = 0;
 	}
-
-	s->active_rx = s->cookie_rx[next];
-
 out:
+	s->work_rx_pid = 0;
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
@@ -1721,20 +1758,7 @@ static void rx_timer_fn(unsigned long arg)
 {
 	struct sci_port *s = (struct sci_port *)arg;
 	struct uart_port *port = &s->port;
-	u16 scr;
-	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
-
-	scr = serial_port_in(port, SCSCR);
-
-	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB) {
-		scr &= ~SCSCR_RDRQE;
-		enable_irq(s->irqs[SCIx_RXI_IRQ]);
-	}
-	serial_port_out(port, SCSCR, scr | SCSCR_RIE);
-
-	spin_unlock_irqrestore(&port->lock, flags);
 	dev_dbg(port->dev, "DMA Rx timed out\n");
 
 	schedule_work(&s->work_rx);
@@ -1755,6 +1779,7 @@ static void sci_request_dma(struct uart_port *port)
 
 	s->rx_flag = 0;
 	s->rx_release_flag = 0;
+	s->work_rx_pid = 0;
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
