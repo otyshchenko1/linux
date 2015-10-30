@@ -1,6 +1,7 @@
 /*
  * Renesas R-Car SRC support
  *
+ * Copyright (C) 2014-2015 Renesas Electronics Corporation
  * Copyright (C) 2013 Renesas Solutions Corp.
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  *
@@ -930,11 +931,20 @@ static int rsnd_src_init_gen2(struct rsnd_mod *mod,
 	return 0;
 }
 
+static int rsnd_src_dma_start(struct rsnd_mod *mod,
+			      struct rsnd_dai *rdai)
+{
+	struct rsnd_src *src = rsnd_mod_to_src(mod);
+
+	rsnd_dma_start(rsnd_mod_to_dma(&src->mod));
+
+	return 0;
+}
+
 static int rsnd_src_start_gen2(struct rsnd_mod *mod,
 			       struct rsnd_dai *rdai)
 {
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
-	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	u32 val;
 
 	val = rsnd_get_dalign(mod, io);
@@ -946,8 +956,6 @@ static int rsnd_src_start_gen2(struct rsnd_mod *mod,
 	else
 		val = rsnd_io_has_cmd(io) ? 0x01 : 0x11;
 
-	rsnd_dma_start(rsnd_mod_to_dma(&src->mod));
-
 	rsnd_mod_write(mod, SRC_CTRL, val);
 
 	rsnd_src_irq_enable(mod, rdai);
@@ -958,15 +966,21 @@ static int rsnd_src_start_gen2(struct rsnd_mod *mod,
 static int rsnd_src_stop_gen2(struct rsnd_mod *mod,
 			      struct rsnd_dai *rdai)
 {
-	struct rsnd_src *src = rsnd_mod_to_src(mod);
-
 	rsnd_src_irq_disable(mod, rdai);
 
 	rsnd_mod_write(mod, SRC_CTRL, 0);
 
+	return rsnd_src_stop(mod, rdai);
+}
+
+static int rsnd_src_dma_stop(struct rsnd_mod *mod,
+			     struct rsnd_dai *rdai)
+{
+	struct rsnd_src *src = rsnd_mod_to_src(mod);
+
 	rsnd_dma_stop(rsnd_mod_to_dma(&src->mod));
 
-	return rsnd_src_stop(mod, rdai);
+	return 0;
 }
 
 static int rsnd_src_stop_start_gen2(struct rsnd_mod *mod,
@@ -1069,14 +1083,16 @@ static int rsnd_src_pcm_new_gen2(struct rsnd_mod *mod,
 }
 
 static struct rsnd_mod_ops rsnd_src_gen2_ops = {
-	.name	= SRC_NAME,
-	.probe	= rsnd_src_probe_gen2,
-	.remove	= rsnd_src_remove_gen2,
-	.init	= rsnd_src_init_gen2,
-	.quit	= rsnd_src_quit,
-	.start	= rsnd_src_start_gen2,
-	.stop	= rsnd_src_stop_gen2,
-	.pcm_new = rsnd_src_pcm_new_gen2,
+	.name		= SRC_NAME,
+	.probe		= rsnd_src_probe_gen2,
+	.remove		= rsnd_src_remove_gen2,
+	.init		= rsnd_src_init_gen2,
+	.quit		= rsnd_src_quit,
+	.dma_start	= rsnd_src_dma_start,
+	.start		= rsnd_src_start_gen2,
+	.stop		= rsnd_src_stop_gen2,
+	.dma_stop	= rsnd_src_dma_stop,
+	.pcm_new	= rsnd_src_pcm_new_gen2,
 };
 
 struct rsnd_mod *rsnd_src_mod_get(struct rsnd_priv *priv, int id)
