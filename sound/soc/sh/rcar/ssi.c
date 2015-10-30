@@ -692,21 +692,37 @@ static int rsnd_ssi_start(struct rsnd_mod *mod,
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 
-	/* enable DMA transfer */
-	ssi->cr_etc = DMEN;
+	if (rsnd_dai_is_play(rdai, io)) {
+		/* enable DMA transfer */
+		ssi->cr_etc = DMEN;
 
-	/* enable Overflow and Underflow IRQ */
-	ssi->cr_etc |= UIEN | OIEN;
+		/* enable Overflow and Underflow IRQ */
+		ssi->cr_etc |= UIEN | OIEN;
 
-	rsnd_ssi_hw_start(ssi, ssi->rdai, io);
+		rsnd_ssi_hw_start(ssi, ssi->rdai, io);
+		rsnd_src_enable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
 
-	rsnd_src_enable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
+		/* enable WS continue */
+		if (rsnd_dai_is_clk_master(rdai))
+			rsnd_mod_write(&ssi->mod, SSIWSR, CONT);
 
-	/* enable WS continue */
-	if (rsnd_dai_is_clk_master(rdai))
-		rsnd_mod_write(&ssi->mod, SSIWSR, CONT);
+		rsnd_src_ssiu_start(mod, rdai, rsnd_ssi_use_busif(mod));
+	} else {
+		rsnd_src_ssiu_start(mod, rdai, rsnd_ssi_use_busif(mod));
 
-	rsnd_src_ssiu_start(mod, rdai, rsnd_ssi_use_busif(mod));
+		/* enable DMA transfer */
+		ssi->cr_etc = DMEN;
+
+		/* enable Overflow and Underflow IRQ */
+		ssi->cr_etc |= UIEN | OIEN;
+
+		rsnd_ssi_hw_start(ssi, ssi->rdai, io);
+		rsnd_src_enable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
+
+		/* enable WS continue */
+		if (rsnd_dai_is_clk_master(rdai))
+			rsnd_mod_write(&ssi->mod, SSIWSR, CONT);
+	}
 
 	return 0;
 }
@@ -726,14 +742,20 @@ static int rsnd_ssi_stop(struct rsnd_mod *mod,
 			 struct rsnd_dai *rdai)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 
 	ssi->cr_etc = 0;
 
 	rsnd_src_disable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
 
-	rsnd_ssi_hw_stop(ssi, rdai);
-
-	rsnd_src_ssiu_stop(mod, rdai, 1);
+	if (rsnd_dai_is_play(rdai, io)) {
+		rsnd_ssi_hw_stop(ssi, rdai);
+		rsnd_ssi_dma_stop(mod, rdai);
+		rsnd_src_ssiu_stop(mod, rdai, 1);
+	} else {
+		rsnd_src_ssiu_stop(mod, rdai, 1);
+		rsnd_ssi_hw_stop(ssi, rdai);
+	}
 
 	return 0;
 }
@@ -744,15 +766,27 @@ static int rsnd_ssi_dma_stop_start_irq(struct rsnd_mod *mod,
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 
-	/* STOP */
-	rsnd_src_disable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
-	rsnd_ssi_hw_stop(ssi, rdai);
-	rsnd_src_ssiu_stop(mod, rdai, 1);
+	if (rsnd_dai_is_play(rdai, io)) {
+		/* STOP */
+		rsnd_src_disable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
+		rsnd_ssi_hw_stop(ssi, rdai);
+		rsnd_src_ssiu_stop(mod, rdai, 1);
 
-	/* START */
-	rsnd_src_ssiu_start(mod, rdai, rsnd_ssi_use_busif(mod));
-	rsnd_ssi_hw_start(ssi, ssi->rdai, io);
-	rsnd_src_enable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
+		/* START */
+		rsnd_ssi_hw_start(ssi, ssi->rdai, io);
+		rsnd_src_enable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
+		rsnd_src_ssiu_start(mod, rdai, rsnd_ssi_use_busif(mod));
+	} else {
+		/* STOP */
+		rsnd_src_disable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
+		rsnd_src_ssiu_stop(mod, rdai, 1);
+		rsnd_ssi_hw_stop(ssi, rdai);
+
+		/* START */
+		rsnd_src_ssiu_start(mod, rdai, rsnd_ssi_use_busif(mod));
+		rsnd_ssi_hw_start(ssi, ssi->rdai, io);
+		rsnd_src_enable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
+	}
 	/* enable WS continue */
 	if (rsnd_dai_is_clk_master(rdai))
 		rsnd_mod_write(&ssi->mod, SSIWSR, CONT);

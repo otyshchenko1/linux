@@ -1,6 +1,7 @@
 /*
  * Renesas R-Car SRU/SCU/SSIU/SSI support
  *
+ * Copyright (C) 2014-2015 Renesas Electronics Corporation
  * Copyright (C) 2013 Renesas Solutions Corp.
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  *
@@ -503,6 +504,69 @@ u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 	ret;							\
 })
 
+#define rsnd_dai_type_call(fn, mod_type, io, rdai...)		\
+({								\
+	int ret = 0;						\
+	struct rsnd_mod *mod;					\
+								\
+	switch (mod_type) {					\
+	case RSND_MOD_SSI:					\
+		mod = rsnd_io_to_mod_ssi(io);			\
+		break;						\
+	case RSND_MOD_DVC:					\
+		mod = rsnd_io_to_mod_dvc(io);			\
+		break;						\
+	case RSND_MOD_SRC:					\
+		mod = rsnd_io_to_mod_src(io);			\
+		break;						\
+	}							\
+								\
+	if (mod)						\
+		ret = rsnd_mod_call(mod, fn, rdai);		\
+	ret;							\
+})
+
+#define rsnd_dai_order_call(fn, is_play, io, rdai...)		\
+({								\
+	struct rsnd_mod *mod;					\
+	int ret = 0, i;						\
+	int play_order[RSND_MOD_MAX] = {			\
+		RSND_MOD_SSI, RSND_MOD_DVC, RSND_MOD_SRC	\
+	};							\
+	int rec_order[RSND_MOD_MAX] = {				\
+		RSND_MOD_DVC, RSND_MOD_SRC, RSND_MOD_SSI	\
+	};							\
+	int *order;						\
+								\
+	if (is_play)						\
+		order = play_order;				\
+	else							\
+		order = rec_order;				\
+								\
+	for (i = 0; i < RSND_MOD_MAX; i++) {			\
+		switch (*(order + i)) {				\
+		case RSND_MOD_SSI:				\
+			mod = rsnd_io_to_mod_ssi(io);		\
+			break;					\
+		case RSND_MOD_DVC:				\
+			mod = rsnd_io_to_mod_dvc(io);		\
+			break;					\
+		case RSND_MOD_SRC:				\
+			mod = rsnd_io_to_mod_src(io);		\
+			break;					\
+		default:					\
+			continue;				\
+		}						\
+								\
+		if (!mod)					\
+			continue;				\
+		ret = rsnd_mod_call(mod, fn, rdai);		\
+		if (ret < 0)					\
+			break;					\
+	}							\
+	ret;							\
+})
+
 static int rsnd_dai_connect(struct rsnd_mod *mod,
 			    struct rsnd_dai_stream *io)
 {
@@ -654,6 +718,7 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	int ssi_id = rsnd_mod_id(rsnd_io_to_mod_ssi(io));
 	int ret;
 	unsigned long flags;
+	int is_play = rsnd_dai_is_play(rdai, io);
 
 	rsnd_lock(priv, flags);
 
@@ -672,13 +737,45 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 		if (ret < 0)
 			goto dai_trigger_end;
 
-		ret = rsnd_dai_call(start, io, rdai);
+		ret = rsnd_dai_type_call(dma_start, RSND_MOD_SSI, io, rdai);
+		if (ret < 0)
+			goto dai_trigger_end;
+
+		ret = rsnd_dai_type_call(dma_start, RSND_MOD_SRC, io, rdai);
+		if (ret < 0)
+			goto dai_trigger_end;
+
+		ret = rsnd_dai_order_call(start, is_play, io, rdai);
 		if (ret < 0)
 			goto dai_trigger_end;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
-		ret = rsnd_dai_call(stop, io, rdai);
+		if (is_play) {
+			ret = rsnd_dai_type_call(stop, RSND_MOD_SSI, io, rdai);
+			if (ret < 0)
+				goto dai_trigger_end;
+			ret = rsnd_dai_type_call(stop, RSND_MOD_DVC, io, rdai);
+			if (ret < 0)
+				goto dai_trigger_end;
+			ret = rsnd_dai_type_call(stop, RSND_MOD_SRC, io, rdai);
+			if (ret < 0)
+				goto dai_trigger_end;
+		} else {
+			ret = rsnd_dai_type_call(stop, RSND_MOD_DVC, io, rdai);
+			if (ret < 0)
+				goto dai_trigger_end;
+			ret = rsnd_dai_type_call(stop, RSND_MOD_SRC, io, rdai);
+			if (ret < 0)
+				goto dai_trigger_end;
+			ret = rsnd_dai_type_call(dma_stop, RSND_MOD_SSI, io, rdai);
+			if (ret < 0)
+				goto dai_trigger_end;
+			ret = rsnd_dai_type_call(stop, RSND_MOD_SSI, io, rdai);
+			if (ret < 0)
+				goto dai_trigger_end;
+		}
+		ret = rsnd_dai_type_call(dma_stop, RSND_MOD_SRC, io, rdai);
 		if (ret < 0)
 			goto dai_trigger_end;
 
