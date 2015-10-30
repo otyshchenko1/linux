@@ -1,6 +1,7 @@
 /*
  * Renesas R-Car SSIU/SSI support
  *
+ * Copyright (C) 2014-2015 Renesas Electronics Corporation
  * Copyright (C) 2013 Renesas Solutions Corp.
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  *
@@ -51,6 +52,7 @@
 #define	OIRQ		(1 << 26)	/* Overflow Error Interrupt Status */
 #define	IIRQ		(1 << 25)	/* Idle Mode Interrupt Status */
 #define	DIRQ		(1 << 24)	/* Data Interrupt Status Flag */
+#define	IDST		(1 <<  0)	/* Idle Mode Status */
 
 /*
  * SSIWSR
@@ -243,7 +245,7 @@ static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi,
 	 * and, wait idle state
 	 */
 	rsnd_mod_write(&ssi->mod, SSICR, cr);	/* disabled all */
-	rsnd_ssi_status_check(&ssi->mod, IIRQ);
+	rsnd_ssi_status_check(&ssi->mod, IDST);
 
 	/* clear error status */
 	rsnd_mod_write(&ssi->mod, SSISR, 0);
