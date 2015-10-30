@@ -1,6 +1,7 @@
 /*
  * Renesas R-Car
  *
+ * Copyright (C) 2014-2015 Renesas Electronics Corporation
  * Copyright (C) 2013 Renesas Solutions Corp.
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  *
@@ -227,10 +228,14 @@ struct rsnd_mod_ops {
 		    struct rsnd_dai *rdai);
 	int (*quit)(struct rsnd_mod *mod,
 		    struct rsnd_dai *rdai);
+	int (*dma_start)(struct rsnd_mod *mod,
+			 struct rsnd_dai *rdai);
 	int (*start)(struct rsnd_mod *mod,
 		     struct rsnd_dai *rdai);
 	int (*stop)(struct rsnd_mod *mod,
 		    struct rsnd_dai *rdai);
+	int (*dma_stop)(struct rsnd_mod *mod,
+			struct rsnd_dai *rdai);
 	int (*pcm_new)(struct rsnd_mod *mod,
 		       struct rsnd_dai *rdai,
 		       struct snd_soc_pcm_runtime *rtd);
