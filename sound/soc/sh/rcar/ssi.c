@@ -680,6 +680,16 @@ static int rsnd_ssi_dma_start(struct rsnd_mod *mod,
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_dma *dma = rsnd_mod_to_dma(&ssi->mod);
+
+	rsnd_dma_start(dma);
+
+	return 0;
+}
+
+static int rsnd_ssi_start(struct rsnd_mod *mod,
+			  struct rsnd_dai *rdai)
+{
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 
 	/* enable DMA transfer */
@@ -687,8 +697,6 @@ static int rsnd_ssi_dma_start(struct rsnd_mod *mod,
 
 	/* enable Overflow and Underflow IRQ */
 	ssi->cr_etc |= UIEN | OIEN;
-
-	rsnd_dma_start(dma);
 
 	rsnd_ssi_hw_start(ssi, ssi->rdai, io);
 
@@ -709,13 +717,21 @@ static int rsnd_ssi_dma_stop(struct rsnd_mod *mod,
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_dma *dma = rsnd_mod_to_dma(&ssi->mod);
 
+	rsnd_dma_stop(dma);
+
+	return 0;
+}
+
+static int rsnd_ssi_stop(struct rsnd_mod *mod,
+			 struct rsnd_dai *rdai)
+{
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+
 	ssi->cr_etc = 0;
 
 	rsnd_src_disable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
 
 	rsnd_ssi_hw_stop(ssi, rdai);
-
-	rsnd_dma_stop(dma);
 
 	rsnd_src_ssiu_stop(mod, rdai, 1);
 
@@ -750,14 +766,16 @@ static char *rsnd_ssi_dma_name(struct rsnd_mod *mod)
 }
 
 static struct rsnd_mod_ops rsnd_ssi_dma_ops = {
-	.name	= SSI_NAME,
-	.dma_name = rsnd_ssi_dma_name,
-	.probe	= rsnd_ssi_dma_probe,
-	.remove	= rsnd_ssi_dma_remove,
-	.init	= rsnd_ssi_init,
-	.quit	= rsnd_ssi_quit,
-	.start	= rsnd_ssi_dma_start,
-	.stop	= rsnd_ssi_dma_stop,
+	.name		= SSI_NAME,
+	.dma_name	= rsnd_ssi_dma_name,
+	.probe		= rsnd_ssi_dma_probe,
+	.remove		= rsnd_ssi_dma_remove,
+	.init		= rsnd_ssi_init,
+	.quit		= rsnd_ssi_quit,
+	.dma_start	= rsnd_ssi_dma_start,
+	.start		= rsnd_ssi_start,
+	.stop		= rsnd_ssi_stop,
+	.dma_stop	= rsnd_ssi_dma_stop,
 };
 
 /*
