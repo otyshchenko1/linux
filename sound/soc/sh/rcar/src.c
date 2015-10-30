@@ -333,9 +333,11 @@ static int rsnd_src_set_convert_rate(struct rsnd_mod *mod,
 	rsnd_mod_write(mod, SRC_SWRSR, 0);
 	rsnd_mod_write(mod, SRC_SWRSR, 1);
 
+	if (rsnd_src_convert_rate(src) || rsnd_src_use_syncsrc(mod))
+		rsnd_mod_bset(mod, SRC_ROUTE_MODE0, 1, 1);
+
 	/*
 	 * Initialize the operation of the SRC internal circuits
-	 * see rsnd_src_start()
 	 */
 	rsnd_mod_write(mod, SRC_SRCIR, 1);
 
@@ -418,24 +420,6 @@ static int rsnd_src_quit(struct rsnd_mod *mod,
 
 	return 0;
 }
-
-static int rsnd_src_start(struct rsnd_mod *mod,
-			  struct rsnd_dai *rdai)
-{
-	struct rsnd_src *src = rsnd_mod_to_src(mod);
-
-	/*
-	 * Cancel the initialization and operate the SRC function
-	 * see rsnd_src_set_convert_rate()
-	 */
-	rsnd_mod_write(mod, SRC_SRCIR, 0);
-
-	if (rsnd_src_convert_rate(src) || rsnd_src_use_syncsrc(mod))
-		rsnd_mod_bset(mod, SRC_ROUTE_MODE0, 1, 1);
-
-	return 0;
-}
-
 
 static int rsnd_src_stop(struct rsnd_mod *mod,
 			 struct rsnd_dai *rdai)
@@ -601,6 +585,8 @@ static int rsnd_src_init_gen1(struct rsnd_mod *mod,
 	if (ret < 0)
 		return ret;
 
+	rsnd_mod_write(mod, SRC_SRCIR, 0);
+
 	return 0;
 }
 
@@ -610,8 +596,9 @@ static int rsnd_src_start_gen1(struct rsnd_mod *mod,
 	int id = rsnd_mod_id(mod);
 
 	rsnd_mod_bset(mod, SRC_ROUTE_CTRL, (1 << id), (1 << id));
+	rsnd_mod_write(mod, SRC_SRCIR, 0);
 
-	return rsnd_src_start(mod, rdai);
+	return 0;
 }
 
 static int rsnd_src_stop_gen1(struct rsnd_mod *mod,
@@ -960,7 +947,7 @@ static int rsnd_src_start_gen2(struct rsnd_mod *mod,
 
 	rsnd_src_irq_enable(mod, rdai);
 
-	return rsnd_src_start(mod, rdai);
+	return 0;
 }
 
 /*
@@ -1020,6 +1007,7 @@ static int rsnd_src_stop_start_gen2(struct rsnd_mod *mod,
 			      struct rsnd_dai *rdai)
 {
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
+	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	u32 val;
 
 	/* STOP */
@@ -1028,14 +1016,14 @@ static int rsnd_src_stop_start_gen2(struct rsnd_mod *mod,
 	rsnd_src_stop(mod, rdai);
 
 	/* START */
+	if (rsnd_src_convert_rate(src) || rsnd_src_use_syncsrc(mod))
+		rsnd_mod_bset(mod, SRC_ROUTE_MODE0, 1, 1);
 	if (rsnd_src_use_syncsrc(mod))
 		val = 0x11;
 	else
 		val = rsnd_io_has_cmd(io) ? 0x01 : 0x11;
-
 	rsnd_mod_write(mod, SRC_CTRL, val);
 	rsnd_src_irq_enable(mod, rdai);
-	rsnd_src_start(mod, rdai);
 
 	return 0;
 
