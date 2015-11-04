@@ -190,12 +190,19 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(&ssi->mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
-	u32 cr;
+	u32 cr, status;
 
 	if (0 == ssi->usrcnt) {
 		rsnd_mod_hw_start(&ssi->mod);
 
 		if (rsnd_dai_is_clk_master(rdai)) {
+			/* enable WS continue */
+			if (rsnd_dai_is_clk_master(rdai)) {
+				status = rsnd_mod_read(&ssi->mod, SSIWSR);
+				if (!(status & CONT))
+					rsnd_mod_write(&ssi->mod, SSIWSR, CONT);
+			}
+
 			if (rsnd_ssi_clk_from_parent(ssi))
 				rsnd_ssi_hw_start(ssi->parent, rdai, io);
 			else
@@ -256,10 +263,14 @@ static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi,
 				if (0 == --(ssi->parent->usrcnt)) {
 					rsnd_ssi_master_clk_stop(ssi->parent);
 					rsnd_mod_hw_stop(&ssi->parent->mod);
+					/* disable WS continue */
+					rsnd_mod_write(&ssi->parent->mod, SSIWSR, 0);
 				}
 			} else {
 				rsnd_ssi_master_clk_stop(ssi);
 			}
+			/* disable WS continue */
+			rsnd_mod_write(&ssi->mod, SSIWSR, 0);
 		}
 
 		rsnd_mod_hw_stop(&ssi->mod);
@@ -702,10 +713,6 @@ static int rsnd_ssi_start(struct rsnd_mod *mod,
 		rsnd_ssi_hw_start(ssi, ssi->rdai, io);
 		rsnd_src_enable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
 
-		/* enable WS continue */
-		if (rsnd_dai_is_clk_master(rdai))
-			rsnd_mod_write(&ssi->mod, SSIWSR, CONT);
-
 		rsnd_src_ssiu_start(mod, rdai, rsnd_ssi_use_busif(mod));
 	} else {
 		rsnd_src_ssiu_start(mod, rdai, rsnd_ssi_use_busif(mod));
@@ -718,10 +725,6 @@ static int rsnd_ssi_start(struct rsnd_mod *mod,
 
 		rsnd_ssi_hw_start(ssi, ssi->rdai, io);
 		rsnd_src_enable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
-
-		/* enable WS continue */
-		if (rsnd_dai_is_clk_master(rdai))
-			rsnd_mod_write(&ssi->mod, SSIWSR, CONT);
 	}
 
 	return 0;
@@ -787,9 +790,6 @@ static int rsnd_ssi_dma_stop_start_irq(struct rsnd_mod *mod,
 		rsnd_ssi_hw_start(ssi, ssi->rdai, io);
 		rsnd_src_enable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
 	}
-	/* enable WS continue */
-	if (rsnd_dai_is_clk_master(rdai))
-		rsnd_mod_write(&ssi->mod, SSIWSR, CONT);
 
 	return 0;
 }
