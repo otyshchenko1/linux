@@ -1,6 +1,7 @@
 /*
- * Renesas R-Car Gen1 SRU/SSI support
+ * Renesas R-Car Gen1/2 SRU/SSI support
  *
+ * Copyright (C) 2014-2015 Renesas Electronics Corporation
  * Copyright (C) 2013 Renesas Solutions Corp.
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  *
@@ -309,7 +310,7 @@ static int rsnd_gen2_probe(struct platform_device *pdev,
 		RSND_GEN_S_REG(SCU_SYS_STATUS0,	0x1c8),
 		RSND_GEN_S_REG(SCU_SYS_INT_EN0,	0x1cc),
 		RSND_GEN_S_REG(SCU_SYS_STATUS1,	0x1d0),
-		RSND_GEN_S_REG(SCU_SYS_INT_EN1,	0x1c4),
+		RSND_GEN_S_REG(SCU_SYS_INT_EN1,	0x1d4),
 		RSND_GEN_M_REG(SRC_BUSIF_MODE,	0x0,	0x20),
 		RSND_GEN_M_REG(SRC_BUSIF_DALIGN,	0x8,	0x20),
 		RSND_GEN_M_REG(SRC_ROUTE_MODE0,	0xc,	0x20),
