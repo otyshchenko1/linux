@@ -258,10 +258,6 @@ int vspd_dl_irq_display_start(struct vspd_private_data *vdata)
 	} else {
 		/* DU interlace mode */
 		if (vsp_du_if_du_info(vdata->callback_data)) {
-			/* DU started odd field, vspd set even field. */
-			next_body = dlmemory->active_body->next;
-			dlmemory->active_body_next_set = next_body;
-		} else {
 			/* DU started even field, vspd set even odd. */
 			dlmemory->flag |= DL_FLAG_BODY_WRITEBLE;
 			if (dlmemory->pending_body) {
@@ -275,6 +271,10 @@ int vspd_dl_irq_display_start(struct vspd_private_data *vdata)
 				next_body = dlmemory->active_body;
 				dlmemory->active_body_next_set = next_body;
 			}
+		} else {
+			/* DU started odd field, vspd set even field. */
+			next_body = dlmemory->active_body->next;
+			dlmemory->active_body_next_set = next_body;
 		}
 	}
 #else
