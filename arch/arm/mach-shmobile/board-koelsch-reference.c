@@ -863,6 +863,9 @@ static const struct spi_board_info spi_bus[] __initconst = {
 };
 
 /* POWER IC */
+#define DA9063_REG_CONTROL_F	0x13
+#define DA9063_REG_LDO5_CONT	0x2a
+
 static struct i2c_board_info poweric_i2c[] = {
 	{ I2C_BOARD_INFO("da9063", 0x58), },
 };
@@ -887,14 +890,27 @@ static void koelsch_restart(char mode, const char *cmd)
 
 	i2c_put_adapter(adap);
 
-	val = i2c_smbus_read_byte_data(client, 0x13);
+	val = i2c_smbus_read_byte_data(client, DA9063_REG_LDO5_CONT);
+
+	if (val < 0) {
+		pr_err("couldn't access da9063 reg 0x%x err=%d, aborting\n",
+			DA9063_REG_LDO5_CONT, val);
+		return;
+	}
+
+	val |= 0x08;
+
+	i2c_smbus_write_byte_data(client, DA9063_REG_LDO5_CONT, val);
+
+	val = i2c_smbus_read_byte_data(client, DA9063_REG_CONTROL_F);
 
 	if (val < 0)
-		pr_err("couldn't access da9063\n");
+		pr_err("couldn't access da9063 reg 0x%x err=%d\n",
+			DA9063_REG_CONTROL_F, val);
 
 	val |= 0x02;
 
-	i2c_smbus_write_byte_data(client, 0x13, val);
+	i2c_smbus_write_byte_data(client, DA9063_REG_CONTROL_F, val);
 }
 
 #define koelsch_add_msiof_device spi_register_board_info
