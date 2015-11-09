@@ -873,6 +873,7 @@ static void gose_restart(char mode, const char *cmd)
 	struct i2c_client *client;
 	u8 val;
 	int busnum = 6;
+	s32 ret;
 
 	adap = i2c_get_adapter(busnum);
 	if (!adap) {
@@ -887,25 +888,25 @@ static void gose_restart(char mode, const char *cmd)
 
 	i2c_put_adapter(adap);
 
-	val = i2c_smbus_read_byte_data(client, DA9063_REG_LDO5_CONT);
+	ret = i2c_smbus_read_byte_data(client, DA9063_REG_LDO5_CONT);
 
-	if (val < 0) {
+	if (ret < 0) {
 		pr_err("couldn't access da9063 reg 0x%x err=%d, aborting\n",
-			DA9063_REG_LDO5_CONT, val);
+			DA9063_REG_LDO5_CONT, ret);
 		return;
 	}
 
-	val |= 0x08;
+	val = ret | 0x08;
 
 	i2c_smbus_write_byte_data(client, DA9063_REG_LDO5_CONT, val);
 
-	val = i2c_smbus_read_byte_data(client, DA9063_REG_CONTROL_F);
+	ret = i2c_smbus_read_byte_data(client, DA9063_REG_CONTROL_F);
 
-	if (val < 0)
+	if (ret < 0)
 		pr_err("couldn't access da9063 reg 0x%x err=%d\n",
-			DA9063_REG_CONTROL_F, val);
+			DA9063_REG_CONTROL_F, ret);
 
-	val |= 0x02;
+	val = ret | 0x02;
 
 	i2c_smbus_write_byte_data(client, DA9063_REG_CONTROL_F, val);
 }
