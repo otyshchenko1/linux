@@ -40,14 +40,16 @@ static irqreturn_t vsp1_irq_handler(int irq, void *data)
 	irqreturn_t ret = IRQ_NONE;
 	unsigned int i;
 
-	/* change display_field  Top - Bottom */
-	if (vsp1->display_field == V4L2_FIELD_TOP)
-		vsp1->display_field = V4L2_FIELD_BOTTOM;
-	else if (vsp1->display_field == V4L2_FIELD_BOTTOM)
-		vsp1->display_field = V4L2_FIELD_TOP;
-	else {
-		WARN_ON(1);
-		dev_warn(vsp1->dev, "unknown display field.\n");
+	if (V4L2_FIELD_IS_PICONV(vsp1->piconv_mode)) {
+		/* change display_field  Top - Bottom */
+		if (vsp1->display_field == V4L2_FIELD_TOP)
+			vsp1->display_field = V4L2_FIELD_BOTTOM;
+		else if (vsp1->display_field == V4L2_FIELD_BOTTOM)
+			vsp1->display_field = V4L2_FIELD_TOP;
+		else {
+			WARN_ON(1);
+			dev_warn(vsp1->dev, "unknown display field.\n");
+		}
 	}
 
 	for (i = 0; i < vsp1->pdata->wpf_count; ++i) {

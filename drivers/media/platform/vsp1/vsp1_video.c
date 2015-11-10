@@ -698,8 +698,7 @@ vsp1_video_complete_buffer(struct vsp1_video *video, bool is_input)
 	if (!list_is_singular(&video->irqqueue))
 		next = list_entry(done->queue.next,
 					struct vsp1_video_buffer, queue);
-	else if (pipe->lif
-		|| V4L2_FIELD_IS_PICONV(vsp1->piconv_mode)) {
+	else if (pipe->lif) {
 		/* Reuse the buffer if the list is singular. */
 		spin_unlock_irqrestore(&video->irqlock, flags);
 		return done;
@@ -724,14 +723,12 @@ vsp1_video_complete_buffer(struct vsp1_video *video, bool is_input)
 	if (vsp1->piconv_mode == V4L2_FIELD_PICONV_EXTRACT
 		|| (vsp1->piconv_mode == V4L2_FIELD_PICONV_COMPOSITE
 		&& is_input)) {
-		if (vsp1->display_field != next->buf.v4l2_buf.field) {
+		if (next != NULL
+			&& vsp1->display_field != next->buf.v4l2_buf.field) {
 			/* Reuse the buffer under the following conditions
 			 * (1) DU's field differs form the next buffer's field.
 			 * (2) In DU output mode, PI conversion mode
-			 *     is EXTRACT mode.
-			 * (3) In memory output mode, PI conversion mode
-			 *     is COMPOSITE mode, and the buffer
-			 *     is for input. */
+			 *     is EXTRACT mode. */
 			spin_unlock_irqrestore(&video->irqlock, flags);
 			return done;
 		}
@@ -1052,7 +1049,13 @@ static void vsp1_video_buffer_queue(struct vb2_buffer *vb)
 	if (!empty)
 		return;
 
-	vsp1->display_field = V4L2_FIELD_TOP;
+	if (rwpf != pipe->output) {
+		if (vsp1->piconv_mode == V4L2_FIELD_PICONV_EXTRACT ||
+		    vsp1->piconv_mode == V4L2_FIELD_PICONV_COMPOSITE)
+			vsp1->display_field = buf->buf.v4l2_buf.field;
+		else
+			vsp1->display_field = V4L2_FIELD_TOP;
+	}
 
 	if (vsp1->piconv_mode == V4L2_FIELD_PICONV_DIVIDE
 		|| vsp1->piconv_mode == V4L2_FIELD_PICONV_EXTRACT) {
