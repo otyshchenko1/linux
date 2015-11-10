@@ -147,6 +147,7 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 
 	if (V4L2_FIELD_IS_PICONV(vsp1->piconv_mode)) {
 		height = height / 2;
+		vcl_ofst = vcl_ofst / 2;
 
 		if (pipe->vscaling == VSP1_PICONV_SCALE_UP
 		    && vsp1->display_field == V4L2_FIELD_BOTTOM)
