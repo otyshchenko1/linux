@@ -752,8 +752,8 @@ static int rsnd_ssi_stop(struct rsnd_mod *mod,
 	rsnd_src_disable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
 
 	if (rsnd_dai_is_play(rdai, io)) {
-		rsnd_ssi_hw_stop(ssi, rdai);
 		rsnd_ssi_dma_stop(mod, rdai);
+		rsnd_ssi_hw_stop(ssi, rdai);
 		rsnd_src_ssiu_stop(mod, rdai, 1);
 	} else {
 		rsnd_src_ssiu_stop(mod, rdai, 1);
