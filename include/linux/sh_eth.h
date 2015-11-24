@@ -16,6 +16,7 @@ struct sh_eth_plat_data {
 	unsigned no_ether_link:1;
 	unsigned ether_link_active_low:1;
 	unsigned needs_init:1;
+	int phy_alt;
 };
 
 #endif

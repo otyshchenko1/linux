@@ -1336,8 +1336,15 @@ static int ravb_phy_start(struct net_device *ndev)
 	int ret;
 
 	ret = ravb_phy_init(ndev);
-	if (ret)
-		return ret;
+	if (ret) {
+		/* try alternative mdio address */
+		if (mdp->phy_id_alt) {
+			mdp->phy_id = mdp->phy_id_alt;
+			ret = ravb_phy_init(ndev);
+		}
+		if (ret)
+			return ret;
+	}
 
 	ravb_phy_hack(ndev);
 
@@ -2032,8 +2039,10 @@ static int sh_mdio_init(struct ravb_private *mdp,
 	/* register MDIO bus */
 	for (i = 0; i < PHY_MAX_ADDR; i++)
 		mdp->mii_bus->irq[i] = PHY_POLL;
-	if (pd->phy_irq > 0)
+	if (pd->phy_irq > 0) {
 		mdp->mii_bus->irq[pd->phy] = pd->phy_irq;
+		mdp->mii_bus->irq[pd->phy_alt] = pd->phy_irq;
+	}
 
 	ret = mdiobus_register(mdp->mii_bus);
 
@@ -2099,6 +2108,7 @@ static struct ravb_plat_data *ravb_parse_dt(struct device *dev,
 	pdata->ether_link_active_low =
 		of_property_read_bool(np, "renesas,ether-link-active-low");
 	of_property_read_u32(np, "renesas,phy", &pdata->phy);
+	of_property_read_u32(np, "renesas,phy_alt", &pdata->phy_alt);
 	of_property_read_u32(np, "renesas,phy_irq", &pdata->phy_irq);
 	gpio = of_get_named_gpio_flags(np, "phy-int-gpio", 0, &flags);
 	if (gpio_is_valid(gpio)) {
@@ -2206,6 +2216,7 @@ static int ravb_drv_probe(struct platform_device *pdev)
 
 	/* get PHY ID */
 	mdp->phy_id = pd->phy;
+	mdp->phy_id_alt = pd->phy_alt;
 	mdp->phy_irq = pd->phy_irq;
 	mdp->phy_interface = pd->phy_interface;
 	/* EDMAC endian */
