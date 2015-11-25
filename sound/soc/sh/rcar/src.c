@@ -797,9 +797,9 @@ static int rsnd_src_set_convert_rate_gen2(struct rsnd_mod *mod,
 		rsnd_mod_bset(mod, SRC_SRCCR, 0x1, 0x1);
 
 		if (rsnd_info_is_playback(priv, src))
-			rsnd_mod_write(mod, SRC_ROUTE_MODE0, 0x01 << 24);
+			rsnd_mod_bset(mod, SRC_ROUTE_MODE0, 0x01 << 24, 0x01 << 24);
 		else
-			rsnd_mod_write(mod, SRC_ROUTE_MODE0, 0x01 << 25);
+			rsnd_mod_bset(mod, SRC_ROUTE_MODE0, 0x01 << 25, 0x01 << 25);
 	}
 
 	switch (rsnd_mod_id(mod)) {
