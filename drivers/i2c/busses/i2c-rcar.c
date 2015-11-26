@@ -557,10 +557,13 @@ static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 	/*
 	 * recv/send
 	 */
-	if (rcar_i2c_is_recv(priv))
-		rcar_i2c_flags_set(priv, rcar_i2c_irq_recv(priv, msr));
-	else
-		rcar_i2c_flags_set(priv, rcar_i2c_irq_send(priv, msr));
+	if (rcar_i2c_is_recv(priv)) {
+		u32 flag = rcar_i2c_irq_recv(priv, msr);
+		rcar_i2c_flags_set(priv, flag);
+	} else {
+		u32 flag = rcar_i2c_irq_send(priv, msr);
+		rcar_i2c_flags_set(priv, flag);
+	}
 
 out:
 	if (rcar_i2c_flags_has(priv, ID_DONE)) {
