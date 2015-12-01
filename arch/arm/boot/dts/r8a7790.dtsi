@@ -624,6 +624,14 @@
 		};
 	};
 
+	mlp: mlp@ec520000 {
+		compatible = "renesas,mlp";
+		reg = <0 0xec520000 0 0x800>;
+		interrupts = <0 350 IRQ_TYPE_LEVEL_HIGH>, <0 351 IRQ_TYPE_LEVEL_HIGH>, <0 349 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp8_clks R8A7790_CLK_MLB>;
+		status = "okay";
+	};
+
 	jpu: jpeg-codec@fe980000 {
 		compatible = "renesas,jpu-gen2";
 		reg = <0 0xfe980000 0 0x10300>;
