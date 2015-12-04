@@ -1011,17 +1011,11 @@ static int rsnd_src_dma_stop(struct rsnd_mod *mod,
 static int rsnd_src_stop_start_gen2(struct rsnd_mod *mod,
 			      struct rsnd_dai *rdai)
 {
-	struct rsnd_src *src = rsnd_mod_to_src(mod);
-
-	/* STOP */
+	/* STOP, clear error flags. */
 	rsnd_src_irq_disable(mod, rdai);
-	rsnd_mod_write(mod, SRC_CTRL, 0);
-	rsnd_src_stop(mod, rdai);
 
 	/* START */
-	if (rsnd_src_convert_rate(src) || rsnd_src_use_syncsrc(mod))
-		rsnd_mod_bset(mod, SRC_ROUTE_MODE0, 1, 1);
-	rsnd_src_start_gen2(mod, rdai);
+	rsnd_src_irq_enable(mod, rdai);
 
 	return 0;
 }
