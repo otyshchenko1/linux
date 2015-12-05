@@ -123,6 +123,7 @@
 #define VNIE_EFE		(1 << 1)
 
 /* Video n Data Mode Register bits */
+#define VNDMR_YMODE_Y8		(1 << 12)
 #define VNDMR_EXRGB		(1 << 8)
 #define VNDMR_BPSM		(1 << 4)
 #define VNDMR_DTMD_YCSEP	(1 << 1)
@@ -663,6 +664,10 @@ static int rcar_vin_setup(struct rcar_vin_priv *priv)
 		break;
 	case V4L2_PIX_FMT_UYVY:
 		dmr = 0;
+		output_is_yuv = true;
+		break;
+	case V4L2_PIX_FMT_GREY:
+		dmr = VNDMR_DTMD_YCSEP | VNDMR_YMODE_Y8;
 		output_is_yuv = true;
 		break;
 	case V4L2_PIX_FMT_ARGB555:
@@ -1336,6 +1341,14 @@ static const struct soc_mbus_pixelfmt rcar_vin_formats[] = {
 		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
 	{
+		.fourcc			= V4L2_PIX_FMT_GREY,
+		.name			= "GREY8",
+		.bits_per_sample	= 8,
+		.packing		= SOC_MBUS_PACKING_NONE,
+		.order			= SOC_MBUS_ORDER_LE,
+		.layout			= SOC_MBUS_LAYOUT_PACKED,
+	},
+	{
 		.fourcc			= V4L2_PIX_FMT_RGB565,
 		.name			= "RGB565",
 		.bits_per_sample	= 16,
@@ -1675,6 +1688,7 @@ static int rcar_vin_set_fmt(struct soc_camera_device *icd,
 		break;
 	case V4L2_PIX_FMT_UYVY:
 	case V4L2_PIX_FMT_YUYV:
+	case V4L2_PIX_FMT_GREY:
 	case V4L2_PIX_FMT_RGB565:
 	case V4L2_PIX_FMT_ARGB555:
 	case V4L2_PIX_FMT_NV16: /* horizontal scaling-up only is supported */
@@ -1767,7 +1781,7 @@ static int rcar_vin_try_fmt(struct soc_camera_device *icd,
 	   odd number clipping by pixel post clip processing, it is outputted
 	   to a memory per even pixels. */
 	if ((pixfmt == V4L2_PIX_FMT_NV16) || (pixfmt == V4L2_PIX_FMT_YUYV) ||
-		(pixfmt == V4L2_PIX_FMT_UYVY))
+		(pixfmt == V4L2_PIX_FMT_UYVY) || (pixfmt == V4L2_PIX_FMT_GREY))
 		v4l_bound_align_image(&pix->width, 5, VIN_MAX_WIDTH, 1,
 				      &pix->height, 2, VIN_MAX_HEIGHT, 0, 0);
 	else
