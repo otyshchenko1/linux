@@ -442,12 +442,21 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod)
  */
 u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 {
-	struct rsnd_mod *src = rsnd_io_to_mod_src(io);
 	struct rsnd_mod *ssi = rsnd_io_to_mod_ssi(io);
-	struct rsnd_mod *target = src ? src : ssi;
+	struct rsnd_mod *target;
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	u32 val = 0x76543210;
 	u32 mask = ~0;
+
+	if (io->substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		struct rsnd_mod *src = rsnd_io_to_mod_src(io);
+
+		target = src ? src : ssi;
+	} else {
+		struct rsnd_mod *dvc = rsnd_io_to_mod_dvc(io);
+
+		target = dvc ? dvc : ssi;
+	}
 
 	mask <<= runtime->channels * 4;
 	val = val & mask;

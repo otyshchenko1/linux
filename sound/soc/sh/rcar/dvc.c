@@ -92,6 +92,7 @@ static int rsnd_dvc_init(struct rsnd_mod *dvc_mod,
 	 * it doesn't support CTU/MIX
 	 */
 	rsnd_mod_write(dvc_mod, CMD_ROUTE_SLCT, route[src_id]);
+	rsnd_mod_write(dvc_mod, CMD_BUSIF_DALIGN, rsnd_get_dalign(dvc_mod, io));
 
 	rsnd_mod_write(dvc_mod, DVC_SWRSR, 0);
 	rsnd_mod_write(dvc_mod, DVC_SWRSR, 1);
