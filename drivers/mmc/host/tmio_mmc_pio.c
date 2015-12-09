@@ -1,7 +1,7 @@
 /*
  * linux/drivers/mmc/host/tmio_mmc_pio.c
  *
- * Copyright (C) 2014 Renesas Electronics Corporation
+ * Copyright (C) 2014-2015 Renesas Electronics Corporation
  * Copyright (C) 2011 Guennadi Liakhovetski
  * Copyright (C) 2007 Ian Molton
  * Copyright (C) 2004 Ian Molton
@@ -297,6 +297,16 @@ static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
 	if (mrq->cmd->error || (mrq->data && mrq->data->error))
 		tmio_mmc_abort_dma(host);
 
+	if (pdata->inquiry_tuning && pdata->inquiry_tuning(host) &&
+	     !host->done_tuning) {
+		/* call retuning() to clear SCC error bit */
+		if (pdata->retuning)
+			pdata->retuning(host);
+		/* finish processing tuning request */
+		complete(&host->completion);
+		return;
+	}
+
 	/* Check retuning */
 	if (pdata->retuning && host->done_tuning) {
 		result = pdata->retuning(host);
@@ -304,13 +314,10 @@ static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
 			host->done_tuning = false;
 	}
 
-	if ((pdata->inquiry_tuning && pdata->inquiry_tuning(host) &&
-	     !host->done_tuning) || cmd == mrq->sbc) {
-		/* finish processing tuning request */
-		if (!host->done_tuning || cmd == mrq->sbc) {
-			complete(&host->completion);
-			return;
-		}
+	if (cmd == mrq->sbc) {
+		/* finish SET_BLOCK_COUNT request */
+		complete(&host->completion);
+		return;
 	}
 
 	mmc_request_done(host->mmc, mrq);
