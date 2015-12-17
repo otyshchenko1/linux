@@ -1014,6 +1014,9 @@ static int rsnd_src_stop_start_gen2(struct rsnd_mod *mod,
 	/* STOP, clear error flags. */
 	rsnd_src_irq_disable(mod, rdai);
 
+	rsnd_mod_write(mod, SRC_SRCIR, 1);
+	rsnd_mod_write(mod, SRC_SRCIR, 0);
+
 	/* START */
 	rsnd_src_irq_enable(mod, rdai);
 
