@@ -639,6 +639,20 @@
 		clocks = <&mstp1_clks R8A7790_CLK_JPU>;
 	};
 
+	imrx2_ch0: imr-x2@fead0000 {
+		compatible = "renesas,imr-x2";
+		reg = <0 0xfead0000 0 0x100>;
+		interrupts = <0 192 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp8_clks R8A7790_CLK_IMRX2_CH0>;
+	};
+
+	imrx2_ch1: imr-x2@feaf0000 {
+		compatible = "renesas,imr-x2";
+		reg = <0 0xfeaf0000 0 0x100>;
+		interrupts = <0 193 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp8_clks R8A7790_CLK_IMRX2_CH1>;
+	};
+
 	clocks {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -998,16 +1012,19 @@
 			compatible = "renesas,r8a7790-mstp-clocks", "renesas,cpg-mstp-clocks";
 			reg = <0 0xe6150990 0 4>, <0 0xe61509a0 0 4>;
 			clocks = <&hp_clk>, <&zg_clk>, <&zg_clk>, <&zg_clk>, <&zg_clk>,
-				 <&p_clk>, <&hp_clk>, <&zs_clk>, <&zs_clk>;
+				 <&p_clk>, <&hp_clk>, <&zs_clk>, <&zs_clk>,
+				 <&zs_clk>, <&zs_clk>;
 			#clock-cells = <1>;
 			renesas,clock-indices = <
 				R8A7790_CLK_MLB R8A7790_CLK_VIN3 R8A7790_CLK_VIN2
 				R8A7790_CLK_VIN1 R8A7790_CLK_VIN0 R8A7790_CLK_ETHER
 				R8A7790_CLK_AVB R8A7790_CLK_SATA1 R8A7790_CLK_SATA0
+				R8A7790_CLK_IMRX2_CH0 R8A7790_CLK_IMRX2_CH1
 			>;
 			clock-output-names =
 				"mlb", "vin3", "vin2", "vin1", "vin0", "ether",
-				"avb", "sata1", "sata0";
+				"avb", "sata1", "sata0",
+				"imrx2_ch0", "imrx2_ch1";
 		};
 		mstp9_clks: mstp9_clks@e6150994 {
 			compatible = "renesas,r8a7790-mstp-clocks", "renesas,cpg-mstp-clocks";
