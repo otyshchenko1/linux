@@ -730,7 +730,6 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	int ret;
 	unsigned long flags;
 	int is_play = rsnd_dai_is_play(rdai, io);
-	int src_ret = 0;
 
 	rsnd_lock(priv, flags);
 
@@ -780,24 +779,18 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 			if (ret < 0)
 				goto dai_trigger_end;
 		} else {
-			ret = rsnd_dai_type_call(stop, RSND_MOD_DVC, io, rdai);
-			if (ret < 0)
-				goto dai_trigger_end;
-			ret = rsnd_dai_type_call(stop, RSND_MOD_SRC, io, rdai);
-			if (ret < 0)
-				goto dai_trigger_end;
-			src_ret = ret;
 			/* stop audio-dma-pp */
 			if (io->mod[0]) {	/* have src */
 				ret = rsnd_mod_call(ssi, dma_stop, rdai);
 				if (ret < 0)
 					goto dai_trigger_end;
 			}
-			if (src_ret) {
-				ret = rsnd_dai_type_call(stop, RSND_MOD_SRC, io, rdai);
-				if (ret < 0)
-					goto dai_trigger_end;
-			}
+			ret = rsnd_dai_type_call(stop, RSND_MOD_DVC, io, rdai);
+			if (ret < 0)
+				goto dai_trigger_end;
+			ret = rsnd_dai_type_call(stop, RSND_MOD_SRC, io, rdai);
+			if (ret < 0)
+				goto dai_trigger_end;
 			ret = rsnd_dai_type_call(stop, RSND_MOD_SSI, io, rdai);
 			if (ret < 0)
 				goto dai_trigger_end;

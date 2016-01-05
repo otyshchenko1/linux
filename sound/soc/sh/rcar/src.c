@@ -964,38 +964,26 @@ static int rsnd_src_stop_gen2(struct rsnd_mod *mod,
 			      struct rsnd_dai *rdai)
 {
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
-	u32 status, val;
+	u32 status;
 
 	status = rsnd_mod_read(mod, SRC_CTRL);
 	if (!status)
 		return 0;
 
-	/*
-	 * is playback
-	 */
 	if (rsnd_dai_is_play(rdai, io)) {
+		/* is playback */
 		rsnd_src_irq_disable(mod, rdai);
 		rsnd_mod_write(mod, SRC_CTRL, 0);
 
 		return rsnd_src_stop(mod, rdai);
-	}
-
-	/*
-	 * is capture
-	 */
-	/* check stop status */
-	val = rsnd_mod_read(mod, SRC_INT_EN0);
-	if (val) {
+	} else {
+		/* is capture */
 		rsnd_src_irq_disable(mod, rdai);
-		status = 0x01;		/* clear start_out */
-	} else
-		status = 0;		/* clear start_in */
+		rsnd_mod_write(mod, SRC_CTRL, 0x01);	/* clear start_out */
+		rsnd_mod_write(mod, SRC_CTRL, 0x00);	/* clear start_in */
 
-	rsnd_mod_write(mod, SRC_CTRL, status);
-	if (!status)
 		return rsnd_src_stop(mod, rdai);
-
-	return 1;	/* please re-call */
+	}
 }
 
 static int rsnd_src_dma_stop(struct rsnd_mod *mod,
