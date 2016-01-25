@@ -1623,27 +1623,6 @@ static int rcar_vin_set_fmt(struct soc_camera_device *icd,
 	dev_dbg(dev, "S_FMT(pix=0x%x, %ux%u)\n",
 		pixfmt, pix->width, pix->height);
 
-	/* At the time of NV16 capture format, the user has to specify the
-	   width of the multiple of 32 for H/W specification. */
-	if (priv->error_flag == false)
-		priv->error_flag = true;
-	else {
-		if (pixfmt == V4L2_PIX_FMT_NV16) {
-			if (pix->width & 0x1F) {
-				dev_err(icd->parent,
-				"Specified width error in NV16 format. "
-				"Please specify the multiple of 32.\n");
-				return -EINVAL;
-			}
-			if (pix->height != cam->height) {
-				dev_err(icd->parent,
-				"Vertical scaling-up error in NV16 format. "
-				"Please specify input height size.\n");
-				return -EINVAL;
-			}
-		}
-	}
-
 	switch (pix->field) {
 	default:
 		pix->field = V4L2_FIELD_NONE;
@@ -1720,6 +1699,27 @@ static int rcar_vin_set_fmt(struct soc_camera_device *icd,
 	/* Prepare VIN crop */
 	cam->width = mf.width;
 	cam->height = mf.height;
+
+	/* At the time of NV16 capture format, the user has to specify the
+	   width of the multiple of 32 for H/W specification. */
+	if (priv->error_flag == false)
+		priv->error_flag = true;
+	else {
+		if (pixfmt == V4L2_PIX_FMT_NV16) {
+			if (pix->width & 0x1F) {
+				dev_err(icd->parent,
+				"Specified width error in NV16 format. "
+				"Please specify the multiple of 32.\n");
+				return -EINVAL;
+			}
+			if (pix->height != cam->height) {
+				dev_err(icd->parent,
+				"Vertical scaling-up error in NV16 format. "
+				"Please specify input height size.\n");
+				return -EINVAL;
+			}
+		}
+	}
 
 	/* Use VIN scaling to scale to the requested user window. */
 
