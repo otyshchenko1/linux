@@ -883,7 +883,7 @@ static int usbhsg_gadget_start(struct usb_gadget *gadget,
 	    driver->max_speed < USB_SPEED_FULL)
 		return -EINVAL;
 
-	if (gpriv->transceiver)
+	if (!IS_ERR_OR_NULL(gpriv->transceiver))
 		otg_set_peripheral(gpriv->transceiver->otg, &gpriv->gadget);
 
 	/* first hook up the driver ... */
@@ -901,7 +901,7 @@ static int usbhsg_gadget_stop(struct usb_gadget *gadget,
 	usbhsg_try_stop(priv, USBHSG_STATUS_REGISTERD);
 	gpriv->driver = NULL;
 
-	if (gpriv->transceiver)
+	if (!IS_ERR_OR_NULL(gpriv->transceiver))
 		otg_set_peripheral(gpriv->transceiver->otg, NULL);
 
 	return 0;
@@ -1038,8 +1038,8 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 	gpriv->gadget.max_speed		= USB_SPEED_HIGH;
 
 	gpriv->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
-	dev_info(dev, "%s transceiver found\n",
-		 gpriv->transceiver ? gpriv->transceiver->label : "No");
+	dev_info(dev, "transceiver %s\n",
+		 !IS_ERR_OR_NULL(gpriv->transceiver) ? "found" : "not found");
 
 	INIT_LIST_HEAD(&gpriv->gadget.ep_list);
 
@@ -1095,7 +1095,7 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 err_add_udc:
 	kfree(gpriv->uep);
 
-	if (gpriv->transceiver) {
+	if (!IS_ERR_OR_NULL(gpriv->transceiver)) {
 		usb_put_phy(gpriv->transceiver);
 		gpriv->transceiver = NULL;
 	}
@@ -1110,7 +1110,7 @@ void usbhs_mod_gadget_remove(struct usbhs_priv *priv)
 {
 	struct usbhsg_gpriv *gpriv = usbhsg_priv_to_gpriv(priv);
 
-	if (gpriv->transceiver) {
+	if (!IS_ERR_OR_NULL(gpriv->transceiver)) {
 		usb_put_phy(gpriv->transceiver);
 		gpriv->transceiver = NULL;
 	}
