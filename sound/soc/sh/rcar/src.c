@@ -638,9 +638,7 @@ static void rsnd_src_irq_enable(struct rsnd_mod *mod, struct rsnd_dai *rdai)
 
 		/* Clear SCU_SYSTEM_STATUS1 */
 		/*  (Writing 1 initializes the bit.) */
-		rsnd_mod_bset(mod, SCU_SYS_STATUS1,
-			      (SCU_SYS_INTEN1_UF_SRC_O_IE |
-					SCU_SYS_INTEN1_OF_SRC_I_IE) << src_id,
+		rsnd_mod_force_write(mod, SCU_SYS_STATUS1,
 			      (SCU_SYS_INTEN1_UF_SRC_O_IE |
 					SCU_SYS_INTEN1_OF_SRC_I_IE) << src_id);
 
@@ -658,9 +656,7 @@ static void rsnd_src_irq_enable(struct rsnd_mod *mod, struct rsnd_dai *rdai)
 	} else {
 		/* Clear SCU_SYSTEM_STATUS0 */
 		/*  (Writing 1 initializes the bit.) */
-		rsnd_mod_bset(mod, SCU_SYS_STATUS0,
-			      (SCU_SYS_INTEN0_OF_SRC_O_IE |
-					SCU_SYS_INTEN0_UF_SRC_I_IE) << src_id,
+		rsnd_mod_force_write(mod, SCU_SYS_STATUS0,
 			      (SCU_SYS_INTEN0_OF_SRC_O_IE |
 					SCU_SYS_INTEN0_UF_SRC_I_IE) << src_id);
 
@@ -694,9 +690,7 @@ static void rsnd_src_irq_disable(struct rsnd_mod *mod, struct rsnd_dai *rdai)
 
 		/* Clear SCU_SYSTEM_STATUS1 */
 		/*  (Writing 1 initializes the bit.) */
-		rsnd_mod_bset(mod, SCU_SYS_STATUS1,
-			      (SCU_SYS_INTEN1_UF_SRC_O_IE |
-					SCU_SYS_INTEN1_OF_SRC_I_IE) << src_id,
+		rsnd_mod_force_write(mod, SCU_SYS_STATUS1,
 			      (SCU_SYS_INTEN1_UF_SRC_O_IE |
 					SCU_SYS_INTEN1_OF_SRC_I_IE) << src_id);
 
@@ -708,9 +702,7 @@ static void rsnd_src_irq_disable(struct rsnd_mod *mod, struct rsnd_dai *rdai)
 
 		/* Clear SCU_SYSTEM_STATUS0 */
 		/*  (Writing 1 initializes the bit.) */
-		rsnd_mod_bset(mod, SCU_SYS_STATUS0,
-			      (SCU_SYS_INTEN0_OF_SRC_O_IE |
-					SCU_SYS_INTEN0_UF_SRC_I_IE) << src_id,
+		rsnd_mod_force_write(mod, SCU_SYS_STATUS0,
 			      (SCU_SYS_INTEN0_OF_SRC_O_IE |
 					SCU_SYS_INTEN0_UF_SRC_I_IE) << src_id);
 	}
