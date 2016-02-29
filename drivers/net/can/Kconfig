@@ -114,6 +114,16 @@ config CAN_RCAR
 	  To compile this driver as a module, choose M here: the module will
 	  be called rcar_can.
 
+config CANFD_RCAR
+	tristate "Renesas R-Car CAN FD controller"
+	depends on ARCH_RENESAS || ARM
+	---help---
+	  Say Y here if you want to use CAN FD controller found on
+	  Renesas R-Car SoCs.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called rcar_canfd.
+
 config CAN_SUN4I
 	tristate "Allwinner A10 CAN controller"
 	depends on MACH_SUN4I || MACH_SUN7I || COMPILE_TEST
