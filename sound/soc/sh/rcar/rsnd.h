@@ -449,9 +449,11 @@ int rsnd_src_probe(struct platform_device *pdev,
 void rsnd_src_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_src_mod_get(struct rsnd_priv *priv, int id);
-unsigned int rsnd_src_get_ssi_rate(struct rsnd_priv *priv,
-				   struct rsnd_dai_stream *io,
-				   struct snd_pcm_runtime *runtime);
+#define rsnd_src_get_in_rate(priv, io) rsnd_src_get_rate(priv, io, 1)
+#define rsnd_src_get_out_rate(priv, io) rsnd_src_get_rate(priv, io, 0)
+unsigned int rsnd_src_get_rate(struct rsnd_priv *priv,
+			      struct rsnd_dai_stream *io,
+			      int is_in);
 int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
 			struct rsnd_dai *rdai,
 			int use_busif);
