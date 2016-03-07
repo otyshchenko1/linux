@@ -321,25 +321,18 @@ static inline unsigned int muldiv32(unsigned int a, unsigned int b,
 static int rsnd_src_set_convert_rate(struct rsnd_mod *mod,
 				     struct rsnd_dai *rdai)
 {
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
-	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
-	u32 convert_rate = rsnd_src_convert_rate(src);
+	u32 fin, fout;
 	u32 fsrate = 0;
 	u32 remain = 0;
 
-	if (src->reconvert_rate)
-		convert_rate = src->reconvert_rate;
-
-	if (convert_rate) {
-		if (rsnd_io_is_play(io)) {
-			fsrate = muldiv32(0x0400000, runtime->rate,
-					  convert_rate, &remain);
-		} else {
-			fsrate = muldiv32(0x0400000, convert_rate,
-					  runtime->rate, &remain);
-		}
-	} else if (rsnd_src_use_syncsrc(mod))
+	fin = rsnd_src_get_in_rate(priv, io);
+	fout = rsnd_src_get_out_rate(priv, io);
+	if (fin != fout)
+		fsrate = muldiv32(0x0400000, fin, fout, &remain);
+	else if (rsnd_src_use_syncsrc(mod))
 		fsrate = 0x0400000;
 
 	/* set/clear soft reset */
@@ -373,9 +366,11 @@ static int rsnd_src_set_convert_rate(struct rsnd_mod *mod,
 
 static void rsnd_src_set_reconvert_rate(struct rsnd_mod *mod)
 {
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	struct snd_pcm_runtime *runtime;
-	struct rsnd_src *src = rsnd_mod_to_src(mod);
+	u32 fin, fout;
 	u32 fsrate;
 	u32 remain = 0;
 
@@ -390,15 +385,11 @@ static void rsnd_src_set_reconvert_rate(struct rsnd_mod *mod)
 	if (!runtime->rate)
 		return;
 
-	if (src->reconvert_rate) {
-		if (io->substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			fsrate = muldiv32(0x0400000, runtime->rate,
-					  src->reconvert_rate, &remain);
-		} else {
-			fsrate = muldiv32(0x0400000, src->reconvert_rate,
-					  runtime->rate, &remain);
-		}
-	} else
+	fin = rsnd_src_get_in_rate(priv, io);
+	fout = rsnd_src_get_out_rate(priv, io);
+	if (fin != fout)
+		fsrate = muldiv32(0x0400000, fin, fout, &remain);
+	else
 		fsrate = 0x0400000;
 
 	/* Set initial value of IFS */
@@ -775,19 +766,21 @@ static int rsnd_src_set_convert_rate_gen2(struct rsnd_mod *mod,
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
-	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
-	u32 convert_rate = rsnd_src_convert_rate(src);
+	u32 fin, fout;
 	uint ratio;
 	int ret;
 
+	fin = rsnd_src_get_in_rate(priv, io);
+	fout = rsnd_src_get_out_rate(priv, io);
+
 	/* 6 - 1/6 are very enough ratio for SRC_BSDSR */
-	if (!convert_rate)
+	if (fin == fout)
 		ratio = 0;
-	else if (convert_rate > runtime->rate)
-		ratio = 100 * convert_rate / runtime->rate;
+	else if (fin > fout)
+		ratio = 100 * fin / fout;
 	else
-		ratio = 100 * runtime->rate / convert_rate;
+		ratio = 100 * fout / fin;
 
 	if (ratio > 600) {
 		dev_err(dev, "FSO/FSI ratio error\n");
@@ -829,21 +822,15 @@ static int rsnd_src_set_convert_rate_gen2(struct rsnd_mod *mod,
 static int rsnd_src_set_convert_timing_gen2(struct rsnd_mod *mod,
 					    struct rsnd_dai *rdai)
 {
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
-	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
-	struct rsnd_src *src = rsnd_mod_to_src(mod);
-	u32 convert_rate = rsnd_src_convert_rate(src);
-	struct rsnd_mod *ssi_mod = rsnd_io_to_mod_ssi(io);
+	u32 fin, fout;
 	int ret;
 
-	if (convert_rate) {
-		rsnd_ssi_access_enable(ssi_mod, rdai);
-		ret = rsnd_adg_set_convert_clk_gen2(mod, rdai, io,
-						    runtime->rate,
-						    convert_rate);
-		rsnd_ssi_access_disable(ssi_mod, rdai);
-	} else
-		ret = rsnd_adg_set_convert_timing_gen2(mod, rdai, io);
+	fin = rsnd_src_get_in_rate(priv, io);
+	fout = rsnd_src_get_out_rate(priv, io);
+
+	ret = rsnd_adg_set_src_timesel_gen2(mod, io, fin, fout);
 
 	return ret;
 }

@@ -16,8 +16,13 @@
 #define CLKI	3
 #define CLKMAX	4
 
+static struct rsnd_mod_ops adg_ops = {
+	.name = "adg"
+};
+
 struct rsnd_adg {
 	struct clk *clk[CLKMAX];
+	struct rsnd_mod mod;
 
 	int rbga_rate_for_441khz_div_6;	/* RBGA */
 	int rbgb_rate_for_48khz_div_6;	/* RBGB */
@@ -61,83 +66,19 @@ static u32 rsnd_adg_ssi_ws_timing_gen2(struct rsnd_dai_stream *io)
 	return (0x6 + ws) << 8;
 }
 
-int rsnd_adg_set_cmd_timsel_gen2(struct rsnd_dai *rdai,
-				 struct rsnd_mod *mod,
-				 struct rsnd_dai_stream *io)
+
+static void __rsnd_adg_get_timesel_ratio(struct rsnd_priv *priv,
+				       struct rsnd_dai_stream *io,
+				       unsigned int target_rate,
+				       unsigned int *target_val,
+				       unsigned int *target_en)
 {
-	int id = rsnd_mod_id(mod);
-	int shift = (id % 2) ? 16 : 0;
-	u32 mask, val;
-
-	val = rsnd_adg_ssi_ws_timing_gen2(io);
-
-	val  = val	<< shift;
-	mask = 0xffff	<< shift;
-
-	rsnd_mod_bset(mod, CMDOUT_TIMSEL, mask, val);
-
-	return 0;
-}
-
-static int rsnd_adg_set_src_timsel_gen2(struct rsnd_dai *rdai,
-					struct rsnd_mod *mod,
-					struct rsnd_dai_stream *io,
-					u32 timsel)
-{
-	int is_play = rsnd_io_is_play(io);
-	int id = rsnd_mod_id(mod);
-	int shift = (id % 2) ? 16 : 0;
-	u32 mask, ws;
-	u32 in, out;
-
-	ws = rsnd_adg_ssi_ws_timing_gen2(io);
-
-	in  = (is_play) ? timsel : ws;
-	out = (is_play) ? ws     : timsel;
-
-	in   = in	<< shift;
-	out  = out	<< shift;
-	mask = 0xffff	<< shift;
-
-	switch (id / 2) {
-	case 0:
-		rsnd_mod_bset(mod, SRCIN_TIMSEL0,  mask, in);
-		rsnd_mod_bset(mod, SRCOUT_TIMSEL0, mask, out);
-		break;
-	case 1:
-		rsnd_mod_bset(mod, SRCIN_TIMSEL1,  mask, in);
-		rsnd_mod_bset(mod, SRCOUT_TIMSEL1, mask, out);
-		break;
-	case 2:
-		rsnd_mod_bset(mod, SRCIN_TIMSEL2,  mask, in);
-		rsnd_mod_bset(mod, SRCOUT_TIMSEL2, mask, out);
-		break;
-	case 3:
-		rsnd_mod_bset(mod, SRCIN_TIMSEL3,  mask, in);
-		rsnd_mod_bset(mod, SRCOUT_TIMSEL3, mask, out);
-		break;
-	case 4:
-		rsnd_mod_bset(mod, SRCIN_TIMSEL4,  mask, in);
-		rsnd_mod_bset(mod, SRCOUT_TIMSEL4, mask, out);
-		break;
-	}
-
-	return 0;
-}
-
-int rsnd_adg_set_convert_clk_gen2(struct rsnd_mod *mod,
-				  struct rsnd_dai *rdai,
-				  struct rsnd_dai_stream *io,
-				  unsigned int src_rate,
-				  unsigned int dst_rate)
-{
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
 	struct device *dev = rsnd_priv_to_dev(priv);
-	int idx, sel, div, step, ret;
-	u32 val, en;
+	int idx, sel, div, step;
+	unsigned int val, en;
 	unsigned int min, diff;
-	unsigned int sel_rate [] = {
+	unsigned int sel_rate[] = {
 		clk_get_rate(adg->clk[CLKA]),	/* 0000: CLKA */
 		clk_get_rate(adg->clk[CLKB]),	/* 0001: CLKB */
 		clk_get_rate(adg->clk[CLKC]),	/* 0010: CLKC */
@@ -161,7 +102,7 @@ int rsnd_adg_set_convert_clk_gen2(struct rsnd_mod *mod,
 			continue;
 
 		for (div = 2; div <= 98304; div += step) {
-			diff = abs(src_rate - sel_rate[sel] / div);
+			diff = abs(target_rate - sel_rate[sel] / div);
 			if (min > diff) {
 				val = (sel << 8) | idx;
 				min = diff;
@@ -184,27 +125,128 @@ int rsnd_adg_set_convert_clk_gen2(struct rsnd_mod *mod,
 
 	if (min == ~0) {
 		dev_err(dev, "no Input clock\n");
-		return -EIO;
+		return;
 	}
 
-	ret = rsnd_adg_set_src_timsel_gen2(rdai, mod, io, val);
-	if (ret < 0) {
-		dev_err(dev, "timsel error\n");
-		return ret;
+	*target_val = val;
+	if (target_en)
+		*target_en = en;
+}
+
+static void rsnd_adg_get_timesel_ratio(struct rsnd_priv *priv,
+				       struct rsnd_dai_stream *io,
+				       unsigned int in_rate,
+				       unsigned int out_rate,
+				       u32 *in, u32 *out, u32 *en)
+{
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	unsigned int target_rate;
+	u32 *target_val;
+	u32 _in;
+	u32 _out;
+	u32 _en;
+
+	/* default = SSI WS */
+	_in =
+	_out = rsnd_adg_ssi_ws_timing_gen2(io);
+
+	target_rate = 0;
+	target_val = NULL;
+	_en = 0;
+	if (runtime->rate != in_rate) {
+		target_rate = out_rate;
+		target_val  = &_out;
+	} else if (runtime->rate != out_rate) {
+		target_rate = in_rate;
+		target_val  = &_in;
 	}
 
-	rsnd_mod_bset(mod, DIV_EN, en, en);
+	if (target_rate)
+		__rsnd_adg_get_timesel_ratio(priv, io,
+					     target_rate,
+					     target_val, &_en);
+
+	if (in)
+		*in = _in;
+	if (out)
+		*out = _out;
+	if (en)
+		*en = _en;
+}
+
+int rsnd_adg_set_cmd_timsel_gen2(struct rsnd_dai *rdai,
+				 struct rsnd_mod *mod,
+				 struct rsnd_dai_stream *io)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
+	struct rsnd_mod *adg_mod = rsnd_mod_get(adg);
+	int id = rsnd_mod_id(mod);
+	int shift = (id % 2) ? 16 : 0;
+	u32 mask, val;
+
+	val = rsnd_adg_ssi_ws_timing_gen2(io);
+
+	val  = val	<< shift;
+	mask = 0xffff	<< shift;
+
+	rsnd_mod_bset(adg_mod, CMDOUT_TIMSEL, mask, val);
 
 	return 0;
 }
 
-int rsnd_adg_set_convert_timing_gen2(struct rsnd_mod *mod,
-				     struct rsnd_dai *rdai,
-				     struct rsnd_dai_stream *io)
-{
-	u32 val = rsnd_adg_ssi_ws_timing_gen2(io);
 
-	return rsnd_adg_set_src_timsel_gen2(rdai, mod, io, val);
+int rsnd_adg_set_src_timesel_gen2(struct rsnd_mod *src_mod,
+				  struct rsnd_dai_stream *io,
+				  unsigned int in_rate,
+				  unsigned int out_rate)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(src_mod);
+	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
+	struct rsnd_mod *adg_mod = rsnd_mod_get(adg);
+	int id = rsnd_mod_id(src_mod);
+	int shift = (id % 2) ? 16 : 0;
+	u32 mask, en;
+	u32 in, out;
+#ifdef QUICK_HACK
+	unsigned int rate = rsnd_io_is_play(io) ? out_rate : in_rate;
+
+	rsnd_adg_clk_set_rate(adg_mod, rate);
+#endif
+	rsnd_adg_get_timesel_ratio(priv, io,
+				  in_rate, out_rate,
+				  &in, &out, &en);
+	in   = in	<< shift;
+	out  = out	<< shift;
+	mask = 0xffff	<< shift;
+
+	switch (id / 2) {
+	case 0:
+		rsnd_mod_bset(adg_mod, SRCIN_TIMSEL0,  mask, in);
+		rsnd_mod_bset(adg_mod, SRCOUT_TIMSEL0, mask, out);
+		break;
+	case 1:
+		rsnd_mod_bset(adg_mod, SRCIN_TIMSEL1,  mask, in);
+		rsnd_mod_bset(adg_mod, SRCOUT_TIMSEL1, mask, out);
+		break;
+	case 2:
+		rsnd_mod_bset(adg_mod, SRCIN_TIMSEL2,  mask, in);
+		rsnd_mod_bset(adg_mod, SRCOUT_TIMSEL2, mask, out);
+		break;
+	case 3:
+		rsnd_mod_bset(adg_mod, SRCIN_TIMSEL3,  mask, in);
+		rsnd_mod_bset(adg_mod, SRCOUT_TIMSEL3, mask, out);
+		break;
+	case 4:
+		rsnd_mod_bset(adg_mod, SRCIN_TIMSEL4,  mask, in);
+		rsnd_mod_bset(adg_mod, SRCOUT_TIMSEL4, mask, out);
+		break;
+	}
+
+	if (en)
+		rsnd_mod_bset(adg_mod, DIV_EN, en, en);
+
+	return 0;
 }
 
 int rsnd_adg_set_convert_clk_gen1(struct rsnd_priv *priv,
@@ -213,6 +255,7 @@ int rsnd_adg_set_convert_clk_gen1(struct rsnd_priv *priv,
 				  unsigned int dst_rate)
 {
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
+	struct rsnd_mod *adg_mod = rsnd_mod_get(adg);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	int idx, sel, div, shift;
 	u32 mask, val;
@@ -249,13 +292,13 @@ find_rate:
 
 	switch (id / 4) {
 	case 0:
-		rsnd_mod_bset(mod, AUDIO_CLK_SEL3, mask, val);
+		rsnd_mod_bset(adg_mod, AUDIO_CLK_SEL3, mask, val);
 		break;
 	case 1:
-		rsnd_mod_bset(mod, AUDIO_CLK_SEL4, mask, val);
+		rsnd_mod_bset(adg_mod, AUDIO_CLK_SEL4, mask, val);
 		break;
 	case 2:
-		rsnd_mod_bset(mod, AUDIO_CLK_SEL5, mask, val);
+		rsnd_mod_bset(adg_mod, AUDIO_CLK_SEL5, mask, val);
 		break;
 	}
 
@@ -270,6 +313,9 @@ find_rate:
 
 static void rsnd_adg_set_ssi_clk(struct rsnd_mod *mod, u32 val)
 {
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
+	struct rsnd_mod *adg_mod = rsnd_mod_get(adg);
 	int id = rsnd_mod_id(mod);
 	int shift = (id % 4) * 8;
 	u32 mask = 0xFF << shift;
@@ -285,13 +331,13 @@ static void rsnd_adg_set_ssi_clk(struct rsnd_mod *mod, u32 val)
 
 	switch (id / 4) {
 	case 0:
-		rsnd_mod_bset(mod, AUDIO_CLK_SEL0, mask, val);
+		rsnd_mod_bset(adg_mod, AUDIO_CLK_SEL0, mask, val);
 		break;
 	case 1:
-		rsnd_mod_bset(mod, AUDIO_CLK_SEL1, mask, val);
+		rsnd_mod_bset(adg_mod, AUDIO_CLK_SEL1, mask, val);
 		break;
 	case 2:
-		rsnd_mod_bset(mod, AUDIO_CLK_SEL2, mask, val);
+		rsnd_mod_bset(adg_mod, AUDIO_CLK_SEL2, mask, val);
 		break;
 	}
 }
@@ -311,6 +357,7 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *mod, unsigned int rate)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
+	struct rsnd_mod *adg_mod = rsnd_mod_get(adg);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct clk *clk;
 	int i;
@@ -358,9 +405,9 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *mod, unsigned int rate)
 found_clock:
 
 	/* see rsnd_adg_ssi_clk_init() */
-	rsnd_mod_bset(mod, SSICKR, 0x00FF0000, adg->ckr);
-	rsnd_mod_write(mod, BRRA,  0x00000002); /* 1/6 */
-	rsnd_mod_write(mod, BRRB,  0x00000002); /* 1/6 */
+	rsnd_mod_bset(adg_mod, SSICKR, 0x00FF0000, adg->ckr);
+	rsnd_mod_write(adg_mod, BRRA,  0x00000002); /* 1/6 */
+	rsnd_mod_write(adg_mod, BRRB,  0x00000002); /* 1/6 */
 
 	/*
 	 * This "mod" = "ssi" here.
@@ -456,6 +503,14 @@ int rsnd_adg_probe(struct platform_device *pdev,
 		dev_err(dev, "ADG allocate failed\n");
 		return -ENOMEM;
 	}
+
+	/*
+	 * ADG is special module.
+	 * Use ADG mod without rsnd_mod_init() to make debug easy
+	 * for rsnd_write/rsnd_read
+	 */
+	adg->mod.ops = &adg_ops;
+	adg->mod.priv = priv;
 
 	adg->clk[CLKA]	= devm_clk_get(dev, "clk_a");
 	adg->clk[CLKB]	= devm_clk_get(dev, "clk_b");
