@@ -1,6 +1,7 @@
 /*
  * SoC-camera host driver for Renesas R-Car VIN unit
  *
+ * Copyright (C) 2016 Renesas Electronics Corporation
  * Copyright (C) 2011-2013 Renesas Solutions Corp.
  * Copyright (C) 2013 Cogent Embedded, Inc., <source@cogentembedded.com>
  *
@@ -650,7 +651,7 @@ static int rcar_vin_setup(struct rcar_vin_priv *priv)
 		dmr = 0;
 		output_is_yuv = true;
 		break;
-	case V4L2_PIX_FMT_RGB555X:
+	case V4L2_PIX_FMT_ARGB555:
 		dmr = VNDMR_DTMD_ARGB1555;
 		break;
 	case V4L2_PIX_FMT_RGB565:
@@ -1330,7 +1331,7 @@ static const struct soc_mbus_pixelfmt rcar_vin_formats[] = {
 		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
 	{
-		.fourcc			= V4L2_PIX_FMT_RGB555X,
+		.fourcc			= V4L2_PIX_FMT_ARGB555,
 		.name			= "ARGB1555",
 		.bits_per_sample	= 16,
 		.packing		= SOC_MBUS_PACKING_NONE,
@@ -1657,7 +1658,7 @@ static int rcar_vin_set_fmt(struct soc_camera_device *icd,
 	case V4L2_PIX_FMT_UYVY:
 	case V4L2_PIX_FMT_YUYV:
 	case V4L2_PIX_FMT_RGB565:
-	case V4L2_PIX_FMT_RGB555X:
+	case V4L2_PIX_FMT_ARGB555:
 	case V4L2_PIX_FMT_NV16: /* horizontal scaling-up only is supported */
 		can_scale = true;
 		break;
