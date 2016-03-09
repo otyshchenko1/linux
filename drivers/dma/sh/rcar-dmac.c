@@ -397,9 +397,11 @@ static void rcar_dmac_chan_start_xfer(struct rcar_dmac_chan *chan)
 static int rcar_dmac_init(struct rcar_dmac *dmac)
 {
 	u16 dmaor;
+#define GENMASK(h, l) \
+	(((~0UL) << (l)) & (~0UL >> (BITS_PER_LONG - 1 - (h))))
 
 	/* Clear all channels and enable the DMAC globally. */
-	rcar_dmac_write(dmac, RCAR_DMACHCLR, 0x7fff);
+	rcar_dmac_write(dmac, RCAR_DMACHCLR, GENMASK(dmac->n_channels - 1, 0));
 	rcar_dmac_write(dmac, RCAR_DMAOR,
 			RCAR_DMAOR_PRI_FIXED | RCAR_DMAOR_DME);
 
