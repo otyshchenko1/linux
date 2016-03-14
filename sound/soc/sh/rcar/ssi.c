@@ -229,6 +229,7 @@ static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi,
 			     struct rsnd_dai *rdai)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(&ssi->mod);
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(&ssi->mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	u32 cr;
 
@@ -245,7 +246,8 @@ static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi,
 		ssi->cr_clk;
 
 	rsnd_mod_write(&ssi->mod, SSICR, cr | EN);
-	rsnd_ssi_status_check(&ssi->mod, DIRQ);
+	if (rsnd_dai_is_play(rdai, io))
+		rsnd_ssi_status_check(&ssi->mod, DIRQ);
 
 	/*
 	 * disable SSI,
