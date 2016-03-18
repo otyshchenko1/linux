@@ -1784,6 +1784,7 @@ static int sh_eth_phy_init(struct net_device *ndev)
 	struct device_node *np = ndev->dev.parent->of_node;
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	struct phy_device *phydev = NULL;
+	int err;
 
 	mdp->link = 0;
 	mdp->speed = 0;
@@ -1794,10 +1795,18 @@ static int sh_eth_phy_init(struct net_device *ndev)
 		struct device_node *pn;
 
 		pn = of_parse_phandle(np, "phy-handle", 0);
+		if (!pn) {
+			/* Try connect to FIXED PHY */
+			if (of_phy_is_fixed_link(np)) {
+				err = of_phy_register_fixed_link(np);
+				if (err)
+					return err;
+				}
+			pn = of_node_get(np);
+		}
 		phydev = of_phy_connect(ndev, pn,
 					sh_eth_adjust_link, 0,
 					mdp->phy_interface);
-
 		if (!phydev)
 			phydev = ERR_PTR(-ENOENT);
 	} else {
