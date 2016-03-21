@@ -76,6 +76,7 @@ obj-$(CONFIG_MACH_KOELSCH)	+= board-koelsch-reference.o
 obj-$(CONFIG_MACH_LAGER)	+= board-lager-reference.o
 obj-$(CONFIG_MACH_R8A7790STOUT)	+= board-r8a7790stout-reference.o
 obj-$(CONFIG_MACH_R8A7790STOUT_FULL)	+= board-r8a7790stout-full-reference.o
+obj-$(CONFIG_MACH_R8A7790STOUT_HAD)	+= board-r8a7790stout-had-reference.o
 obj-$(CONFIG_MACH_R8A7790STOUT_VIEW)	+= board-r8a7790stout-view-reference.o
 obj-$(CONFIG_MACH_GOSE)		+= board-gose-reference.o
 obj-$(CONFIG_MACH_ALT)		+= board-alt-reference.o
