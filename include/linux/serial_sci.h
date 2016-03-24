@@ -49,6 +49,9 @@
 #define SCIF_PER   0x0004		/* Parity Error */
 #define SCIF_RDF   0x0002		/* Receive FIFO Data Full */
 #define SCIF_DR    0x0001		/* Receive Data Ready */
+/* SCIF only (optional) */
+#define SCIF_PERC	0xf000	/* Number of Parity Errors */
+#define SCIF_FERC	0x0f00	/* Number of Framing Errors */
 
 #define SCIF_DEFAULT_ERROR_MASK (SCIF_PER | SCIF_FER | SCIF_ER | SCIF_BRK)
 
