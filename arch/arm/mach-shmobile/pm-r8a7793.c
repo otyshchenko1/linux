@@ -134,7 +134,6 @@ void r8a7793_module_reset(unsigned int n, u32 bits, int usecs)
 	udelay(usecs);
 
 	writel_relaxed(bits, cpg_base + r8a7793_reset_regs[n].srstclr);
-	readl_relaxed(cpg_base + r8a7793_reset_regs[n].srstclr); /* sync */
 
 	iounmap(cpg_base);
 }
