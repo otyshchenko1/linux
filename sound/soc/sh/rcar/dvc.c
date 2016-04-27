@@ -71,6 +71,7 @@ static int rsnd_dvc_init(struct rsnd_mod *dvc_mod,
 	struct device *dev = rsnd_priv_to_dev(priv);
 	int dvc_id = rsnd_mod_id(dvc_mod);
 	int src_id = rsnd_mod_id(src_mod);
+	int ret;
 	u32 route[] = {
 		[0] = 0x30000,
 		[1] = 0x30001,
@@ -111,7 +112,9 @@ static int rsnd_dvc_init(struct rsnd_mod *dvc_mod,
 
 	rsnd_mod_write(dvc_mod, DVC_DVUER, 1);
 
-	rsnd_adg_set_cmd_timsel_gen2(rdai, dvc_mod, io);
+	ret = rsnd_adg_set_cmd_timsel_gen2(rdai, dvc_mod, io);
+	if (ret)
+		return ret;
 
 	return 0;
 }
