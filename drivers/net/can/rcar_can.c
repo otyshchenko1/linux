@@ -21,6 +21,7 @@
 #include <linux/clk.h>
 #include <linux/can/platform/rcar_can.h>
 #include <linux/of.h>
+#include <linux/of_gpio.h>
 
 #define RCAR_CAN_DRV_NAME	"rcar_can"
 
@@ -740,12 +741,16 @@ static int rcar_can_probe(struct platform_device *pdev)
 	struct resource *mem;
 	void __iomem *addr;
 	u32 clock_select = CLKR_CLKP1;
-	int err = -ENODEV;
+	int err = -ENODEV, ret;
 	int irq;
+	unsigned int enable_pin, standby_pin;
+	enum of_gpio_flags enable_flags, standby_flags;
 
 	if (pdev->dev.of_node) {
 		of_property_read_u32(pdev->dev.of_node,
 				     "renesas,can-clock-select", &clock_select);
+		enable_pin = of_get_gpio_flags(pdev->dev.of_node, 0, &enable_flags);
+		standby_pin = of_get_gpio_flags(pdev->dev.of_node, 1, &standby_flags);
 	} else {
 		pdata = dev_get_platdata(&pdev->dev);
 		if (!pdata) {
@@ -753,6 +758,32 @@ static int rcar_can_probe(struct platform_device *pdev)
 			goto fail;
 		}
 		clock_select = pdata->clock_select;
+		enable_pin = pdata->enable_pin;
+		standby_pin = pdata->standby_pin;
+	}
+
+	if (gpio_is_valid(enable_pin)) {
+		ret = devm_gpio_request(&pdev->dev, enable_pin, "enable");
+		if (!ret) {
+			if (enable_flags & OF_GPIO_ACTIVE_LOW)
+				gpio_set_value(enable_pin, 0);
+			else
+				gpio_set_value(enable_pin, 1);
+		} else {
+			dev_info(&pdev->dev, "Failed to request enable pin\n");
+		}
+	}
+
+	if (gpio_is_valid(standby_pin)) {
+		ret = devm_gpio_request(&pdev->dev, standby_pin, "standby");
+		if (!ret) {
+			if (standby_flags & OF_GPIO_ACTIVE_LOW)
+				gpio_set_value(standby_pin, 1);
+			else
+				gpio_set_value(standby_pin, 0);
+		} else {
+			dev_info(&pdev->dev, "Failed to request standby pin\n");
+		}
 	}
 
 	irq = platform_get_irq(pdev, 0);
