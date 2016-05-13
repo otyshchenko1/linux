@@ -1,6 +1,7 @@
 /*
  * rcar_gen2 Core CPG Clocks
  *
+ * Copyright (C) 2016  Renesas Electronics Corporation
  * Copyright (C) 2013  Ideas On Board SPRL
  *
  * Contact: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
@@ -183,15 +184,19 @@ static struct clk * __init cpg_z_clk_register(struct rcar_gen2_cpg *cpg)
 #define CPG_PLL_CONFIG_INDEX(md)	((((md) & BIT(14)) >> 12) | \
 					 (((md) & BIT(13)) >> 12) | \
 					 (((md) & BIT(19)) >> 19))
+
 struct cpg_pll_config {
 	unsigned int extal_div;
+	unsigned int pll0_mult;
 	unsigned int pll1_mult;
 	unsigned int pll3_mult;
 };
 
 static const struct cpg_pll_config cpg_pll_configs[8] __initconst = {
-	{ 1, 208, 106 }, { 1, 208,  88 }, { 1, 156,  80 }, { 1, 156,  66 },
-	{ 2, 240, 122 }, { 2, 240, 102 }, { 2, 208, 106 }, { 2, 208,  88 },
+	{ 1, 172, 208, 106 }, { 1, 172, 208,  88 },
+	{ 1, 130, 156,  80 }, { 1, 130, 156,  66 },
+	{ 2, 200, 240, 122 }, { 2, 200, 240, 102 },
+	{ 2, 172, 208, 106 }, { 2, 172, 208,  88 },
 };
 
 /* SDHI divisors */
