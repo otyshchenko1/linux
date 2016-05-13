@@ -21,6 +21,8 @@
 #include <linux/of_address.h>
 #include <linux/spinlock.h>
 
+static bool is_e2;
+
 struct rcar_gen2_cpg {
 	struct clk_onecell_data data;
 	spinlock_t lock;
@@ -167,6 +169,7 @@ static struct clk * __init cpg_z_clk_register(struct rcar_gen2_cpg *cpg)
  */
 
 /*
+ * PLL Multiplication Ratio [H2/M2-W/M2-N]
  *   MD		EXTAL		PLL0	PLL1	PLL3
  * 14 13 19	(MHz)		*1	*1
  *---------------------------------------------------
@@ -179,8 +182,27 @@ static struct clk * __init cpg_z_clk_register(struct rcar_gen2_cpg *cpg)
  * 1  1  0	30 / 2		x172/2	x208/2	x106
  * 1  1  1	30 / 2		x172/2	x208/2	x88
  *
- * *1 :	Table 7.6 indicates VCO ouput (PLLx = VCO/2)
+ * *1 :	Table 7.5a indicates VCO ouput (PLLx = VCO/2)
  */
+
+/*
+ * PLL Multiplication Ratio [E2]
+ *   MD		EXTAL		PLL0	PLL1	PLL3
+ * 14 13 19	(MHz)		*1	*2
+ *---------------------------------------------------
+ * 0  0  0	Invalid setting
+ * 0  0  1	15 x 1		x200/3	x208/2	x88
+ * 0  1  0	Invalid setting
+ * 0  1  1	20 x 1		x150/3	x156/2	x66
+ * 1  0  0	Invalid setting
+ * 1  0  1	26 / 2		x230/3	x240/2	x102
+ * 1  1  0	Invalid setting
+ * 1  1  1	30 / 2		x200/3	x208/2	x88
+ *
+ * *1 :	Table 7.5c indicates VCO ouput (PLL0 = VCO/3)
+ * *2 :	Table 7.5c indicates VCO ouput (PLL1 = VCO/2)
+ */
+
 #define CPG_PLL_CONFIG_INDEX(md)	((((md) & BIT(14)) >> 12) | \
 					 (((md) & BIT(13)) >> 12) | \
 					 (((md) & BIT(19)) >> 19))
@@ -197,6 +219,13 @@ static const struct cpg_pll_config cpg_pll_configs[8] __initconst = {
 	{ 1, 130, 156,  80 }, { 1, 130, 156,  66 },
 	{ 2, 200, 240, 122 }, { 2, 200, 240, 102 },
 	{ 2, 172, 208, 106 }, { 2, 172, 208,  88 },
+};
+
+static const struct cpg_pll_config e2_cpg_pll_configs[8] __initconst = {
+	{ /* Invalid */ }, { 1, 200, 208,  88 },
+	{ /* Invalid */ }, { 1, 150, 156,  66 },
+	{ /* Invalid */ }, { 2, 230, 240, 102 },
+	{ /* Invalid */ }, { 2, 200, 208,  88 },
 };
 
 /* SDHI divisors */
@@ -238,9 +267,13 @@ rcar_gen2_cpg_register_clock(struct device_node *np, struct rcar_gen2_cpg *cpg,
 		 * clock implementation and we currently have no need to change
 		 * the multiplier value.
 		 */
-		u32 value = clk_readl(cpg->reg + CPG_PLL0CR);
 		parent_name = "main";
-		mult = ((value >> 24) & ((1 << 7) - 1)) + 1;
+		if (is_e2) {
+			mult = config->pll0_mult / 3;
+		} else {
+			u32 value = clk_readl(cpg->reg + CPG_PLL0CR);
+			mult = ((value >> 24) & ((1 << 7) - 1)) + 1;
+		}
 	} else if (!strcmp(name, "pll1")) {
 		parent_name = "main";
 		mult = config->pll1_mult / 2;
@@ -314,7 +347,18 @@ static void __init rcar_gen2_cpg_clocks_init(struct device_node *np)
 	if (WARN_ON(cpg->reg == NULL))
 		return;
 
-	config = &cpg_pll_configs[CPG_PLL_CONFIG_INDEX(cpg_mode)];
+	if (of_machine_is_compatible("renesas,r8a7790") ||
+	    of_machine_is_compatible("renesas,r8a7791") ||
+	    of_machine_is_compatible("renesas,r8a7793")) {
+		config = &cpg_pll_configs[CPG_PLL_CONFIG_INDEX(cpg_mode)];
+		is_e2 = false;
+	} else if (of_machine_is_compatible("renesas,r8a7794")) {
+		config = &e2_cpg_pll_configs[CPG_PLL_CONFIG_INDEX(cpg_mode)];
+		is_e2 = true;
+	} else {
+		pr_err("%s: failed to find R-Car Gen2 compatible\n", __func__);
+		return;
+	}
 
 	for (i = 0; i < num_clks; ++i) {
 		const char *name;
