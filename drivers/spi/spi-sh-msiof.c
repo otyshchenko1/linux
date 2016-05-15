@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/sh_dma.h>
@@ -392,11 +393,11 @@ static int sh_msiof_modify_ctr_wait(struct sh_msiof_spi_priv *p,
 	data |= set;
 	sh_msiof_write(p, CTR, data);
 
-	for (k = 100; k > 0; k--) {
+	for (k = 1000; k > 0; k--) {
 		if ((sh_msiof_read(p, CTR) & mask) == set)
 			break;
 
-		udelay(10);
+		udelay(1);
 	}
 
 	return k > 0 ? 0 : -ETIMEDOUT;
@@ -760,8 +761,7 @@ static int sh_msiof_spi_setup(struct spi_device *spi)
 				  !!(spi->mode & SPI_CS_HIGH));
 
 	if (spi->cs_gpio >= 0)
-		gpio_set_value(spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
-
+		gpio_direction_output(spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
 
 	pm_runtime_put(&p->pdev->dev);
 
@@ -1261,6 +1261,7 @@ static struct sh_msiof_spi_info *sh_msiof_spi_parse_dt(struct device *dev)
 	struct sh_msiof_spi_info *info;
 	struct device_node *np = dev->of_node;
 	u32 num_cs = 1;
+	int i;
 
 	info = devm_kzalloc(dev, sizeof(struct sh_msiof_spi_info), GFP_KERNEL);
 	if (!info)
@@ -1282,6 +1283,16 @@ static struct sh_msiof_spi_info *sh_msiof_spi_parse_dt(struct device *dev)
 
 	info->num_chipselect = num_cs;
 
+	for (i = 0; i < num_cs; i++) {
+		int cs_gpio = of_get_named_gpio(np, "cs-gpios", i);
+
+		if (gpio_is_valid(cs_gpio)) {
+			if (devm_gpio_request(dev, cs_gpio, "msiof-cs-gpio")) {
+				dev_err(dev, "Can't get CS GPIO %i\n", i);
+				return NULL;
+			}
+		}
+	}
 	return info;
 }
 #else
