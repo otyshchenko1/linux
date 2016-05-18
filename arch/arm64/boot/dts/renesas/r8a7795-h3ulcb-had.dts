@@ -24,8 +24,8 @@
 	compatible = "renesas,h3ulcb", "renesas,r8a7795";
 
 	aliases {
-		serial0 = &scif2;
-		serial1 = &scif1;
+		serial1 = &scif2;
+		serial0 = &scif1;
 		ethernet0 = &avb;
 		spi1 = &spi0_gpio;
 		spi2 = &spi1_gpio;
