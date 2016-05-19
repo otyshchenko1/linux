@@ -741,27 +741,11 @@
 	pinctrl-0 = <&avb_pins>;
 	pinctrl-names = "default";
 	renesas,no-ether-link;
-	phy-handle = <&phy0>;
 	status = "okay";
-	phy-int-gpio = <&gpio2 11 GPIO_ACTIVE_LOW>;
 
-	phy0: ethernet-phy@0 {
-		rxc-skew-ps = <1500>;
-		rxdv-skew-ps = <420>; /* default */
-		rxd0-skew-ps = <420>; /* default */
-		rxd1-skew-ps = <420>; /* default */
-		rxd2-skew-ps = <420>; /* default */
-		rxd3-skew-ps = <420>; /* default */
-		txc-skew-ps = <900>; /* default */
-		txen-skew-ps = <420>; /* default */
-		txd0-skew-ps = <420>; /* default */
-		txd1-skew-ps = <420>; /* default */
-		txd2-skew-ps = <420>; /* default */
-		txd3-skew-ps = <420>; /* default */
-		reg = <0>;
-		interrupt-parent = <&gpio2>;
-		interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
-		max-speed = <1000>;
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
 	};
 };
 
