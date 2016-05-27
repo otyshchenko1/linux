@@ -33,7 +33,6 @@ struct rsnd_src {
 
 #define RSND_SRC_NAME_SIZE 16
 
-#define rsnd_src_convert_rate(p) ((p)->info->convert_rate)
 #define rsnd_mod_to_src(_mod)				\
 	container_of((_mod), struct rsnd_src, mod)
 #define rsnd_src_dma_available(src) \
@@ -244,6 +243,18 @@ int rsnd_src_disable_dma_ssi_irq(struct rsnd_mod *ssi_mod,
 	return 0;
 }
 
+static u32 rsnd_src_convert_rate(struct rsnd_mod *mod)
+{
+	struct rsnd_src *src = rsnd_mod_to_src(mod);
+	u32 convert_rate;
+
+	convert_rate = src->info->convert_rate;
+	if (src->reconvert_rate)
+		convert_rate = src->reconvert_rate;
+
+	return convert_rate;
+}
+
 unsigned int rsnd_src_get_rate(struct rsnd_priv *priv,
 			      struct rsnd_dai_stream *io,
 			      int is_in)
@@ -273,7 +284,7 @@ unsigned int rsnd_src_get_rate(struct rsnd_priv *priv,
 		 * return convert rate if SRC is used,
 		 * otherwise, return runtime->rate as usual
 		 */
-		rate = rsnd_src_convert_rate(src);
+		rate = rsnd_src_convert_rate(src_mod);
 	}
 
 	if (!rate)
@@ -323,7 +334,6 @@ static int rsnd_src_set_convert_rate(struct rsnd_mod *mod,
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
-	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	u32 fin, fout;
 	u32 fsrate = 0;
 	u32 remain = 0;
@@ -339,7 +349,7 @@ static int rsnd_src_set_convert_rate(struct rsnd_mod *mod,
 	rsnd_mod_write(mod, SRC_SWRSR, 0);
 	rsnd_mod_write(mod, SRC_SWRSR, 1);
 
-	if (rsnd_src_convert_rate(src) || rsnd_src_use_syncsrc(mod))
+	if (rsnd_src_convert_rate(mod) || rsnd_src_use_syncsrc(mod))
 		rsnd_mod_bset(mod, SRC_ROUTE_MODE0, 1, 1);
 
 	/*
@@ -392,6 +402,8 @@ static void rsnd_src_set_reconvert_rate(struct rsnd_mod *mod)
 	else
 		fsrate = 0x0400000;
 
+	rsnd_adg_set_src_timesel_gen2(mod, io, fin, fout);
+
 	/* Set initial value of IFS */
 	rsnd_mod_write(mod, SRC_IFSVR, fsrate);
 }
@@ -428,9 +440,7 @@ static int rsnd_src_quit(struct rsnd_mod *mod,
 static int rsnd_src_stop(struct rsnd_mod *mod,
 			 struct rsnd_dai *rdai)
 {
-	struct rsnd_src *src = rsnd_mod_to_src(mod);
-
-	if (rsnd_src_convert_rate(src) || rsnd_src_use_syncsrc(mod))
+	if (rsnd_src_convert_rate(mod) || rsnd_src_use_syncsrc(mod))
 		rsnd_mod_write(mod, SRC_ROUTE_MODE0, 0);
 
 	return 0;
@@ -482,9 +492,8 @@ static int rsnd_src_set_convert_timing_gen1(struct rsnd_mod *mod,
 {
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
-	u32 convert_rate = rsnd_src_convert_rate(src);
+	u32 convert_rate = rsnd_src_convert_rate(mod);
 	u32 mask;
 	u32 val;
 	int shift;
