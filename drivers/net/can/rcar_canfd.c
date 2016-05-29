@@ -1396,6 +1396,11 @@ static void rcar_canfd_channel_remove(struct rcar_canfd_global *gpriv, u32 ch)
 	}
 }
 
+static const char * const clock_names[] = {
+	[RCANFD_CANFDCLK]	= "canfd",
+	[RCANFD_EXTCLK]		= "can_clk",
+};
+
 static int rcar_canfd_probe(struct platform_device *pdev)
 {
 	struct resource *mem;
@@ -1405,6 +1410,15 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 	struct device_node *of_child;
 	unsigned long channels_mask = 0;
 	int err, ch_irq, g_irq;
+	u32 clock_select = RCANFD_CANFDCLK;
+
+	of_property_read_u32(pdev->dev.of_node,
+			     "renesas,can-clock-select", &clock_select);
+	if (clock_select >= ARRAY_SIZE(clock_names)) {
+		err = -EINVAL;
+		dev_err(&pdev->dev, "invalid CAN clock selected\n");
+		goto fail_dev;
+	}
 
 	of_child = of_get_child_by_name(pdev->dev.of_node, "channel0");
 	if (of_child && of_device_is_available(of_child))
@@ -1449,20 +1463,13 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 	/* fCAN clock: Pick External clock. If not available fallback to
 	 * CANFD clock
 	 */
-	gpriv->can_clk = devm_clk_get(&pdev->dev, "can_clk");
+	gpriv->can_clk = devm_clk_get(&pdev->dev, clock_names[clock_select]);
 	if (IS_ERR(gpriv->can_clk)) {
-		gpriv->can_clk = devm_clk_get(&pdev->dev, "canfd");
-		if (IS_ERR(gpriv->can_clk)) {
-			err = PTR_ERR(gpriv->can_clk);
-			dev_err(&pdev->dev,
-				"cannot get canfd clock, error %d\n", err);
-			goto fail_dev;
-		}
-		gpriv->clock_select = RCANFD_CANFDCLK;
-
-	} else {
-		gpriv->clock_select = RCANFD_EXTCLK;
+		err = PTR_ERR(gpriv->can_clk);
+		dev_err(&pdev->dev, "cannot get CAN clock, error %d\n", err);
+		goto fail_dev;
 	}
+	gpriv->clock_select = clock_select;
 	gpriv->freq = clk_get_rate(gpriv->can_clk);
 
 	if (gpriv->clock_select == RCANFD_CANFDCLK)
