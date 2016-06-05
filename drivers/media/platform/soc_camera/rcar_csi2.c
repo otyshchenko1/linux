@@ -38,6 +38,9 @@
 
 #define DRV_NAME "rcar_csi2"
 #define CONNECT_SLAVE_NAME "adv7482"
+#define CONNECT_SLAVE_NAME2 "ov10635"
+#define CONNECT_SLAVE_NAME3 "ov490-ov10640"
+#define CONNECT_SLAVE_NAME4 "ov106xx"
 #define VC_MAX_CHANNEL		4
 
 #define RCAR_CSI2_TREF		0x00
@@ -275,6 +278,15 @@ static int rcar_csi2_set_phy_freq(struct rcar_csi2 *priv)
 				(priv->mf->height == 1080))
 				bps_per_lane = RCAR_CSI_900MBPS;
 			else if ((priv->mf->width == 1280) &&
+				 (priv->mf->height == 1080))
+				bps_per_lane = RCAR_CSI_900MBPS;
+			else if ((priv->mf->width == 1280) &&
+				 (priv->mf->height == 966))
+				bps_per_lane = RCAR_CSI_900MBPS;
+			else if ((priv->mf->width == 1280) &&
+				 (priv->mf->height == 800))
+				bps_per_lane = RCAR_CSI_900MBPS;
+			else if ((priv->mf->width == 1280) &&
 				 (priv->mf->height == 720))
 				bps_per_lane = RCAR_CSI_450MBPS;
 			else if ((priv->mf->width == 720) &&
@@ -285,7 +297,10 @@ static int rcar_csi2_set_phy_freq(struct rcar_csi2 *priv)
 				bps_per_lane = RCAR_CSI_190MBPS;
 			else if ((priv->mf->width == 640) &&
 				 (priv->mf->height == 480))
-				bps_per_lane = RCAR_CSI_100MBPS;
+				bps_per_lane = RCAR_CSI_450MBPS;
+			else if ((priv->mf->width == 640) &&
+				 (priv->mf->height == 400))
+				bps_per_lane = RCAR_CSI_450MBPS;
 			else
 				goto error;
 		} else {
@@ -464,6 +479,27 @@ static int rcar_csi2_s_power(struct v4l2_subdev *sd, int on)
 				if (ret < 0)
 					return ret;
 			}
+			if (strncmp(tmp_sd->name, CONNECT_SLAVE_NAME2,
+				sizeof(CONNECT_SLAVE_NAME2) - 1) == 0) {
+				v4l2_subdev_call(tmp_sd, pad, get_fmt,
+							 NULL, &fmt);
+				if (ret < 0)
+					return ret;
+			}
+			if (strncmp(tmp_sd->name, CONNECT_SLAVE_NAME3,
+				sizeof(CONNECT_SLAVE_NAME3) - 1) == 0) {
+				v4l2_subdev_call(tmp_sd, pad, get_fmt,
+							 NULL, &fmt);
+				if (ret < 0)
+					return ret;
+			}
+			if (strncmp(tmp_sd->name, CONNECT_SLAVE_NAME4,
+				sizeof(CONNECT_SLAVE_NAME4) - 1) == 0) {
+				v4l2_subdev_call(tmp_sd, pad, get_fmt,
+							 NULL, &fmt);
+				if (ret < 0)
+					return ret;
+			}
 		}
 		priv->mf = mf;
 		pm_runtime_get_sync(&priv->pdev->dev);
@@ -529,8 +565,8 @@ static int rcar_csi2_parse_dt(struct device_node *np,
 
 	vc_np = of_get_child_by_name(np, "virtual,channel");
 
-	config->vcdt = 0;
-	config->vcdt2 = 0;
+	config->vcdt = 0x81008000;
+	config->vcdt2 = 0x83008200;
 	for (i = 0; i < VC_MAX_CHANNEL; i++) {
 		sprintf(csi_name, "csi2_vc%d", i);
 

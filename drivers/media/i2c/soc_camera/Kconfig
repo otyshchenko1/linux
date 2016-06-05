@@ -6,6 +6,38 @@ config SOC_CAMERA_IMX074
 	help
 	  This driver supports IMX074 cameras from Sony
 
+config SOC_CAMERA_MAX9286_MAX9271
+	tristate "max9286-ov10635 camera support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is an MAXIM max9286-max9271 with OmniVision ov10635 sensor
+	  camera driver
+
+config SOC_CAMERA_MAX9286_MAX9271_OV106XX
+	tristate "max9286-max9271-ov106xx camera support"
+	depends on SOC_CAMERA && SOC_CAMERA_MAX9286_MAX9271 && I2C
+	help
+	  This is an MAXIM max9286-max9271 with runtime detected
+	  OmniVision ov10635 or ov490-ov10640 sensor camera driver
+
+if !SOC_CAMERA_MAX9286_MAX9271_OV106XX
+
+config SOC_CAMERA_MAX9286_MAX9271_OV10635
+	tristate "max9286-max9271-ov10635 camera support"
+	depends on SOC_CAMERA && SOC_CAMERA_MAX9286_MAX9271 && I2C
+	help
+	  This is an MAXIM max9286-max9271 with OmniVision ov10635 sensor
+	  camera driver
+
+config SOC_CAMERA_MAX9286_MAX9271_OV490_OV10640
+	tristate "max9286-max9271-ov490-ov10640 camera support"
+	depends on SOC_CAMERA && SOC_CAMERA_MAX9286_MAX9271 && I2C
+	help
+	  This is an MAXIM max9286-max9271 with OmniVision ov490-ov10640 sensor
+	  camera driver
+
+endif
+
 config SOC_CAMERA_MT9M001
 	tristate "mt9m001 support"
 	depends on SOC_CAMERA && I2C

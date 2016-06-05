@@ -1165,6 +1165,10 @@ error:
  */
 static void rcar_vin_wait_stop_streaming(struct rcar_vin_priv *priv)
 {
+	/* update the status if hardware is not stopped */
+	if (ioread32(priv->base + VNMS_REG) & VNMS_CA)
+		priv->state = RUNNING;
+
 	while (priv->state != STOPPED) {
 		/* issue stop if running */
 		if (priv->state == RUNNING)
