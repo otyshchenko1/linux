@@ -899,14 +899,20 @@ static irqreturn_t rcar_vin_irq(int irq, void *data)
 		else
 			slot = 0;
 
-		priv->queue_buf[slot]->v4l2_buf.field = priv->field;
-		priv->queue_buf[slot]->v4l2_buf.sequence = priv->sequence++;
-		do_gettimeofday(&priv->queue_buf[slot]->v4l2_buf.timestamp);
-		vb2_buffer_done(priv->queue_buf[slot], VB2_BUF_STATE_DONE);
-		priv->queue_buf[slot] = NULL;
+		if (!is_continuous_transfer(priv) || ((priv->state == RUNNING)
+			&& !list_empty(&priv->capture))) {
+			priv->queue_buf[slot]->v4l2_buf.field =
+						 priv->field;
+			priv->queue_buf[slot]->v4l2_buf.sequence =
+						 priv->sequence++;
+			do_gettimeofday(&priv->queue_buf[slot]->
+						v4l2_buf.timestamp);
+			vb2_buffer_done(priv->queue_buf[slot],
+						 VB2_BUF_STATE_DONE);
+			priv->queue_buf[slot] = NULL;
 
-		if (priv->state != STOPPING)
 			can_run = rcar_vin_fill_hw_slot(priv);
+		}
 
 		if (is_continuous_transfer(priv)) {
 			if (hw_stopped)
