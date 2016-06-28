@@ -1,7 +1,7 @@
 /*
  * SuperH MSIOF SPI Master Interface
  *
- * Copyright (C) 2014-2015 Renesas Electronics Corporation
+ * Copyright (C) 2014-2016 Renesas Electronics Corporation
  * Copyright (c) 2009 Magnus Damm
  * Copyright (C) 2014 Glider bvba
  *
@@ -38,9 +38,6 @@
 #include <linux/spi/spi.h>
 
 #include <asm/unaligned.h>
-
-#undef HZ
-#define HZ MAX_SCHEDULE_TIMEOUT
 
 struct sh_msiof_chipdata {
 	u16 tx_fifo_size;
@@ -634,6 +631,9 @@ static int sh_msiof_spi_txrx_once(struct sh_msiof_spi_priv *p,
 {
 	int fifo_shift;
 	int ret;
+	unsigned long timeout;
+
+	timeout = (p->mode == SPI_MSIOF_MASTER) ? HZ : MAX_SCHEDULE_TIMEOUT;
 
 	/* limit maximum word transfer to rx/tx fifo size */
 	if (tx_buf)
@@ -668,7 +668,7 @@ static int sh_msiof_spi_txrx_once(struct sh_msiof_spi_priv *p,
 	}
 
 	/* wait for tx fifo to be emptied / rx fifo to be filled */
-	ret = wait_for_completion_timeout(&p->done, HZ);
+	ret = wait_for_completion_timeout(&p->done, timeout);
 	if (!ret) {
 		dev_err(&p->pdev->dev, "PIO timeout\n");
 		ret = -ETIMEDOUT;
@@ -720,6 +720,9 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 	struct dma_async_tx_descriptor *desc_tx = NULL, *desc_rx = NULL;
 	dma_cookie_t cookie;
 	int ret;
+	unsigned long timeout;
+
+	timeout = (p->mode == SPI_MSIOF_MASTER) ? HZ : MAX_SCHEDULE_TIMEOUT;
 
 	/* 1 stage FIFO watermarks for DMA */
 	sh_msiof_write(p, FCTR, FCTR_TFWM_1 | FCTR_RFWM_1);
@@ -782,8 +785,7 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 
 	/* wait for Tx/Rx DMA completion */
 	if (tx) {
-		ret = wait_for_completion_timeout(&p->done_dma_tx,
-							MAX_SCHEDULE_TIMEOUT);
+		ret = wait_for_completion_timeout(&p->done_dma_tx, timeout);
 		if (!ret) {
 			dev_err(&p->pdev->dev, "Tx DMA timeout\n");
 			ret = -ETIMEDOUT;
@@ -794,7 +796,7 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 			sh_msiof_write(p, IER, ier_bits);
 
 			/* wait for tx fifo to be emptied */
-			if (!wait_for_completion_timeout(&p->done, HZ)) {
+			if (!wait_for_completion_timeout(&p->done, timeout)) {
 				dev_err(&p->pdev->dev,
 					"Tx fifo to be emptied timeout\n");
 				ret = -ETIMEDOUT;
@@ -803,8 +805,7 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 		}
 	}
 	if (rx) {
-		ret = wait_for_completion_timeout(&p->done_dma_rx,
-							MAX_SCHEDULE_TIMEOUT);
+		ret = wait_for_completion_timeout(&p->done_dma_rx, timeout);
 		if (!ret) {
 			dev_err(&p->pdev->dev, "Rx DMA timeout\n");
 			ret = -ETIMEDOUT;
