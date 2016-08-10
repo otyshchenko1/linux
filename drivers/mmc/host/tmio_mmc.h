@@ -51,6 +51,29 @@
 #define CTL_CLK_AND_WAIT_CTL 0x138
 #define CTL_RESET_SDIO 0x1e0
 
+#ifdef CONFIG_MMC_SDHI_SEQ
+#define DM_CM_SEQ_REGSET	0x800
+#define DM_CM_SEQ_MODE		0x808
+#define DM_CM_SEQ_CTRL		0x810
+#define DM_CM_DTRAN_MODE	0x820
+#define DM_CM_DTRAN_CTRL	0x828
+#define DM_CM_RST		0x830
+#define DM_CM_INFO1		0x840
+#define DM_CM_INFO1_MASK	0x848
+#define DM_CM_INFO2		0x850
+#define DM_CM_INFO2_MASK	0x858
+#define DM_CM_TUNING_STAT	0x860
+#define DM_CM_SEQ_STAT		0x868
+#define DM_DTRAN_ADDR		0x880
+#define DM_SEQ_CMD		0x8a0
+#define DM_SEQ_ARG		0x8a8
+#define DM_SEQ_SIZE		0x8b0
+#define DM_SEQ_SECCNT		0x8b8
+#define DM_SEQ_RSP		0x8c0
+#define DM_SEQ_RSP_CHK		0x8c8
+#define DM_SEQ_ADDR		0x8d0
+#endif
+
 /* Definitions for values the CTRL_STATUS register can take. */
 #define TMIO_STAT_CMDRESPEND    BIT(0)
 #define TMIO_STAT_DATAEND       BIT(2)
@@ -78,6 +101,14 @@
 #define TMIO_STAT_CMD_BUSY      BIT(30)
 #define TMIO_STAT_ILL_ACCESS    BIT(31)
 
+#ifdef CONFIG_MMC_SDHI_SEQ
+/* Definitions for values the DM_CM_INFO1 register can take. */
+#define DM_CM_INFO_SEQEND	0x00000001
+#define DM_CM_INFO_SEQSUSPEND	0x00000100
+#define DM_CM_INFO_DTRAEND_CH0	0x00010000
+#define DM_CM_INFO_DTRAEND_CH1	0x00020000
+#endif
+
 #define	CLK_CTL_DIV_MASK	0xff
 #define	CLK_CTL_SCLKEN		BIT(8)
 
@@ -100,6 +131,13 @@
 
 struct tmio_mmc_data;
 struct tmio_mmc_host;
+
+#ifdef CONFIG_MMC_SDHI_PRE_REQ
+enum tmio_cookie {
+	COOKIE_UNMAPPED,
+	COOKIE_PRE_MAPPED,
+};
+#endif
 
 struct tmio_mmc_dma {
 	enum dma_slave_buswidth dma_buswidth;
@@ -136,6 +174,9 @@ struct tmio_mmc_host {
 	struct dma_chan		*chan_tx;
 	struct tasklet_struct	dma_complete;
 	struct tasklet_struct	dma_issue;
+#ifdef CONFIG_MMC_SDHI_SEQ
+	struct tasklet_struct	seq_complete;
+#endif
 	struct scatterlist	bounce_sg;
 	u8			*bounce_buf;
 
@@ -208,6 +249,9 @@ void tmio_mmc_enable_dma(struct tmio_mmc_host *host, bool enable);
 void tmio_mmc_request_dma(struct tmio_mmc_host *host, struct tmio_mmc_data *pdata);
 void tmio_mmc_release_dma(struct tmio_mmc_host *host);
 void tmio_mmc_abort_dma(struct tmio_mmc_host *host);
+#ifdef CONFIG_MMC_SDHI_SEQ
+void tmio_mmc_start_sequencer(struct tmio_mmc_host *host);
+#endif
 #else
 static inline void tmio_mmc_start_dma(struct tmio_mmc_host *host,
 			       struct mmc_data *data)
@@ -284,5 +328,17 @@ static inline void sd_ctrl_write32_as_16_and_16(struct tmio_mmc_host *host, int 
 }
 
 extern void mmc_set_initial_state(struct mmc_host *host);
+
+#ifdef CONFIG_MMC_SDHI_SEQ
+static inline u64 tmio_dm_read(struct tmio_mmc_host *host, int addr)
+{
+	return readq(host->ctl + addr);
+}
+
+static inline void tmio_dm_write(struct tmio_mmc_host *host, int addr, u64 val)
+{
+	writeq(val, host->ctl + addr);
+}
+#endif
 
 #endif

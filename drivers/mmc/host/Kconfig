@@ -578,6 +578,16 @@ config MMC_SDHI_PIO
 	  When switching the transfer mode from DMA to PIO, say Y here.
 	  When switching the transfer mode from PIO to DMA, say N here.
 
+config MMC_SDHI_PRE_REQ
+	bool "SDHI pre_req/post_req API support"
+	depends on MMC_SDHI && ARM64
+	default y
+
+config MMC_SDHI_SEQ
+	bool "SDHI Sequencer read/write support"
+	depends on MMC_SDHI && ARM64
+	default y
+
 config MMC_CB710
 	tristate "ENE CB710 MMC/SD Interface support"
 	depends on PCI

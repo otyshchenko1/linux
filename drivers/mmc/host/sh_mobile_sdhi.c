@@ -110,8 +110,22 @@ static const struct sh_mobile_sdhi_of_data of_rcar_gen3_compatible = {
 			  MMC_CAP_CMD23,
 	.bus_shift	= 2,
 	/* Gen3 SDHI DMAC can handle 0xffffffff blk count, but seg = 1 */
+#ifdef CONFIG_MMC_SDHI_SEQ
+	/* Gen3 SDHI SEQ can handle 0xffffffff/DM_SEQ_SIZE blk count */
+	.max_blk_count  = 0xffffffff / 512,
+	/* Gen3 SDHI SEQ can handle max 8 commands */
+#ifdef CONFIG_MMC_BLOCK_BOUNCE
+	/* (CMD23+CMD18)*1 + (dummy read command) */
+	.max_segs = 1,
+#else
+	/* (CMD23+CMD18)*3 + (dummy read command) */
+	.max_segs = 3,
+#endif
+#else //CONFIG_MMC_SDHI_SEQ
+	/* Gen3 SDHI DMAC can handle 0xffffffff blk count, but seg = 1 */
 	.max_blk_count	= 0xffffffff,
 	.max_segs = 1,
+#endif //CONFIG_MMC_SDHI_SEQ
 	.sdbuf_64bit = true,
 	.scc_offset = 0x1000,
 	.taps = rcar_gen3_scc_taps,
