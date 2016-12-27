@@ -1091,6 +1091,7 @@
 			phy-mode = "rgmii-id";
 			#address-cells = <1>;
 			#size-cells = <0>;
+			iommus = <&ipmmu_ds0 16>;
 		};
 
 		can0: can@e6c30000 {
@@ -2028,6 +2029,7 @@
 			sd-uhs-sdr104;
 			renesas,mmc-scc-tapnum = <8>;
 			status = "disabled";
+			iommus = <&ipmmu_sy 0>;
 		};
 
 		sdhi1: sd@ee120000 {
@@ -2042,6 +2044,7 @@
 			sd-uhs-sdr104;
 			renesas,mmc-scc-tapnum = <8>;
 			status = "disabled";
+			/*iommus = <&ipmmu_sy 1>;*/
 		};
 
 		sdhi2: sd@ee140000 {
@@ -2056,6 +2059,7 @@
 			sd-uhs-sdr104;
 			renesas,mmc-scc-tapnum = <8>;
 			status = "disabled";
+			/*iommus = <&ipmmu_sy 2>;*/
 		};
 
 		sdhi3: sd@ee160000 {
@@ -2070,6 +2074,7 @@
 			sd-uhs-sdr104;
 			renesas,mmc-scc-tapnum = <8>;
 			status = "disabled";
+			iommus = <&ipmmu_sy 3>;
 		};
 
 		mmc0: mmc@ee140000 {

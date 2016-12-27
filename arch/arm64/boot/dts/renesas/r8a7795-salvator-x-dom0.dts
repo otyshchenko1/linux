@@ -1122,3 +1122,23 @@
 &vspi2 {
 	status = "okay";
 };
+
+&ipmmu_mp1 {
+	status = "okay";
+};
+
+&ipmmu_ds0 {
+	status = "okay";
+};
+
+&ipmmu_ds1 {
+	status = "okay";
+};
+
+&ipmmu_sy {
+	status = "okay";
+};
+
+&ipmmu_mm {
+	status = "okay";
+};
