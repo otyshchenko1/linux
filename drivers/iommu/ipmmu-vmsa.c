@@ -931,6 +931,9 @@ static int ipmmu_map(struct iommu_domain *io_domain, unsigned long iova,
 	if (!domain)
 		return -ENODEV;
 
+	dev_err(domain->mmu->dev, "%s[%d]: iova 0x%08x paddr 0x%08x size 0x%08x\n",
+			__func__, __LINE__, iova, (unsigned long)paddr, (unsigned long)size);
+
 	return domain->iop->map(domain->iop, iova, paddr, size, prot);
 }
 
@@ -939,17 +942,26 @@ static size_t ipmmu_unmap(struct iommu_domain *io_domain, unsigned long iova,
 {
 	struct ipmmu_vmsa_domain *domain = to_vmsa_domain(io_domain);
 
-	return domain->iop->unmap(domain->iop, iova, size);
+	dev_err(domain->mmu->dev, "%s[%d]: iova 0x%08x paddr 0x%08x size 0x%08x\n",
+			__func__, __LINE__, iova, 0, size);
+
+	return domain->iop->unmap(domain->iop, iova, (unsigned long)size);
 }
 
 static phys_addr_t ipmmu_iova_to_phys(struct iommu_domain *io_domain,
 				      dma_addr_t iova)
 {
+	phys_addr_t paddr;
 	struct ipmmu_vmsa_domain *domain = to_vmsa_domain(io_domain);
 
 	/* TODO: Is locking needed ? */
 
-	return domain->iop->iova_to_phys(domain->iop, iova);
+	paddr = domain->iop->iova_to_phys(domain->iop, iova);
+
+	dev_err(domain->mmu->dev, "%s[%d]: iova 0x%08x paddr 0x%08x size 0x%08x\n",
+			__func__, __LINE__, iova, (unsigned long)paddr, 0);
+
+	return paddr;
 }
 
 static struct device *ipmmu_find_sibling_device(struct device *dev)
@@ -1453,6 +1465,8 @@ static int ipmmu_probe(struct platform_device *pdev)
 	spin_unlock(&ipmmu_devices_lock);
 
 	platform_set_drvdata(pdev, mmu);
+
+	dev_err(&pdev->dev, "registered\n");
 
 	return 0;
 }
