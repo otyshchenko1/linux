@@ -23,6 +23,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/iommu.h>
 
 #include "../dmaengine.h"
 
@@ -891,6 +892,7 @@ rcar_dmac_chan_prep_sg(struct rcar_dmac_chan *chan, struct scatterlist *sgl,
 	unsigned int full_size = 0;
 	bool highmem = false;
 	unsigned int i;
+	struct iommu_domain *domain = iommu_get_domain_for_dev(chan->chan.device->dev);
 
 	desc = rcar_dmac_desc_get(chan);
 	if (!desc)
@@ -913,6 +915,7 @@ rcar_dmac_chan_prep_sg(struct rcar_dmac_chan *chan, struct scatterlist *sgl,
 	for_each_sg(sgl, sg, sg_len, i) {
 		dma_addr_t mem_addr = sg_dma_address(sg);
 		unsigned int len = sg_dma_len(sg);
+		phys_addr_t phys_addr;
 
 		full_size += len;
 
@@ -953,6 +956,29 @@ rcar_dmac_chan_prep_sg(struct rcar_dmac_chan *chan, struct scatterlist *sgl,
 			}
 
 			chunk->size = size;
+
+			if (domain) {
+				phys_addr = iommu_iova_to_phys(domain, chunk->src_addr);
+
+				if (!phys_addr) {
+					dev_notice(chan->chan.device->dev,
+							"map %pad -> %pad len %u\n",
+							&chunk->src_addr, &chunk->src_addr, chunk->size);
+
+					iommu_map(domain, chunk->src_addr, chunk->src_addr,
+							chunk->size, IOMMU_READ | IOMMU_WRITE);
+				}
+
+				phys_addr = iommu_iova_to_phys(domain, chunk->dst_addr);
+				if (!phys_addr) {
+					dev_notice(chan->chan.device->dev,
+							"map %pad -> %pad len %u\n",
+							&chunk->dst_addr, &chunk->dst_addr, chunk->size);
+
+					iommu_map(domain, chunk->dst_addr, chunk->dst_addr,
+							chunk->size, IOMMU_READ | IOMMU_WRITE);
+				}
+			}
 
 			dev_dbg(chan->chan.device->dev,
 				"chan%u: chunk %p/%p sgl %u@%p, %u/%u %pad -> %pad\n",
