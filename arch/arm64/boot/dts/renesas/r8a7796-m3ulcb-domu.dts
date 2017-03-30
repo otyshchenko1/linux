@@ -1,10 +1,15 @@
 /dts-v1/;
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include "r8a779x-coproc.dtsi"
+//#include "r8a779x-coproc.dtsi"
 
 / {
-	soc {
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	passthrough {
+		compatible = "simple-bus";
+		ranges;
 		#address-cells = <2>;
 		#size-cells = <2>;
 
@@ -14,11 +19,6 @@
 			interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
 //			clocks = <&cpg CPG_MOD 112>;
 //			power-domains = <&sysc R8A7796_PD_3DG_B>;
-			xen,coproc;
 		};
-	};
-
-	/* make XEN happy */
-	passthrough {
 	};
 };
