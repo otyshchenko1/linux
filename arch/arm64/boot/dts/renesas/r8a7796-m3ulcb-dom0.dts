@@ -25,7 +25,7 @@
 	};
 
 	chosen {
-		bootargs = "dom0_mem=256M console=dtuart dtuart=serial0 dom0_max_vcpus=4 bootscrub=0 flask_enforcing=1 loglvl=all";
+		bootargs = "dom0_mem=512M console=dtuart dtuart=serial0 dom0_max_vcpus=4 bootscrub=0 flask_enforcing=1 loglvl=all";
 		//xen,dom0-bootargs = "console=hvc0 root=/dev/mmcblk1p1 rw rootwait rootfstype=ext4 ignore_loglevel cma=128M";
 		xen,dom0-bootargs = "console=hvc0 root=/dev/nfs nfsroot=192.168.1.1:/tftpboot/dom0-rootfs ip=192.168.1.21 rw rootwait rootfstype=ext4 ignore_loglevel cma=64M";
 		modules {
@@ -512,9 +512,15 @@
 
 &ehci1 {
 	status = "okay";
+	iommus = <&ipmmu_hc 4>, <&ipmmu_hc 5>;
 };
 
 &ohci1 {
+	status = "okay";
+	iommus = <&ipmmu_hc 4>, <&ipmmu_hc 5>;
+};
+
+&ipmmu_hc {
 	status = "okay";
 };
 
@@ -549,7 +555,6 @@
 };
 
 &gsx {
-	xen,passthrough;
 	iommus = <&ipmmu_pv0 0>, <&ipmmu_pv0 1>,
 			 <&ipmmu_pv0 2>, <&ipmmu_pv0 3>,
 			 <&ipmmu_pv0 4>, <&ipmmu_pv0 5>,
@@ -558,7 +563,6 @@
 
 /* keep it while we can handle only one ipmmu per device */
 &gsx1 {
-	xen,passthrough;
 	iommus = <&ipmmu_pv1 0>, <&ipmmu_pv1 1>,
 			 <&ipmmu_pv1 2>, <&ipmmu_pv1 3>,
 			 <&ipmmu_pv1 4>, <&ipmmu_pv1 5>,
