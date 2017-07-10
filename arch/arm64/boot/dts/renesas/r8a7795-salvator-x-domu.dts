@@ -3,7 +3,13 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 / {
-	soc {
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	passthrough {
+		compatible = "simple-bus";
+		ranges;
+
 		#address-cells = <2>;
 		#size-cells = <2>;
 
@@ -14,9 +20,5 @@
 			/*clocks = <&cpg CPG_MOD 112>;*/
 			/*power-domains = <&sysc R8A7795_PD_3DG_E>;*/
 		};
-	};
-
-	/* keep this to make XEN happy */
-	passthrough {
 	};
 };
