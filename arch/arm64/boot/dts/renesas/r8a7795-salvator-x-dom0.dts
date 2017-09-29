@@ -71,6 +71,54 @@
 			  <0x7 0x00000000 0x0 0x40000000>;
 	};
 
+	mailbox: mailbox@0 {
+		compatible = "arm,smc-mbox";
+		#mbox-cells = <1>;
+		arm,func-ids = <0x82000001>, <0x82000002>;
+		method = "smc";
+	};
+
+	sram: sram@47FFF000 {
+		compatible = "mmio-sram";
+		/*compatible = "renesas,rcar-sram-ns", "mmio-sram";*/
+		reg = <0x0 0x47FFF000 0x0 0x1000>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x0 0x47FFF000 0x1000>;
+
+		scp_shmem: scp_shmem@0 {
+			compatible = "mmio-sram";
+			/*compatible = "renesas,rcar-scp-shmem";*/
+			reg = <0x0 0x200>;
+		};
+	};
+
+	scpi {
+		compatible = "arm,scpi";
+		mboxes = <&mailbox 0>;
+		shmem = <&scp_shmem>;
+
+		clocks {
+			compatible = "arm,scpi-clocks";
+
+			scpi_dvfs: scpi_dvfs@0 {
+				compatible = "arm,scpi-dvfs-clocks";
+				#clock-cells = <1>;
+				clock-indices = <0>, <1>;
+				clock-output-names = "cpu_a57_clk", "cpu_a53_clk";
+			};
+
+			scpi_clk: scpi_clk@0 {
+				compatible = "arm,scpi-variable-clocks";
+				#clock-cells = <1>;
+				clock-indices = <2>;
+				clock-output-names = "gpu_clk";
+			};
+		};
+	};
+
+
 	avb-mch {
 		compatible = "renesas,avb-mch-gen3";
 		reg =	<0 0xec5a0100 0 0x100>;  /* ADG_AVB */
