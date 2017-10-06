@@ -355,6 +355,35 @@
 
 &a57_0 {
 	cpu-supply = <&vdd_dvfs>;
+	clocks = <&scpi_dvfs 0>;
+};
+
+&a57_1 {
+	clocks = <&scpi_dvfs 0>;
+};
+
+&a57_2 {
+	clocks = <&scpi_dvfs 0>;
+};
+
+&a57_3 {
+	clocks = <&scpi_dvfs 0>;
+};
+
+&a53_0 {
+	/delete-property/clocks;
+};
+
+&a53_1 {
+	/delete-property/clocks;
+};
+
+&a53_2 {
+	/delete-property/clocks;
+};
+
+&a53_3 {
+	/delete-property/clocks;
 };
 
 &pwm1 {
