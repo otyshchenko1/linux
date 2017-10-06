@@ -362,7 +362,36 @@
 };
 
 &a57_0 {
+	clocks = <&scpi_dvfs 0>;
 	cpu-supply = <&vdd_dvfs>;
+};
+
+&a57_1 {
+	clocks = <&scpi_dvfs 0>;
+};
+
+&a57_2 {
+	clocks = <&scpi_dvfs 0>;
+};
+
+&a57_3 {
+	clocks = <&scpi_dvfs 0>;
+};
+
+&a53_0 {
+	clocks = <&scpi_dvfs 1>;
+};
+
+&a53_1 {
+	clocks = <&scpi_dvfs 1>;
+};
+
+&a53_2 {
+	clocks = <&scpi_dvfs 1>;
+};
+
+&a53_3 {
+	clocks = <&scpi_dvfs 1>;
 };
 
 &pwm1 {
