@@ -362,8 +362,38 @@
 };
 
 &a57_0 {
-	cpu-supply = <&vdd_dvfs>;
+	clocks = <&scpi_dvfs 0>;
 };
+
+&a57_1 {
+	clocks = <&scpi_dvfs 0>;
+};
+
+&a57_2 {
+	clocks = <&scpi_dvfs 0>;
+};
+
+&a57_3 {
+	clocks = <&scpi_dvfs 0>;
+};
+
+&a53_0 {
+	/delete-property/clocks;
+};
+
+&a53_1 {
+	/delete-property/clocks;
+};
+
+&a53_2 {
+	/delete-property/clocks;
+};
+
+&a53_3 {
+	/delete-property/clocks;
+};
+
+/delete-node/&avs_sensor;
 
 &pwm1 {
 	pinctrl-0 = <&pwm1_pins>;
@@ -858,22 +888,6 @@
 
 &audio_clk_a {
 	clock-frequency = <22579200>;
-};
-
-&i2c_dvfs {
-	status = "okay";
-
-	clock-frequency = <400000>;
-
-	vdd_dvfs: regulator@30 {
-		compatible = "rohm,bd9571mwv";
-		reg = <0x30>;
-
-		regulator-min-microvolt = <750000>;
-		regulator-max-microvolt = <1030000>;
-		regulator-boot-on;
-		regulator-always-on;
-	};
 };
 
 &avb {
