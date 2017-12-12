@@ -270,9 +270,7 @@
 	};
 };
 
-&a57_0 {
-	cpu-supply = <&vdd_dvfs>;
-};
+/delete-node/&avs_sensor;
 
 &pwm1 {
 	pinctrl-0 = <&pwm1_pins>;
@@ -737,22 +735,6 @@
 
 &audio_clk_a {
 	clock-frequency = <22579200>;
-};
-
-&i2c_dvfs {
-	status = "okay";
-
-	clock-frequency = <400000>;
-
-	vdd_dvfs: regulator@30 {
-		compatible = "rohm,bd9571mwv";
-		reg = <0x30>;
-
-		regulator-min-microvolt = <750000>;
-		regulator-max-microvolt = <1030000>;
-		regulator-boot-on;
-		regulator-always-on;
-	};
 };
 
 &wdt0 {
