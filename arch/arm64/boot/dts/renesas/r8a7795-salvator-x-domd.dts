@@ -58,6 +58,9 @@
 		// scif2 is used by XEN, drop it
 
 		/delete-node/serial@e6e88000;
+
+		/* Thermal is not under Linux control */
+		/delete-node/thermal-zones;
 	};
 
 	passthrough {
@@ -1070,4 +1073,16 @@
 
 &audma1 {
 	/delete-property/iommus;
+};
+
+&tsc1 {
+	status = "disabled";
+};
+
+&tsc2 {
+	status = "disabled";
+};
+
+&tsc3 {
+	status = "disabled";
 };
