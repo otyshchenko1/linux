@@ -51,6 +51,9 @@
 	soc {
 		//this must point to Xen interrupt-parent
 		interrupt-parent = <PHANDLE_GIC>;
+
+		/* Thermal is not under Linux control */
+		/delete-node/thermal-zones;
 	};
 
 	passthrough {
@@ -979,3 +982,14 @@
 	status = "disabled";
 };
 
+&tsc1 {
+	status = "disabled";
+};
+
+&tsc2 {
+	status = "disabled";
+};
+
+&tsc3 {
+	status = "disabled";
+};
