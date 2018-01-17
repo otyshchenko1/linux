@@ -46,57 +46,26 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel";
-		stdout-path = "serial0:115200n8";
+		bootargs = "dom0_mem=192M console=dtuart dtuart=serial0 dom0_max_vcpus=2 bootscrub=0 flask_enforcing=1 loglvl=all";
+		xen,dom0-bootargs = "console=hvc0 ignore_loglevel";
+		modules {
+			#address-cells = <2>;
+			#size-cells = <2>;
+			module@1 {
+				compatible = "xen,linux-zimage", "xen,multiboot-module";
+				reg = <0x0 0x7a000000 0x0 0x02000000>;
+			};
+			module@2 {
+				compatible = "xen,xsm-policy", "xen,multiboot-module";
+				reg = <0x0 0x7c000000 0x0 0x10000>;
+			};
+		};
 	};
 
 	memory@48000000 {
 		device_type = "memory";
 		/* first 128MB is reserved for secure area. */
 		reg = <0x0 0x48000000 0x0 0x78000000>;
-	};
-
-	reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-
-		/* device specific region for Lossy Decompression */
-		lossy_decompress: linux,lossy_decompress {
-			no-map;
-			reg = <0x00000000 0x54000000 0x0 0x03000000>;
-		};
-
-		/* For Audio DSP */
-		adsp_reserved: linux,adsp {
-			compatible = "shared-dma-pool";
-			reusable;
-			reg = <0x00000000 0x57000000 0x0 0x01000000>;
-		};
-
-		/* global autoconfigured region for contiguous allocations */
-		linux,cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			reg = <0x00000000 0x58000000 0x0 0x18000000>;
-			linux,cma-default;
-		};
-
-		/* device specific region for contiguous allocations */
-		mmp_reserved: linux,multimedia {
-			compatible = "shared-dma-pool";
-			reusable;
-			reg = <0x00000000 0x70000000 0x0 0x10000000>;
-		};
-	};
-
-	mmngr {
-		compatible = "renesas,mmngr";
-		memory-region = <&mmp_reserved>, <&lossy_decompress>;
-	};
-
-	mmngrbuf {
-		compatible = "renesas,mmngrbuf";
 	};
 
 	avb-mch {
@@ -525,11 +494,6 @@
 		groups = "usb1";
 		function = "usb1";
 	};
-};
-
-&adsp {
-	status = "okay";
-	memory-region = <&adsp_reserved>;
 };
 
 &scif1 {
@@ -1002,3 +966,208 @@
 &vspi0 {
 	status = "okay";
 };
+
+&vspb {
+	iommus = <&ipmmu_vp0 5>;	/* FCP-VB ch0 */
+};
+
+&vspi0 {
+	iommus = <&ipmmu_vp0 8>;	/* FCP-VI ch0 */
+};
+
+&sata {
+	iommus = <&ipmmu_hc 2>;
+};
+
+&sdhi0 {
+	iommus = <&ipmmu_ds1 32>;
+};
+
+&sdhi2 {
+	iommus = <&ipmmu_ds1 34>;
+};
+
+&sdhi3 {
+	iommus = <&ipmmu_ds1 35>;
+};
+
+&avb {
+	iommus = <&ipmmu_ds0 16>;
+};
+
+&xhci0 {
+	iommus = <&ipmmu_hc 12>,	/* Host ch0 */
+			 <&ipmmu_hc 13>;	/* Peripheral ch0 */
+};
+
+&ehci0 {
+	iommus = <&ipmmu_hc 4>;
+};
+
+&ehci1 {
+	iommus = <&ipmmu_hc 5>;
+};
+
+&ohci0 {
+	iommus = <&ipmmu_hc 4>;
+};
+
+&ohci1 {
+	iommus = <&ipmmu_hc 5>;
+};
+
+&usb_dmac0 {
+	iommus = <&ipmmu_hc 9>;
+};
+
+&usb_dmac1 {
+	iommus = <&ipmmu_hc 10>;
+};
+
+&fdp0 {
+	iommus = <&ipmmu_vp0 0>;	/* FCP-F ch0 */
+};
+
+&fcpvd0 {
+	iommus = <&ipmmu_vi0 8>;	/* FCP-VD ch0 */
+};
+
+&fcpvd1 {
+	iommus = <&ipmmu_vi0 9>;	/* FCP-VD ch1 */
+};
+
+&hdmi0 {
+	iommus = <&ipmmu_vi0 12>;
+};
+
+&ipmmu_vi0 {
+	status = "okay";
+};
+
+&ipmmu_vp0 {
+	compatible = "renesas,ipmmu-r8a77965";
+	status = "okay";
+};
+
+&ipmmu_vc0 {
+	compatible = "renesas,ipmmu-r8a77965";
+	status = "okay";
+};
+
+&ipmmu_pv0 {
+	status = "okay";
+};
+
+&ipmmu_ir {
+	status = "okay";
+};
+
+&ipmmu_hc {
+	status = "okay";
+};
+
+&ipmmu_rt {
+	status = "okay";
+};
+
+&ipmmu_mp {
+	status = "okay";
+};
+
+&ipmmu_ds0 {
+	status = "okay";
+};
+
+&ipmmu_ds1 {
+	status = "okay";
+};
+
+&ipmmu_mm {
+	status = "okay";
+};
+
+&gsx {
+	xen,coproc;
+};
+
+/* ============================ Xen pass through section ============================ */
+
+&csi2_20       { xen,passthrough; };
+&csi2_40       { xen,passthrough; };
+&du            { xen,passthrough; };
+&usb_dmac0     { xen,passthrough; };
+&usb_dmac1     { xen,passthrough; };
+&dmac0         { xen,passthrough; };
+&dmac1         { xen,passthrough; };
+&dmac2         { xen,passthrough; };
+&audma0        { xen,passthrough; };
+&audma1        { xen,passthrough; };
+&avb           { xen,passthrough; };
+&fdp0          { xen,passthrough; };
+&gpio0         { xen,passthrough; };
+&gpio1         { xen,passthrough; };
+&gpio2         { xen,passthrough; };
+&gpio3         { xen,passthrough; };
+&gpio4         { xen,passthrough; };
+&gpio5         { xen,passthrough; };
+&gpio6         { xen,passthrough; };
+&gpio7         { xen,passthrough; };
+&hdmi0         { xen,passthrough; };
+&i2c_dvfs      { xen,passthrough; };
+&i2c2          { xen,passthrough; };
+&i2c4          { xen,passthrough; };
+&intc_ex       { xen,passthrough; };
+&mfis_as       { xen,passthrough; };
+&pciec1        { xen,passthrough; };
+&pciec0        { xen,passthrough; };
+&sdhi0         { xen,passthrough; };
+&sdhi2         { xen,passthrough; };
+&sdhi3         { xen,passthrough; };
+&scif1         { xen,passthrough; };
+&src0          { xen,passthrough; };
+&src1          { xen,passthrough; };
+&src2          { xen,passthrough; };
+&src3          { xen,passthrough; };
+&src4          { xen,passthrough; };
+&src5          { xen,passthrough; };
+&src6          { xen,passthrough; };
+&src7          { xen,passthrough; };
+&src8          { xen,passthrough; };
+&src9          { xen,passthrough; };
+&ssi0          { xen,passthrough; };
+&ssi1          { xen,passthrough; };
+&ssi2          { xen,passthrough; };
+&ssi3          { xen,passthrough; };
+&ssi4          { xen,passthrough; };
+&ssi5          { xen,passthrough; };
+&ssi6          { xen,passthrough; };
+&ssi7          { xen,passthrough; };
+&ssi8          { xen,passthrough; };
+&ssi9          { xen,passthrough; };
+&tsc1          { xen,passthrough; };
+&tsc2          { xen,passthrough; };
+&tsc3          { xen,passthrough; };
+&usb2_phy0     { xen,passthrough; };
+&hsusb         { xen,passthrough; };
+&xhci0         { xen,passthrough; };
+&usb3_peri0    { xen,passthrough; };
+&ohci0         { xen,passthrough; };
+&ehci0         { xen,passthrough; };
+&ohci1         { xen,passthrough; };
+&ehci1         { xen,passthrough; };
+&vdpb          { xen,passthrough; };
+&vcplf         { xen,passthrough; };
+&vin0          { xen,passthrough; };
+&vin1          { xen,passthrough; };
+&vin2          { xen,passthrough; };
+&vin3          { xen,passthrough; };
+&vin4          { xen,passthrough; };
+&vin5          { xen,passthrough; };
+&vin6          { xen,passthrough; };
+&vin7          { xen,passthrough; };
+&vspd0         { xen,passthrough; };
+&vspd1         { xen,passthrough; };
+&vspb          { xen,passthrough; };
+&vspi0         { xen,passthrough; };
+&fcpvd0        { xen,passthrough; };
+&fcpvd1        { xen,passthrough; };
