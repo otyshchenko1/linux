@@ -865,8 +865,8 @@
 	status = "okay";
 };
 
-&pciec1 {
-	/* Please use exclusively to sata node */
+&sata {
+	/* Please use exclusively to pciec1 node */
 	status = "okay";
 };
 

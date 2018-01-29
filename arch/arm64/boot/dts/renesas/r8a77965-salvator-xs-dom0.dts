@@ -660,7 +660,7 @@
 
 &sata {
 	/* Please use exclusively to pciec1 node */
-	/* status = "okay"; */
+	status = "okay";
 };
 
 &sdhi0 {
@@ -884,7 +884,7 @@
 
 &pciec1 {
 	/* Please use exclusively to sata node */
-	status = "okay";
+	/* status = "okay"; */
 };
 
 &vin0 {
@@ -1118,7 +1118,7 @@
 &i2c4          { xen,passthrough; };
 &intc_ex       { xen,passthrough; };
 &mfis_as       { xen,passthrough; };
-&pciec1        { xen,passthrough; };
+&sata          { xen,passthrough; };
 &pciec0        { xen,passthrough; };
 &sdhi0         { xen,passthrough; };
 &sdhi2         { xen,passthrough; };
