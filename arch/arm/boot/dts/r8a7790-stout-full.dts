@@ -455,7 +455,8 @@
 */
 
 	renesas,no-ether-link;
-	renesas,phy = <7>;
+	renesas,phy = <4>;
+	renesas,phy_alt = <0>;
 	phy-int-gpio = <&gpio2 15 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
@@ -725,7 +726,7 @@
 };
 
 &pciec {
-	status = "okay";
+	/*status = "okay";*/
 };
 
 &can0 {
@@ -771,5 +772,9 @@
 &pwm4 {
 	pinctrl-0 = <&pwm4_pins>;
 	pinctrl-names = "default";
+	status = "okay";
+};
+
+&sata1 {
 	status = "okay";
 };
