@@ -25,6 +25,7 @@
 #include <asm/cpuidle.h>
 #include <asm/proc-fns.h>
 #include <asm/smp_plat.h>
+#include <asm/psci.h>
 #include <asm/suspend.h>
 #include <mach/platsmp-apmu.h>
 #include <mach/platsmp-rst.h>
@@ -162,6 +163,13 @@ void __init shmobile_smp_apmu_prepare_cpus(unsigned int max_cpus,
 int __cpuinit shmobile_smp_apmu_boot_secondary(unsigned int cpu,
 					       struct task_struct *idle)
 {
+#if defined(CONFIG_XEN)
+	if (psci_ops.cpu_on)
+		return psci_ops.cpu_on(cpu_logical_map(cpu),
+				__pa(shmobile_invalidate_start));
+
+		return -ENODEV;
+#else
 	int ret;
 
 	/* For this particular CPU register boot vector */
@@ -170,6 +178,7 @@ int __cpuinit shmobile_smp_apmu_boot_secondary(unsigned int cpu,
 	ret = apmu_wrap(cpu, apmu_power_on);
 	r8a779x_deassert_reset(cpu);
 	return ret;
+#endif
 }
 #endif
 

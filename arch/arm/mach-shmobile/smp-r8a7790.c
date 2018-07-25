@@ -98,10 +98,12 @@ static void __init r8a7790_smp_prepare_cpus(unsigned int max_cpus)
 	rcar_sysc_power_up(&r8a7790_ca15_scu);
 	rcar_sysc_power_up(&r8a7790_ca7_scu);
 
+#if !defined(CONFIG_XEN)
 	/* keep secondary CPU cores in reset */
 	r8a779x_init_reset(r8a7790_rst_config);
 	for (k = 1; k < max_cpus; k++)
 		r8a779x_assert_reset(k);
+#endif
 
 	/* enable snoop and DVM */
 	p = ioremap_nocache(CCI_BASE, 0x8000);

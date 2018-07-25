@@ -152,13 +152,16 @@ static struct notifier_block platform_nb = {
 
 void __init r8a7790_pm_init(void)
 {
+#if !defined(CONFIG_XEN)
 	void __iomem *p;
 	u32 bar;
+#endif
 	static int once;
 
 	if (once++)
 		return;
 
+#if !defined(CONFIG_XEN)
 	/* RAM for jump stub, because BAR requires 256KB aligned address */
 	p = ioremap_nocache(RAM, shmobile_boot_size);
 	memcpy_toio(p, shmobile_boot_vector, shmobile_boot_size);
@@ -172,6 +175,7 @@ void __init r8a7790_pm_init(void)
 	writel_relaxed(bar | 0x10, p + CA15BAR);
 	writel_relaxed(bar | 0x10, p + CA7BAR);
 	iounmap(p);
+#endif
 
 	r8a7790_sysc_init();
 	shmobile_smp_apmu_suspend_init();
