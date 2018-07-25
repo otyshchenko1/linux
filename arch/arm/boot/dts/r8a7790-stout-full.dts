@@ -27,17 +27,113 @@
 	};
 
 	chosen {
-		bootargs = "console=ttySC0,38400 ignore_loglevel rw root=/dev/nfs ip=dhcp vmalloc=384M video=HDMI-A-1:1024x768-32@60";
+		xen,xen-bootargs = "dom0_mem=1G console=dtuart dtuart=serial0 dom0_max_vcpus=4 bootscrub=0 loglvl=all";
+		/* Uncomment this when using nfs as a boot device */
+		xen,dom0-bootargs = "console=hvc0 ignore_loglevel rw root=/dev/nfs nfsroot=192.168.1.100:/srv/stout,nfsvers=3 ip=192.168.1.10:192.168.1.100::255.255.255.0:stout:eth1::: vmalloc=256M clk_ignore_unused";
+		/* Uncomment this when using block device as a boot device */
+		/* xen,dom0-bootargs = "console=hvc0 ignore_loglevel rw root=/dev/mmcblk0p1 rootfstype=ext3 rootwait vmalloc=256M clk_ignore_unused"; */
+
+		modules {
+			#address-cells = <2>;
+			#size-cells = <2>;
+			module@1 {
+				compatible = "xen,linux-zimage", "xen,multiboot-module";
+				reg = <0x0 0x72000000 0x0 0x02000000>;
+			};
+			module@2 {
+				compatible = "xen,xsm-policy", "xen,multiboot-module";
+				reg = <0x0 0x74000000 0x0 0x10000>;
+			};
+		};
 	};
 
 	memory@40000000 {
 		device_type = "memory";
-		reg = <0 0x40000000 0 0x40000000>;
+		reg = <0 0x40000000 0 0x40000000>,
+			  <2 0x00000000 0 0x40000000>;
 	};
 
-	memory@200000000 {
-		device_type = "memory";
-		reg = <2 0x00000000 0 0x40000000>;
+	dummy_mmios {
+		reg = <0 0xe6160000 0 0x100>,   /* RST */
+			  <0 0xe6180000 0 0x200>,   /* SYSC */
+			  <0 0xe6080000 0 0x1000>,  /* arch timer */
+			  <0 0xe6151000 0 0x188>,   /* APMU */
+			  <0 0xe6152000 0 0x188>,
+			  <0 0xe63a0000 0 0x12000>, /* ICRAM0 */
+			  <0 0xe63c0000 0 0x1000>,  /* ICRAM1 */
+			  <0 0xe6700000 0 0x20000>, /* DMAC0 */
+			  <0 0xe6720000 0 0x20000>, /* DMAC1 */
+			  <0 0xff000044 0 0x4>,     /* PRR */
+			  <0 0xe6ef0000 0 0x1000>,  /* VIN0 */
+			  <0 0xe6ef1000 0 0x1000>,  /* VIN1 */
+			  <0 0xe6ef2000 0 0x1000>,  /* VIN2 */
+			  <0 0xe6ef3000 0 0x1000>,  /* VIN3 */
+			  <0 0xfe920000 0 0x8000>,  /* VSPR */
+			  <0 0xfe928000 0 0x8000>,  /* VSPS */
+			  <0 0xfe930000 0 0x8000>,  /* VSPD0 */
+			  <0 0xfe938000 0 0x8000>,  /* VSPD1 */
+			  <0 0xfeb00000 0 0x70000>, /* DU */
+			  <0 0xfeb90000 0 0x1c>,
+			  <0 0xfeb94000 0 0x1c>,
+			  <0 0xfd000000 0 0x10000>, /* 3DG */
+			  <0 0xfea00000 0 0xb0000>, /* 2D-DMAC */
+			  <0 0xf0090000 0 0x8000>;  /* CCI */
+	};
+
+	dummy_irqs {
+		interrupts = <0 107 IRQ_TYPE_LEVEL_HIGH>, /* HSUSB */
+					 <0 188 IRQ_TYPE_LEVEL_HIGH>, /* VIN0 */
+					 <0 189 IRQ_TYPE_LEVEL_HIGH>, /* VIN1 */
+					 <0 190 IRQ_TYPE_LEVEL_HIGH>, /* VIN2 */
+					 <0 191 IRQ_TYPE_LEVEL_HIGH>, /* VIN3 */
+					 <0 119 IRQ_TYPE_LEVEL_HIGH>, /* 3DG */
+					 <0 246 IRQ_TYPE_LEVEL_HIGH>, /* VSPD0 */
+					 <0 247 IRQ_TYPE_LEVEL_HIGH>, /* VSPD1 */
+					 <0 256 IRQ_TYPE_LEVEL_HIGH>, /* DU */
+					 <0 268 IRQ_TYPE_LEVEL_HIGH>,
+					 <0 269 IRQ_TYPE_LEVEL_HIGH>,
+					 <0 258 IRQ_TYPE_LEVEL_HIGH>, /* VCP3_VLC ch.0 */
+					 <0 259 IRQ_TYPE_LEVEL_HIGH>, /* VCP3_CE ch.0 */
+					 <0 260 IRQ_TYPE_LEVEL_HIGH>, /* VCP3_VLC ch.1 */
+					 <0 261 IRQ_TYPE_LEVEL_HIGH>, /* VCP3_CE ch.1 */
+					 <0 262 IRQ_TYPE_LEVEL_HIGH>, /* FDP1 ch.0 */
+					 <0 263 IRQ_TYPE_LEVEL_HIGH>, /* FDP1 ch.1 */
+					 <0 264 IRQ_TYPE_LEVEL_HIGH>, /* FDP1 ch.2 */
+					 <0 266 IRQ_TYPE_LEVEL_HIGH>, /* VSPR */
+					 <0 267 IRQ_TYPE_LEVEL_HIGH>, /* VSPS */
+					 <0 285 IRQ_TYPE_LEVEL_HIGH>, /* 2D-DMAC */
+					 <0 197 IRQ_TYPE_LEVEL_HIGH>, /* DMAC0 */
+					 <0 200 IRQ_TYPE_LEVEL_HIGH>, /* DMAC0 */
+					 <0 201 IRQ_TYPE_LEVEL_HIGH>, /* DMAC0 */
+					 <0 202 IRQ_TYPE_LEVEL_HIGH>, /* DMAC0 */
+					 <0 203 IRQ_TYPE_LEVEL_HIGH>, /* DMAC0 */
+					 <0 204 IRQ_TYPE_LEVEL_HIGH>, /* DMAC0 */
+					 <0 205 IRQ_TYPE_LEVEL_HIGH>, /* DMAC0 */
+					 <0 206 IRQ_TYPE_LEVEL_HIGH>, /* DMAC0 */
+					 <0 207 IRQ_TYPE_LEVEL_HIGH>, /* DMAC0 */
+					 <0 208 IRQ_TYPE_LEVEL_HIGH>, /* DMAC0 */
+					 <0 209 IRQ_TYPE_LEVEL_HIGH>, /* DMAC0 */
+					 <0 210 IRQ_TYPE_LEVEL_HIGH>, /* DMAC0 */
+					 <0 211 IRQ_TYPE_LEVEL_HIGH>, /* DMAC0 */
+					 <0 212 IRQ_TYPE_LEVEL_HIGH>, /* DMAC0 */
+					 <0 213 IRQ_TYPE_LEVEL_HIGH>, /* DMAC0 */
+					 <0 214 IRQ_TYPE_LEVEL_HIGH>, /* DMAC0 */
+					 <0 216 IRQ_TYPE_LEVEL_HIGH>, /* DMAC1 */
+					 <0 217 IRQ_TYPE_LEVEL_HIGH>, /* DMAC1 */
+					 <0 218 IRQ_TYPE_LEVEL_HIGH>, /* DMAC1 */
+					 <0 219 IRQ_TYPE_LEVEL_HIGH>, /* DMAC1 */
+					 <0 220 IRQ_TYPE_LEVEL_HIGH>, /* DMAC1 */
+					 <0 308 IRQ_TYPE_LEVEL_HIGH>, /* DMAC1 */
+					 <0 309 IRQ_TYPE_LEVEL_HIGH>, /* DMAC1 */
+					 <0 310 IRQ_TYPE_LEVEL_HIGH>, /* DMAC1 */
+					 <0 311 IRQ_TYPE_LEVEL_HIGH>, /* DMAC1 */
+					 <0 312 IRQ_TYPE_LEVEL_HIGH>, /* DMAC1 */
+					 <0 313 IRQ_TYPE_LEVEL_HIGH>, /* DMAC1 */
+					 <0 314 IRQ_TYPE_LEVEL_HIGH>, /* DMAC1 */
+					 <0 315 IRQ_TYPE_LEVEL_HIGH>, /* DMAC1 */
+					 <0 316 IRQ_TYPE_LEVEL_HIGH>, /* DMAC1 */
+					 <0 317 IRQ_TYPE_LEVEL_HIGH>, /* DMAC1 */
+					 <0 318 IRQ_TYPE_LEVEL_HIGH>; /* DMAC1 */
 	};
 
 	lbsc {
@@ -240,6 +336,11 @@
 		cpldmux-2 = <0x101 0x0>;
 	};
 };
+
+/delete-node/ &cpu4;
+/delete-node/ &cpu5;
+/delete-node/ &cpu6;
+/delete-node/ &cpu7;
 
 &extal_clk {
 	clock-frequency = <20000000>;
@@ -515,6 +616,9 @@
 	pinctrl-0 = <&scifa0_pins>;
 	pinctrl-names = "default";
 */
+
+	/delete-property/clocks;
+
 	status = "okay";
 };
 
