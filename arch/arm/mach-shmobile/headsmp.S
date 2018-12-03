@@ -22,6 +22,7 @@
 ENTRY(shmobile_invalidate_start)
 	bl	v7_invalidate_l1
 
+#if !defined(CONFIG_XEN)
 	mrc	p15, 0, r0, c0, c0, 0		/* get Main ID */
 	ubfx	r1, r0, #4, #4			/* r1=Lo 4bit of Primary Part */
 	cmp	r1, #0x07
@@ -45,6 +46,7 @@ ENTRY(shmobile_invalidate_start)
 	isb
 	cps	0x13
 1:
+#endif
 
 	b	secondary_startup
 ENDPROC(shmobile_invalidate_start)
