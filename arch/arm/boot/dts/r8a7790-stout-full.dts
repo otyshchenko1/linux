@@ -27,11 +27,11 @@
 	};
 
 	chosen {
-		xen,xen-bootargs = "dom0_mem=1G console=dtuart dtuart=serial0 dom0_max_vcpus=4 bootscrub=0 loglvl=all";
+		bootargs = "dom0_mem=1G console=dtuart dtuart=serial0 dom0_vcpus_pin hmp-unsafe=true dom0_max_vcpus=8 bootscrub=0 loglvl=all";
 		/* Uncomment this when using nfs as a boot device */
-		xen,dom0-bootargs = "console=hvc0 ignore_loglevel rw root=/dev/nfs nfsroot=192.168.1.100:/srv/stout,nfsvers=3 ip=192.168.1.10:192.168.1.100::255.255.255.0:stout:eth1::: vmalloc=256M clk_ignore_unused";
+		xen,dom0-bootargs = "console=hvc0 ignore_loglevel rw root=/dev/nfs nfsroot=192.168.1.100:/srv/stout,nfsvers=3 ip=192.168.1.10:192.168.1.100::255.255.255.0:stout:eth1::: vmalloc=256M clk_ignore_unused apmu=multicluster";
 		/* Uncomment this when using block device as a boot device */
-		/* xen,dom0-bootargs = "console=hvc0 ignore_loglevel rw root=/dev/mmcblk0p1 rootfstype=ext3 rootwait vmalloc=256M clk_ignore_unused"; */
+		/* xen,dom0-bootargs = "console=hvc0 ignore_loglevel rw root=/dev/mmcblk0p1 rootfstype=ext3 rootwait vmalloc=256M clk_ignore_unused apmu=multicluster"; */
 
 		modules {
 			#address-cells = <2>;
@@ -340,11 +340,6 @@
 		cpldmux-2 = <0x101 0x0>;
 	};
 };
-
-/delete-node/ &cpu4;
-/delete-node/ &cpu5;
-/delete-node/ &cpu6;
-/delete-node/ &cpu7;
 
 &extal_clk {
 	clock-frequency = <20000000>;
