@@ -39,6 +39,10 @@ bool shmobile_smp_cpu_can_disable(unsigned int cpu)
 
 bool __init shmobile_smp_init_fallback_ops(void)
 {
+	/* PSCI is more preferred option if enabled */
+	if (IS_ENABLED(CONFIG_ARM_PSCI))
+		return false;
+
 	/* fallback on PSCI/smp_ops if no other DT based method is detected */
 	if (!IS_ENABLED(CONFIG_SMP))
 		return false;
