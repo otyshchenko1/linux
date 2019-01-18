@@ -418,9 +418,21 @@ static irqreturn_t sh_mobile_i2c_isr(int irq, void *dev_id)
 	/* Kick off TxDMA after preface was done */
 	if (pd->dma_direction == DMA_TO_DEVICE && pd->pos == 0)
 		iic_set_clr(pd, ICIC, ICIC_TDMAE, 0);
-	else if (sr & (ICSR_AL | ICSR_TACK))
-		/* don't interrupt transaction - continue to issue stop */
-		iic_wr(pd, ICSR, sr & ~(ICSR_AL | ICSR_TACK));
+	else if (sr & (ICSR_AL | ICSR_TACK)) {
+		if ((pd->pos == -1) && (sr & ICSR_AL)) {
+			/*
+			 * Arbitration lost is detected at the very beginning
+			 * of the transaction, seems it is not too late to restart it,
+			 * so reset IIC hardware and wake up a waiting thread which will
+			 * ask i2c core to repeat it.
+			 */
+			iic_wr(pd, ICCR, ICCR_SCP);
+			wakeup = 1;
+		} else {
+			/* don't interrupt transaction - continue to issue stop */
+			iic_wr(pd, ICSR, sr & ~(ICSR_AL | ICSR_TACK));
+		}
+	}
 	else if (pd->msg->flags & I2C_M_RD)
 		wakeup = sh_mobile_i2c_isr_rx(pd);
 	else
@@ -670,7 +682,7 @@ static int sh_mobile_i2c_xfer(struct i2c_adapter *adapter,
 
 		/* The interrupt handler takes care of the rest... */
 		timeout = wait_event_timeout(pd->wait,
-				       pd->sr & (ICSR_TACK | SW_DONE),
+				       pd->sr & (ICSR_TACK | ICSR_AL | SW_DONE),
 				       adapter->timeout);
 
 		/* 'stop_after_dma' tells if DMA transfer was complete */
@@ -682,6 +694,15 @@ static int sh_mobile_i2c_xfer(struct i2c_adapter *adapter,
 				sh_mobile_i2c_cleanup_dma(pd);
 
 			err = -ETIMEDOUT;
+			break;
+		}
+
+		if ((pd->pos == -1) && (pd->sr & ICSR_AL)) {
+			/*
+			 * Arbitration lost has been detected at the very beginning of
+			 * the transaction, ask i2c core to repeat it.
+			 */
+			err = -EAGAIN;
 			break;
 		}
 
