@@ -870,6 +870,8 @@ dtb-$(CONFIG_ARCH_RENESAS) += \
 	r8a7790-lager.dtb \
 	r8a7790-stout.dtb \
 	r8a7790-stout-bp.dtb \
+	r8a7790-stout-dom0.dtb \
+	r8a7790-stout-bp-dom0.dtb \
 	r8a7791-koelsch.dtb \
 	r8a7791-porter.dtb \
 	r8a7792-blanche.dtb \
