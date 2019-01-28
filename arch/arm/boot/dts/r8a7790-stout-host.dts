@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for the Stout board running XEN hypervisor
+ *
+ * Copyright (C) 2018 EPAM Systems Inc.
+ */
+
+#include "r8a7790-stout.dts"
+
+/ {
+	model = "Stout board, running XEN hypervisor";
+	compatible = "renesas,stout", "renesas,r8a7790";
+
+	chosen {
+		bootargs = "dom0_mem=512M console=dtuart dtuart=serial0 dom0_vcpus_pin hmp-unsafe=true dom0_max_vcpus=8 bootscrub=0 loglvl=all";
+		/delete-property/stdout-path;
+		/* Uncomment this when using nfs as a boot device */
+		xen,dom0-bootargs = "console=hvc0 ignore_loglevel root=/dev/nfs nfsroot=192.168.1.100:/srv/stout,vers=3 ip=dhcp rw rootwait clk_ignore_unused";
+		/* Uncomment this when using block device as a boot device */
+		/* xen,dom0-bootargs = "console=hvc0 ignore_loglevel root=/dev/mmcblk0p1 rootfstype=ext3 rw rootwait clk_ignore_unused"; */
+
+		modules {
+			#address-cells = <2>;
+			#size-cells = <2>;
+			module@1 {
+				compatible = "xen,linux-zimage", "xen,multiboot-module";
+				reg = <0x0 0x72000000 0x0 0x02000000>;
+			};
+			module@2 {
+				compatible = "xen,xsm-policy", "xen,multiboot-module";
+				reg = <0x0 0x74000000 0x0 0x10000>;
+			};
+		};
+	};
+};
+
+&scifa0 {
+	/delete-property/clocks;
+};
