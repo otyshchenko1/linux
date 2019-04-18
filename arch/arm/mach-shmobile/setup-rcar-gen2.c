@@ -60,16 +60,12 @@ static unsigned int __init __maybe_unused get_extal_freq(void)
 
 void __init rcar_gen2_timer_init(void)
 {
-/*
- * If CONFIG_PSCI is enabled then most likely we are running on PSCI-enabled
- * U-Boot which, we assume, has already taken care of configuring ARCH timer
- * stuff before switching to non-secure mode.
- */
-#if !defined(CONFIG_ARM_PSCI)
 	void __iomem *base;
 	u32 freq;
 
+#if !defined(CONFIG_ARM_PSCI)
 	secure_cntvoff_init();
+#endif
 
 	if (of_machine_is_compatible("renesas,r8a7745") ||
 	    of_machine_is_compatible("renesas,r8a77470") ||
@@ -107,7 +103,6 @@ void __init rcar_gen2_timer_init(void)
 	}
 
 	iounmap(base);
-#endif /* #if !defined(CONFIG_ARM_PSCI) */
 
 	of_clk_init(NULL);
 	timer_probe();
