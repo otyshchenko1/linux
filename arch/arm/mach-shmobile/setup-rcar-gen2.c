@@ -17,7 +17,9 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
+#include <xen/xen.h>
 #include <asm/mach/arch.h>
+#include <asm/psci.h>
 #include <asm/secure_cntvoff.h>
 #include "common.h"
 #include "rcar-gen2.h"
@@ -63,9 +65,16 @@ void __init rcar_gen2_timer_init(void)
 	void __iomem *base;
 	u32 freq;
 
-#if !defined(CONFIG_ARM_PSCI)
-	secure_cntvoff_init();
-#endif
+	/*
+	 * If PSCI is available then most likely we are running on PSCI-enabled
+	 * U-Boot which, we assume, has already taken care of resetting CNTVOFF
+	 * before switching to non-secure mode and we don't need to.
+	 * Another check is to be sure that we are not running on top of Xen
+	 * hypervisor, as CNTVOFF is controlled by hypervisor itself and
+	 * shouldn't be touched by Dom0 in such case.
+	 */
+	if (!psci_smp_available() && !xen_domain())
+		secure_cntvoff_init();
 
 	if (of_machine_is_compatible("renesas,r8a7745") ||
 	    of_machine_is_compatible("renesas,r8a77470") ||
