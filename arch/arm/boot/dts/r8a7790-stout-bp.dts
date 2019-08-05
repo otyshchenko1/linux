@@ -1,0 +1,100 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for the Stout board + Backplane expansion board
+ *
+ * Copyright (C) 2018 EPAM Systems Inc.
+ */
+
+#include "r8a7790-stout.dts"
+
+/ {
+	model = "Stout-bp board";
+	compatible = "renesas,stout", "renesas,r8a7790";
+
+	chosen {
+		/* Uncomment this when using nfs as a boot device */
+		bootargs = "ignore_loglevel root=/dev/nfs nfsroot=192.168.1.100:/srv/stout,vers=3 ip=dhcp rw rootwait ehci_hcd.ignore_oc=1";
+		/* Uncomment this when using block device as a boot device */
+		/* bootargs = "ignore_loglevel root=/dev/mmcblk0p1 rootfstype=ext3 rw rootwait ehci_hcd.ignore_oc=1"; */
+	};
+};
+
+&pfc {
+	avb_pins: avb {
+		groups = "avb_link", "avb_mdio", "avb_gmii";
+		function = "avb";
+	};
+
+	usb1_pins: usb1 {
+		groups = "usb1";
+		function = "usb1";
+	};
+
+	usb2_pins: usb2 {
+		groups = "usb2";
+		function = "usb2";
+	};
+};
+
+&avb {
+	pinctrl-0 = <&avb_pins>;
+	pinctrl-names = "default";
+
+	phy-handle = <&phy4>;
+	phy-mode = "gmii";
+	renesas,no-ether-link;
+	status = "okay";
+
+	phy4: ethernet-phy@4 {
+		/*
+		 * The reason why we don't set "reg" property is that KSZ9031 PHY ID
+		 * latch is not robust during power up on Backplane board and as
+		 * the result we can't use single value which will cover all cases.
+		 * For example, during power on PHY ID is latched as 4, but during
+		 * reset - as 0.
+		 * So, without this property being set, of_mdiobus_register()
+		 * will perform auto scan and detect an appropriate value.
+		 */
+		/*reg = <4>;*/
+		/*reg = <0>;*/
+		interrupt-parent = <&gpio2>;
+		interrupts = <15 IRQ_TYPE_LEVEL_LOW>;
+		micrel,led-mode = <1>;
+
+		/*
+		 * Pad skew settings for KSZ9031 PHY installed on a Backplane board:
+		 * We add only +0.6ns of delay on RX clock as KSZ9031 adds its
+		 * +1.2ns by default.
+		 * We add max delay on TX clock (+0.96ns) and min delay (-0.36ns)
+		 * on TX data and control lines.
+		 */
+		txc-skew-ps = <1860>; /* +960ps */
+		txd0-skew-ps = <0>; /* -420ps */
+		txd1-skew-ps = <0>; /* -420ps */
+		txd2-skew-ps = <0>; /* -420ps */
+		txd3-skew-ps = <0>; /* -420ps */
+		txen-skew-ps = <0>; /* -420ps */
+		rxc-skew-ps = <1500>; /* +600ps */
+		rxd0-skew-ps = <420>; /* 0ps */
+		rxd1-skew-ps = <420>; /* 0ps */
+		rxd2-skew-ps = <420>; /* 0ps */
+		rxd3-skew-ps = <420>; /* 0ps */
+		rxdv-skew-ps = <420>; /* 0ps */
+	};
+};
+
+&pci1 {
+	status = "okay";
+	pinctrl-0 = <&usb1_pins>;
+	pinctrl-names = "default";
+};
+
+&pci2 {
+	status = "okay";
+	pinctrl-0 = <&usb2_pins>;
+	pinctrl-names = "default";
+};
+
+&sata1 {
+	status = "okay";
+};
