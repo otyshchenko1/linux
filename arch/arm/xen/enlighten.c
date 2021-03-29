@@ -409,6 +409,14 @@ err:
 }
 #endif
 
+#ifdef CONFIG_ARCH_HAS_RESTRICTED_VIRTIO_MEMORY_ACCESS
+int arch_has_restricted_virtio_memory_access(void)
+{
+	return xen_has_restricted_virtio_memory_access();
+}
+EXPORT_SYMBOL_GPL(arch_has_restricted_virtio_memory_access);
+#endif
+
 static void __init xen_dt_guest_init(void)
 {
 	struct device_node *xen_node;
