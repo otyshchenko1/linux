@@ -335,4 +335,24 @@ config XEN_UNPOPULATED_ALLOC
 	  having to balloon out RAM regions in order to obtain physical memory
 	  space to create such mappings.
 
+config XEN_VIRTIO
+	bool "Xen virtio support"
+	default n
+	depends on VIRTIO && DMA_OPS
+	select ARCH_HAS_RESTRICTED_VIRTIO_MEMORY_ACCESS
+	help
+	  Enable virtio support for running as Xen guest. Depending on the
+	  guest type this will require special support on the backend side
+	  (qemu or kernel, depending on the virtio device types used).
+
+config XEN_HVM_VIRTIO_GRANT
+	bool "Require virtio for fully virtualized guests to use grant mappings"
+	depends on XEN_VIRTIO && X86_64
+	default y
+	help
+	  Require virtio for fully virtualized guests to use grant mappings.
+	  This will avoid the need to give the backend the right to map all
+	  of the guest memory. This will need support on the backend side
+	  (qemu or kernel, depending on the virtio device types used).
+
 endmenu
