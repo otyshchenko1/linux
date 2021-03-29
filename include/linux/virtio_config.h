@@ -567,10 +567,15 @@ static inline void virtio_cwrite64(struct virtio_device *vdev,
 
 #ifdef CONFIG_ARCH_HAS_RESTRICTED_VIRTIO_MEMORY_ACCESS
 int arch_has_restricted_virtio_memory_access(void);
+void arch_virtio_setup_dma_ops(struct pci_dev *pci_dev);
 #else
 static inline int arch_has_restricted_virtio_memory_access(void)
 {
 	return 0;
+}
+
+static inline void arch_virtio_setup_dma_ops(struct pci_dev *pci_dev)
+{
 }
 #endif /* CONFIG_ARCH_HAS_RESTRICTED_VIRTIO_MEMORY_ACCESS */
 
