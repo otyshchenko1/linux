@@ -80,3 +80,22 @@ config XEN_PVH
 	depends on XEN && XEN_PVHVM && ACPI
 	select PVH
 	def_bool n
+
+config XEN_PV_VIRTIO
+	bool "Xen virtio support for PV guests"
+	depends on XEN_VIRTIO && XEN_PV
+	default y
+	help
+	  Support virtio for running as a paravirtualized guest. This will
+	  need support on the backend side (qemu or kernel, depending on the
+	  virtio device types used).
+
+config XEN_HVM_VIRTIO_GRANT
+	bool "Require virtio for fully virtualized guests to use grant mappings"
+	depends on XEN_VIRTIO && X86_64
+	default y
+	help
+	  Require virtio for fully virtualized guests to use grant mappings.
+	  This will avoid the need to give the backend the right to map all
+	  of the guest memory. This will need support on the backend side
+	  (qemu or kernel, depending on the virtio device types used).
