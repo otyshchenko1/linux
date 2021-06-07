@@ -53,18 +53,13 @@ static int debug_log_kthread(void *arg)
 {
 	struct rcar_debug_log_info *dlog;
 	struct rcar_debug_log_node *node;
+	struct rcar_debug_log_node *ntmp;
 	bool thread_exit = false;
 
 	dlog = (struct rcar_debug_log_info *)arg;
 
 	while (1) {
-		spin_lock(&dlog->q_lock);
-		while (!list_empty(&dlog->queue)) {
-			node = list_first_entry(&dlog->queue,
-				struct rcar_debug_log_node,
-				list);
-			spin_unlock(&dlog->q_lock);
-
+		list_for_each_entry_safe(node, ntmp, &dlog->queue, list) {
 			if (node->logmsg)
 				pr_alert("%s", node->logmsg);
 			else
@@ -72,9 +67,9 @@ static int debug_log_kthread(void *arg)
 
 			spin_lock(&dlog->q_lock);
 			list_del(&node->list);
+			spin_unlock(&dlog->q_lock);
 			kfree(node);
 		}
-		spin_unlock(&dlog->q_lock);
 		if (thread_exit)
 			break;
 		wait_event_interruptible(dlog->waitq,
