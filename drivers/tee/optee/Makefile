@@ -6,4 +6,3 @@ optee-objs += rpc.o
 optee-objs += supp.o
 optee-objs += shm_pool.o
 optee-objs += device.o
-optee-objs += rcar.o
