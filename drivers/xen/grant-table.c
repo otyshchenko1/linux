@@ -1003,6 +1003,9 @@ int gnttab_dma_alloc_pages(struct gnttab_dma_alloc_args *args)
 	args->vaddr = page_to_virt(args->pages[0]);
 	args->dev_bus_addr = page_to_phys(args->pages[0]);
 
+	printk("%s[%d] %u: 0x%p -> 0x%llx\n", __func__, __LINE__,
+			args->nr_pages, args->vaddr, args->dev_bus_addr);
+
 	return ret;
 #else
 	unsigned long pfn, start_pfn;
@@ -1062,6 +1065,9 @@ EXPORT_SYMBOL_GPL(gnttab_dma_alloc_pages);
 int gnttab_dma_free_pages(struct gnttab_dma_alloc_args *args)
 {
 #ifdef CONFIG_XEN_UNPOPULATED_ALLOC
+	printk("%s[%d] %u: 0x%p -> 0x%llx\n", __func__, __LINE__,
+			args->nr_pages, args->vaddr, args->dev_bus_addr);
+
 	gnttab_free_contiguous_pages(args->nr_pages, args->pages);
 
 	return 0;
