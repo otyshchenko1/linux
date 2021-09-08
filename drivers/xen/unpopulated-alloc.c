@@ -64,6 +64,7 @@ static int fill_list(unsigned int nr_pages)
 	 * re-using it by someone else.
 	 */
 	if (target_resource != &iomem_resource) {
+		pr_err("XEN RESOURCE\n");
 		tmp_res = kzalloc(sizeof(*tmp_res), GFP_KERNEL);
 		if (!res) {
 			ret = -ENOMEM;
@@ -81,7 +82,10 @@ static int fill_list(unsigned int nr_pages)
 			kfree(tmp_res);
 			goto err_insert;
 		}
-	}
+	} else
+		pr_err("IOMEM RESOURCE\n");
+
+	pr_err(">>> NON-RAM Allocate 0x%llx - 0x%llx (size %lu)\n", res->start, res->end, alloc_pages * PAGE_SIZE);
 
 	pgmap = kzalloc(sizeof(*pgmap), GFP_KERNEL);
 	if (!pgmap) {
@@ -263,6 +267,7 @@ static int fill_dma_pool(unsigned int nr_pages, u64 dma_mask)
 	 * re-using it by someone else.
 	 */
 	if (target_resource != &iomem_resource) {
+		pr_err("XEN RESOURCE\n");
 		tmp_res = kzalloc(sizeof(*tmp_res), GFP_KERNEL);
 		if (!res) {
 			ret = -ENOMEM;
@@ -280,7 +285,10 @@ static int fill_dma_pool(unsigned int nr_pages, u64 dma_mask)
 			kfree(tmp_res);
 			goto err_insert;
 		}
-	}
+	} else
+		pr_err("IOMEM RESOURCE\n");
+
+	pr_err(">>> NON-RAM (CONTIG) Allocate 0x%llx - 0x%llx (size %lu)\n", res->start, res->end, alloc_pages * PAGE_SIZE);
 
 	pgmap = kzalloc(sizeof(*pgmap), GFP_KERNEL);
 	if (!pgmap) {
