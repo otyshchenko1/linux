@@ -59,6 +59,8 @@ void xen_free_unpopulated_pages(unsigned int nr_pages, struct page **pages);
 #define xen_alloc_unpopulated_pages alloc_xenballooned_pages
 #define xen_free_unpopulated_pages free_xenballooned_pages
 #include <xen/balloon.h>
+#include <linux/ioport.h>
+int arch_xen_unpopulated_init(struct resource **res);
 #endif
 
 #endif	/* _XEN_XEN_H */
