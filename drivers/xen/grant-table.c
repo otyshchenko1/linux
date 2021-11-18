@@ -1043,6 +1043,25 @@ EXPORT_SYMBOL_GPL(gnttab_free_pages);
  */
 int gnttab_dma_alloc_pages(struct gnttab_dma_alloc_args *args)
 {
+#ifdef CONFIG_XEN_UNPOPULATED_ALLOC
+	int ret;
+
+	ret = xen_alloc_unpopulated_dma_pages(args->dev, args->nr_pages,
+			args->pages);
+	if (ret < 0)
+		return ret;
+
+	ret = gnttab_pages_set_private(args->nr_pages, args->pages);
+	if (ret < 0) {
+		gnttab_dma_free_pages(args);
+		return ret;
+	}
+
+	args->vaddr = page_to_virt(args->pages[0]);
+	args->dev_bus_addr = page_to_phys(args->pages[0]);
+
+	return ret;
+#else
 	unsigned long pfn, start_pfn;
 	size_t size;
 	int i, ret;
@@ -1089,6 +1108,7 @@ int gnttab_dma_alloc_pages(struct gnttab_dma_alloc_args *args)
 fail:
 	gnttab_dma_free_pages(args);
 	return ret;
+#endif
 }
 EXPORT_SYMBOL_GPL(gnttab_dma_alloc_pages);
 
@@ -1098,6 +1118,12 @@ EXPORT_SYMBOL_GPL(gnttab_dma_alloc_pages);
  */
 int gnttab_dma_free_pages(struct gnttab_dma_alloc_args *args)
 {
+#ifdef CONFIG_XEN_UNPOPULATED_ALLOC
+	gnttab_pages_clear_private(args->nr_pages, args->pages);
+	xen_free_unpopulated_dma_pages(args->dev, args->nr_pages, args->pages);
+
+	return 0;
+#else
 	size_t size;
 	int i, ret;
 
@@ -1125,6 +1151,7 @@ int gnttab_dma_free_pages(struct gnttab_dma_alloc_args *args)
 		dma_free_wc(args->dev, size,
 			    args->vaddr, args->dev_bus_addr);
 	return ret;
+#endif
 }
 EXPORT_SYMBOL_GPL(gnttab_dma_free_pages);
 #endif
