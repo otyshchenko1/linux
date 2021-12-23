@@ -474,7 +474,9 @@ static void __iommu_dma_unmap(struct device *dev, dma_addr_t dma_addr,
 
 	if (!cookie->fq_domain)
 		iommu_iotlb_sync(domain, &iotlb_gather);
+#if 0
 	iommu_dma_free_iova(cookie, dma_addr, size);
+#endif
 }
 
 static dma_addr_t __iommu_dma_map(struct device *dev, phys_addr_t phys,
@@ -491,12 +493,18 @@ static dma_addr_t __iommu_dma_map(struct device *dev, phys_addr_t phys,
 
 	size = iova_align(iovad, size + iova_off);
 
+#if 0
 	iova = iommu_dma_alloc_iova(domain, size, dma_mask, dev);
+#else
+	iova = phys - iova_off;
+#endif
 	if (!iova)
 		return DMA_MAPPING_ERROR;
 
 	if (iommu_map_atomic(domain, iova, phys - iova_off, size, prot)) {
+#if 0
 		iommu_dma_free_iova(cookie, iova, size);
+#endif
 		return DMA_MAPPING_ERROR;
 	}
 	return iova + iova_off;
@@ -593,6 +601,9 @@ static void *iommu_dma_alloc_remap(struct device *dev, size_t size,
 	struct sg_table sgt;
 	dma_addr_t iova;
 	void *vaddr;
+
+	/* Won't work with non-contiguous pages */
+	WARN_ON(1);
 
 	*dma_handle = DMA_MAPPING_ERROR;
 
@@ -841,6 +852,9 @@ static int iommu_dma_map_sg(struct device *dev, struct scatterlist *sg,
 	unsigned long mask = dma_get_seg_boundary(dev);
 	int i;
 
+	/* Won't work with non-contiguous pages */
+	WARN_ON(1);
+
 	if (unlikely(iommu_dma_deferred_attach(dev, domain)))
 		return 0;
 
@@ -1028,6 +1042,12 @@ static void *iommu_dma_alloc(struct device *dev, size_t size,
 	void *cpu_addr;
 
 	gfp |= __GFP_ZERO;
+	/*
+	 * We really need this ugly hack if we want make it work with
+	 * dma_handle == phys_addr (we need to avoid calling iommu_dma_alloc_remap
+	 * down the function). Consider forcing this flag in vring_alloc_queue()
+	 */
+	attrs |= DMA_ATTR_FORCE_CONTIGUOUS;
 
 	if (IS_ENABLED(CONFIG_DMA_REMAP) && gfpflags_allow_blocking(gfp) &&
 	    !(attrs & DMA_ATTR_FORCE_CONTIGUOUS)) {

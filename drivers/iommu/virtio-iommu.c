@@ -43,6 +43,7 @@ struct viommu_dev {
 	spinlock_t			request_lock;
 	struct list_head		requests;
 	void				*evts;
+	struct iommu_group	*group;
 
 	/* Device configuration */
 	struct iommu_domain_geometry	geometry;
@@ -370,6 +371,14 @@ static size_t viommu_del_mappings(struct viommu_domain *vdomain,
 
 		interval_tree_remove(node, &vdomain->mappings);
 		kfree(mapping);
+		/*
+		 * Avoid WARN_ON(unmapped != size) in __iommu_dma_unmap() if two
+		 * similar mappings are present here (looks like it is a side effect
+		 * of my hacks to make DMA-IOMMU layer work with dma_handle == phys_addr
+		 * as virtio descriptors can allocated be within single physical page).
+		 * In this case remove only one mapping per request.
+		 */
+		break;
 	}
 	spin_unlock_irqrestore(&vdomain->mappings_lock, flags);
 
@@ -691,8 +700,21 @@ static int viommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	 *
 	 * vdev->vdomain is protected by group->mutex
 	 */
-	if (vdev->vdomain)
+	if (vdev->vdomain) {
+		/*
+		 * Skip if device is already attached to the same domain. This happens
+		 * if __iommu_attach_device gets twice for the device being probed
+		 * (looks like it is a side effect of adding device to the existing
+		 * iommu group). An extra call site is at iommu_group_add_device() if
+		 * group->domain is valid.
+		 */
+		if (vdev->vdomain == vdomain) {
+			dev_info(dev, "already attached to the same iommu domain\n");
+			return 0;
+		}
+
 		vdev->vdomain->nr_endpoints--;
+	}
 
 	req = (struct virtio_iommu_req_attach) {
 		.head.type	= VIRTIO_IOMMU_T_ATTACH,
@@ -922,8 +944,25 @@ static struct iommu_group *viommu_device_group(struct device *dev)
 {
 	if (dev_is_pci(dev))
 		return pci_device_group(dev);
-	else
-		return generic_device_group(dev);
+	else {
+		struct viommu_endpoint *vdev = dev_iommu_priv_get(dev);
+		struct iommu_group *group;
+
+		if (!vdev)
+			return ERR_PTR(-ENODEV);
+
+		/* All devices are in the same iommu group */
+		if (vdev->viommu->group) {
+			dev_info(dev, "reuse existing iommu group\n");
+			return iommu_group_ref_get(vdev->viommu->group);
+		}
+
+		group = generic_device_group(dev);
+		if (!IS_ERR(group))
+			vdev->viommu->group = group;
+
+		return group;
+	}
 }
 
 static int viommu_of_xlate(struct device *dev, struct of_phandle_args *args)
