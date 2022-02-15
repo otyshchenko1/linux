@@ -143,8 +143,12 @@ void xen_front_pgdir_shbuf_free(struct xen_front_pgdir_shbuf *buf)
 
 		for (i = 0; i < buf->num_grefs; i++)
 			if (buf->grefs[i] != GRANT_INVALID_REF)
-				gnttab_end_foreign_access(buf->grefs[i],
-							  0, 0UL);
+				gnttab_end_foreign_access_ref(buf->grefs[i], 0);
+
+		gnttab_free_grant_reference_seq(buf->grefs[0], buf->num_grefs);
+
+		dev_info(&buf->xb_dev->dev, ">>> %s[%d]: FREE %d (total %d)\n",
+			__func__, __LINE__, buf->grefs[0], buf->num_grefs);
 	}
 	kfree(buf->grefs);
 	kfree(buf->directory);
@@ -408,14 +412,13 @@ static int guest_grant_refs_for_buffer(struct xen_front_pgdir_shbuf *buf,
 
 	otherend_id = buf->xb_dev->otherend_id;
 	for (i = 0; i < buf->num_pages; i++) {
-		cur_ref = gnttab_claim_grant_reference(priv_gref_head);
-		if (cur_ref < 0)
-			return cur_ref;
+		cur_ref = *priv_gref_head;
 
 		gnttab_grant_foreign_access_ref(cur_ref, otherend_id,
 						xen_page_to_gfn(buf->pages[i]),
 						0);
 		buf->grefs[gref_idx++] = cur_ref;
+		(*priv_gref_head)++;
 	}
 	return 0;
 }
@@ -435,12 +438,15 @@ static int grant_references(struct xen_front_pgdir_shbuf *buf)
 	int ret, i, j, cur_ref;
 	int otherend_id, num_pages_dir;
 
-	ret = gnttab_alloc_grant_references(buf->num_grefs, &priv_gref_head);
+	ret = gnttab_alloc_grant_reference_seq(buf->num_grefs, &priv_gref_head);
 	if (ret < 0) {
 		dev_err(&buf->xb_dev->dev,
 			"Cannot allocate grant references\n");
 		return ret;
 	}
+
+	dev_info(&buf->xb_dev->dev, ">>> %s[%d]: ALLOC %d (total %d)\n",
+			__func__, __LINE__, priv_gref_head, buf->num_grefs);
 
 	otherend_id = buf->xb_dev->otherend_id;
 	j = 0;
@@ -448,14 +454,13 @@ static int grant_references(struct xen_front_pgdir_shbuf *buf)
 	for (i = 0; i < num_pages_dir; i++) {
 		unsigned long frame;
 
-		cur_ref = gnttab_claim_grant_reference(&priv_gref_head);
-		if (cur_ref < 0)
-			return cur_ref;
+		cur_ref = priv_gref_head;
 
 		frame = xen_page_to_gfn(virt_to_page(buf->directory +
 						     PAGE_SIZE * i));
 		gnttab_grant_foreign_access_ref(cur_ref, otherend_id, frame, 0);
 		buf->grefs[j++] = cur_ref;
+		priv_gref_head ++;
 	}
 
 	if (buf->ops->grant_refs_for_buffer) {
@@ -464,7 +469,7 @@ static int grant_references(struct xen_front_pgdir_shbuf *buf)
 			return ret;
 	}
 
-	gnttab_free_grant_references(priv_gref_head);
+	/*gnttab_free_grant_references(priv_gref_head);*/
 	return 0;
 }
 
