@@ -208,6 +208,7 @@ static int get_free_entries(unsigned count)
 	gnttab_free_count -= count;
 	while (count-- > 1) {
 		bitmap_clear(gnttab_free_bitmap, head, 1);
+		printk("%s[%d] start 0x%x nr %u\n", __func__, __LINE__, head, 1);
 		if (gnttab_free_tail_ptr == __gnttab_entry(head))
 			gnttab_free_tail_ptr = &gnttab_free_head;
 		head = gnttab_entry(head);
@@ -252,6 +253,7 @@ static int get_free_seq(unsigned int count)
 		if (ret < 0 && to - from >= count) {
 			ret = from;
 			bitmap_clear(gnttab_free_bitmap, ret, count);
+			printk("%s[%d] start 0x%x nr %u\n", __func__, __LINE__, ret, count);
 			from += count;
 			if (from == to)
 				continue;
@@ -301,6 +303,7 @@ static int get_free_entries_seq(unsigned int count)
 	if (!gnttab_free_count)
 		gnttab_free_tail_ptr = NULL;
 	bitmap_clear(gnttab_free_bitmap, ret, count);
+	printk("%s[%d] start 0x%x nr %u\n", __func__, __LINE__, ret, count);
 
  out:
 	spin_unlock_irqrestore(&gnttab_list_lock, flags);
@@ -344,6 +347,7 @@ static void put_free_entry_locked(grant_ref_t ref)
 		gnttab_free_tail_ptr = __gnttab_entry(ref);
 	gnttab_free_count++;
 	bitmap_set(gnttab_free_bitmap, ref, 1);
+	printk("%s[%d] start 0x%x nr %u\n", __func__, __LINE__, ref, 1);
 }
 
 static void put_free_entry(grant_ref_t ref)
@@ -374,6 +378,7 @@ static void gnttab_set_free(unsigned int start, unsigned int n)
 	gnttab_last_free = i;
 
 	bitmap_set(gnttab_free_bitmap, start, n);
+	printk("%s[%d] start 0x%x nr %u\n", __func__, __LINE__, start, n);
 }
 
 /*
