@@ -244,8 +244,11 @@ static int get_free_seq(unsigned int count)
 	gnttab_free_tail_ptr = &gnttab_free_head;
 	last = &gnttab_free_head;
 
-	bitmap_for_each_set_region(gnttab_free_bitmap, from, to, 0,
-				   gnttab_size) {
+	for (from = find_first_bit(gnttab_free_bitmap, gnttab_size);
+	     from < gnttab_size;
+	     from = find_next_bit(gnttab_free_bitmap, gnttab_size, to + 1)) {
+		to = find_next_zero_bit(gnttab_free_bitmap, gnttab_size,
+					from + 1);
 		if (ret < 0 && to - from >= count) {
 			ret = from;
 			bitmap_clear(gnttab_free_bitmap, ret, count);
@@ -337,6 +340,8 @@ static void put_free_entry_locked(grant_ref_t ref)
 	gnttab_free_head = ref;
 	if (!gnttab_free_count)
 		gnttab_last_free = ref;
+	if (gnttab_free_tail_ptr == &gnttab_free_head)
+		gnttab_free_tail_ptr = __gnttab_entry(ref);
 	gnttab_free_count++;
 	bitmap_set(gnttab_free_bitmap, ref, 1);
 }
