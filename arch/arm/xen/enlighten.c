@@ -401,6 +401,17 @@ err:
 }
 #endif
 
+#ifdef CONFIG_XEN_VIRTIO
+int arch_has_restricted_virtio_memory_access(void)
+{
+	if (IS_ENABLED(CONFIG_XEN_HVM_VIRTIO_GRANT) && xen_hvm_domain())
+		return 1;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(arch_has_restricted_virtio_memory_access);
+#endif
+
 static void __init xen_dt_guest_init(void)
 {
 	struct device_node *xen_node;
