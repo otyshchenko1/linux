@@ -333,6 +333,19 @@ void xen_pin_vcpu(int cpu)
 	}
 }
 
+#ifdef CONFIG_XEN_VIRTIO
+int arch_has_restricted_virtio_memory_access(void)
+{
+	if (IS_ENABLED(CONFIG_XEN_PV_VIRTIO) && xen_pv_domain())
+		return 1;
+	if (IS_ENABLED(CONFIG_XEN_HVM_VIRTIO_GRANT) && xen_hvm_domain())
+		return 1;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(arch_has_restricted_virtio_memory_access);
+#endif
+
 #ifdef CONFIG_HOTPLUG_CPU
 void xen_arch_register_cpu(int num)
 {
