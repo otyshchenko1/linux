@@ -166,17 +166,6 @@ static const struct dma_map_ops xen_virtio_dma_ops = {
 	.dma_supported = xen_virtio_dma_dma_supported,
 };
 
-int arch_has_restricted_virtio_memory_access(void)
-{
-	if (IS_ENABLED(CONFIG_XEN_PV_VIRTIO) && xen_pv_domain())
-		return 1;
-	if (IS_ENABLED(CONFIG_XEN_HVM_VIRTIO_GRANT) && xen_hvm_domain())
-		return 1;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(arch_has_restricted_virtio_memory_access);
-
 void arch_virtio_setup_dma_ops(struct pci_dev *pci_dev)
 {
 	pci_dev->dev.dma_ops = &xen_virtio_dma_ops;
