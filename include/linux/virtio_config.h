@@ -560,16 +560,19 @@ static inline void virtio_cwrite64(struct virtio_device *vdev,
 
 #ifdef CONFIG_ARCH_HAS_RESTRICTED_VIRTIO_MEMORY_ACCESS
 int arch_has_restricted_virtio_memory_access(void);
-void arch_virtio_setup_dma_ops(struct pci_dev *pci_dev);
 #else
 static inline int arch_has_restricted_virtio_memory_access(void)
 {
 	return 0;
 }
+#endif /* CONFIG_ARCH_HAS_RESTRICTED_VIRTIO_MEMORY_ACCESS */
 
-static inline void arch_virtio_setup_dma_ops(struct pci_dev *pci_dev)
+#ifdef CONFIG_XEN_VIRTIO
+void xen_virtio_setup_dma_ops(struct device *dev);
+#else
+static inline void xen_virtio_setup_dma_ops(struct device *dev)
 {
 }
-#endif /* CONFIG_ARCH_HAS_RESTRICTED_VIRTIO_MEMORY_ACCESS */
+#endif /* CONFIG_XEN_VIRTIO */
 
 #endif /* _LINUX_VIRTIO_CONFIG_H */
