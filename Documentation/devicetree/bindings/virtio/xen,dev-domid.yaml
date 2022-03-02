@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: (GPL-2.0-only or BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/virtio/xen,dev-domid.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Xen specific binding for the virtio device
+
+maintainers:
+  - Oleksandr Tyshchenko <oleksandr_tyshchenko@epam.com>
+
+select: true
+
+description:
+  This binding specifies the ID of Xen domain where the corresponding device
+  (backend) resides. This is needed for the option to restrict memory access
+  using Xen grant mappings to work.
+
+  Note that current and generic "iommus" bindings are mutually exclusive, since
+  the restricted memory access model on Xen behaves as a kind of software IOMMU.
+
+properties:
+  xen,dev-domid:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Should contain the ID of device's domain.
+
+additionalProperties: true
+
+examples:
+  - |
+    virtio_block@3000 {
+            compatible = "virtio,mmio";
+            reg = <0x3000 0x100>;
+            interrupts = <41>;
+
+            /* The device is located in Xen domain with ID 1 */
+            xen,dev-domid = <1>;
+    };
