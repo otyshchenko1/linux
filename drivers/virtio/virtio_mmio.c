@@ -615,6 +615,11 @@ static int virtio_mmio_probe(struct platform_device *pdev)
 					      DMA_BIT_MASK(32 + PAGE_SHIFT));
 	} else {
 		rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+
+#ifdef CONFIG_XEN_VIRTIO
+		if (arch_has_restricted_virtio_memory_access())
+			xen_virtio_setup_dma_ops(&pdev->dev);
+#endif
 	}
 	if (rc)
 		rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));

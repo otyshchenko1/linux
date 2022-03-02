@@ -166,11 +166,11 @@ static const struct dma_map_ops xen_virtio_dma_ops = {
 	.dma_supported = xen_virtio_dma_dma_supported,
 };
 
-void arch_virtio_setup_dma_ops(struct pci_dev *pci_dev)
+void xen_virtio_setup_dma_ops(struct device *dev)
 {
-	pci_dev->dev.dma_ops = &xen_virtio_dma_ops;
+	dev->dma_ops = &xen_virtio_dma_ops;
 }
-EXPORT_SYMBOL_GPL(arch_virtio_setup_dma_ops);
+EXPORT_SYMBOL_GPL(xen_virtio_setup_dma_ops);
 
 MODULE_DESCRIPTION("Xen virtio support driver");
 MODULE_AUTHOR("Juergen Gross <jgross@suse.com>");
