@@ -567,6 +567,12 @@ static int virtio_mmio_probe(struct platform_device *pdev)
 	if (!vm_dev)
 		return -ENOMEM;
 
+	/* XXX */
+#ifdef CONFIG_XEN_VIRTIO
+	if (arch_has_restricted_virtio_memory_access())
+		xen_virtio_setup_dma_ops(&pdev->dev);
+#endif
+
 	vm_dev->vdev.dev.parent = &pdev->dev;
 	vm_dev->vdev.dev.release = virtio_mmio_release_dev;
 	vm_dev->vdev.config = &virtio_mmio_config_ops;
