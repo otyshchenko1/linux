@@ -152,12 +152,20 @@ static dma_addr_t xen_virtio_dma_map_page(struct device *dev, struct page *page,
 
 	spin_lock(&data->lock);
 
-	if (gnttab_alloc_grant_reference_seq(n_pages, &grant))
-		return DMA_MAPPING_ERROR;
+	if (n_pages == 1) {
+		if (gnttab_alloc_grant_references(1, &grant))
+			return DMA_MAPPING_ERROR;
 
-	for (i = 0; i < n_pages; i++) {
-		gnttab_grant_foreign_access_ref(grant + i, data->dev_domid,
-				xen_page_to_gfn(page) + i, dir == DMA_TO_DEVICE);
+		gnttab_grant_foreign_access_ref(grant,  data->dev_domid,
+				xen_page_to_gfn(page), dir == DMA_TO_DEVICE);
+	} else {
+		if (gnttab_alloc_grant_reference_seq(n_pages, &grant))
+			return DMA_MAPPING_ERROR;
+
+		for (i = 0; i < n_pages; i++) {
+			gnttab_grant_foreign_access_ref(grant + i, data->dev_domid,
+					xen_page_to_gfn(page) + i, dir == DMA_TO_DEVICE);
+		}
 	}
 
 	spin_unlock(&data->lock);
@@ -181,10 +189,16 @@ static void xen_virtio_dma_unmap_page(struct device *dev, dma_addr_t dma_handle,
 
 	spin_lock(&data->lock);
 
-	for (i = 0; i < n_pages; i++)
-		gnttab_end_foreign_access_ref(grant + i, dir == DMA_TO_DEVICE);
+	if (n_pages == 1) {
+		gnttab_end_foreign_access_ref(grant, dir == DMA_TO_DEVICE);
 
-	gnttab_free_grant_reference_seq(grant, n_pages);
+		gnttab_free_grant_reference(grant);
+	} else {
+		for (i = 0; i < n_pages; i++)
+			gnttab_end_foreign_access_ref(grant + i, dir == DMA_TO_DEVICE);
+
+		gnttab_free_grant_reference_seq(grant, n_pages);
+	}
 
 	spin_unlock(&data->lock);
 }
