@@ -102,6 +102,9 @@ static void *xen_virtio_dma_alloc(struct device *dev, size_t size,
 
 	*dma_handle = grant_to_dma(grant);
 
+	printk(">>> %s[%d] dma_handle 0x%llx grant 0x%x size 0x%lx gfn 0x%lx\n",
+				__func__, __LINE__, *dma_handle, grant, size, pfn_to_gfn(pfn));
+
 	return ret;
 }
 
@@ -119,6 +122,9 @@ static void xen_virtio_dma_free(struct device *dev, size_t size, void *vaddr,
 	gnttab_free_grant_reference_seq(grant, n_pages);
 
 	free_pages((unsigned long)vaddr, get_order(size));
+
+	printk(">>> %s[%d] dma_handle 0x%llx grant 0x%x size 0x%lx\n",
+				__func__, __LINE__, dma_handle, grant, size);
 }
 
 static struct page *xen_virtio_dma_alloc_pages(struct device *dev, size_t size,
@@ -162,6 +168,10 @@ static dma_addr_t xen_virtio_dma_map_page(struct device *dev, struct page *page,
 
 	spin_unlock(&data->lock);
 
+	printk(">>> %s[%d] dma_handle 0x%llx grant 0x%x size 0x%lx (pages %u) gfn 0x%lx\n",
+			__func__, __LINE__, grant_to_dma(grant) + offset, grant, size,
+			n_pages, xen_page_to_gfn(page));
+
 	return grant_to_dma(grant) + offset;
 }
 
@@ -187,6 +197,9 @@ static void xen_virtio_dma_unmap_page(struct device *dev, dma_addr_t dma_handle,
 	gnttab_free_grant_reference_seq(grant, n_pages);
 
 	spin_unlock(&data->lock);
+
+	printk(">>> %s[%d] dma_handle 0x%llx grant 0x%x size 0x%lx (pages %u)\n",
+			__func__, __LINE__, dma_handle, grant, size, n_pages);
 }
 
 static int xen_virtio_dma_map_sg(struct device *dev, struct scatterlist *sg,
