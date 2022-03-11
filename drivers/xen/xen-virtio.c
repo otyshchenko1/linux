@@ -19,6 +19,9 @@ struct xen_virtio_data {
 	domid_t dev_domid;
 	struct device *dev;
 	struct list_head list;
+	spinlock_t lock;
+	/* Is device behaving sane? */
+	bool broken;
 };
 
 static LIST_HEAD(xen_virtio_devices);
@@ -77,21 +80,27 @@ static void *xen_virtio_dma_alloc(struct device *dev, size_t size,
 	unsigned int i, n_pages = PFN_UP(size);
 	unsigned long pfn;
 	grant_ref_t grant;
-	void *ret;
+	void *ret = NULL;
 
 	data = find_xen_virtio_data(dev);
 	if (!data)
 		return NULL;
 
-	ret = (void *)__get_free_pages(gfp, get_order(size));
+	spin_lock(&data->lock);
+
+	if (unlikely(data->broken))
+		goto out;
+
+	ret = alloc_pages_exact(n_pages * PAGE_SIZE, gfp);
 	if (!ret)
-		return NULL;
+		goto out;
 
 	pfn = virt_to_pfn(ret);
 
 	if (gnttab_alloc_grant_reference_seq(n_pages, &grant)) {
-		free_pages((unsigned long)ret, get_order(size));
-		return NULL;
+		free_pages_exact(ret, n_pages * PAGE_SIZE);
+		ret = NULL;
+		goto out;
 	}
 
 	for (i = 0; i < n_pages; i++) {
@@ -101,23 +110,44 @@ static void *xen_virtio_dma_alloc(struct device *dev, size_t size,
 
 	*dma_handle = grant_to_dma(grant);
 
+out:
+	spin_unlock(&data->lock);
+
 	return ret;
 }
 
 static void xen_virtio_dma_free(struct device *dev, size_t size, void *vaddr,
 				dma_addr_t dma_handle, unsigned long attrs)
 {
+	struct xen_virtio_data *data;
 	unsigned int i, n_pages = PFN_UP(size);
 	grant_ref_t grant;
 
+	data = find_xen_virtio_data(dev);
+	if (!data)
+		return;
+
+	spin_lock(&data->lock);
+
+	if (unlikely(data->broken))
+		goto out;
+
 	grant = dma_to_grant(dma_handle);
 
-	for (i = 0; i < n_pages; i++)
-		gnttab_end_foreign_access_ref(grant + i, 0);
+	for (i = 0; i < n_pages; i++) {
+		if (unlikely(!gnttab_end_foreign_access_ref(grant + i, 0))) {
+			dev_alert(dev, "Grant still in use by backend domain, disabled for further use\n");
+			data->broken = true;
+			goto out;
+		}
+	}
 
 	gnttab_free_grant_reference_seq(grant, n_pages);
 
-	free_pages((unsigned long)vaddr, get_order(size));
+	free_pages_exact(vaddr, n_pages * PAGE_SIZE);
+
+out:
+	spin_unlock(&data->lock);
 }
 
 static struct page *xen_virtio_dma_alloc_pages(struct device *dev, size_t size,
@@ -144,35 +174,64 @@ static dma_addr_t xen_virtio_dma_map_page(struct device *dev, struct page *page,
 	struct xen_virtio_data *data;
 	unsigned int i, n_pages = PFN_UP(size);
 	grant_ref_t grant;
+	dma_addr_t dma_handle = DMA_MAPPING_ERROR;
 
 	data = find_xen_virtio_data(dev);
 	if (!data)
 		return DMA_MAPPING_ERROR;
 
+	spin_lock(&data->lock);
+
+	if (unlikely(data->broken))
+		goto out;
+
 	if (gnttab_alloc_grant_reference_seq(n_pages, &grant))
-		return DMA_MAPPING_ERROR;
+		goto out;
 
 	for (i = 0; i < n_pages; i++) {
 		gnttab_grant_foreign_access_ref(grant + i, data->dev_domid,
 				xen_page_to_gfn(page) + i, dir == DMA_TO_DEVICE);
 	}
 
-	return grant_to_dma(grant) + offset;
+	dma_handle = grant_to_dma(grant) + offset;
+
+out:
+	spin_unlock(&data->lock);
+
+	return dma_handle;
 }
 
 static void xen_virtio_dma_unmap_page(struct device *dev, dma_addr_t dma_handle,
 				      size_t size, enum dma_data_direction dir,
 				      unsigned long attrs)
 {
+	struct xen_virtio_data *data;
 	unsigned int i, n_pages = PFN_UP(size);
 	grant_ref_t grant;
 
+	data = find_xen_virtio_data(dev);
+	if (!data)
+		return;
+
+	spin_lock(&data->lock);
+
+	if (unlikely(data->broken))
+		goto out;
+
 	grant = dma_to_grant(dma_handle);
 
-	for (i = 0; i < n_pages; i++)
-		gnttab_end_foreign_access_ref(grant + i, dir == DMA_TO_DEVICE);
+	for (i = 0; i < n_pages; i++) {
+		if (unlikely(!gnttab_end_foreign_access_ref(grant + i, dir == DMA_TO_DEVICE))) {
+			dev_alert(dev, "Grant still in use by backend domain, disabled for further use\n");
+			data->broken = true;
+			goto out;
+		}
+	}
 
 	gnttab_free_grant_reference_seq(grant, n_pages);
+
+out:
+	spin_unlock(&data->lock);
 }
 
 static int xen_virtio_dma_map_sg(struct device *dev, struct scatterlist *sg,
@@ -239,6 +298,7 @@ void xen_virtio_setup_dma_ops(struct device *dev)
 	}
 	data->dev_domid = dev_domid;
 	data->dev = dev;
+	spin_lock_init(&data->lock);
 
 	spin_lock(&xen_virtio_lock);
 	list_add(&data->list, &xen_virtio_devices);
