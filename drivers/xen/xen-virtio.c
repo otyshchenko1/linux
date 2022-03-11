@@ -19,6 +19,7 @@ struct xen_virtio_data {
 	domid_t dev_domid;
 	struct device *dev;
 	struct list_head list;
+	spinlock_t lock;
 };
 
 static LIST_HEAD(xen_virtio_devices);
@@ -149,6 +150,8 @@ static dma_addr_t xen_virtio_dma_map_page(struct device *dev, struct page *page,
 	if (!data)
 		return DMA_MAPPING_ERROR;
 
+	spin_lock(&data->lock);
+
 	if (gnttab_alloc_grant_reference_seq(n_pages, &grant))
 		return DMA_MAPPING_ERROR;
 
@@ -157,6 +160,8 @@ static dma_addr_t xen_virtio_dma_map_page(struct device *dev, struct page *page,
 				xen_page_to_gfn(page) + i, dir == DMA_TO_DEVICE);
 	}
 
+	spin_unlock(&data->lock);
+
 	return grant_to_dma(grant) + offset;
 }
 
@@ -164,15 +169,24 @@ static void xen_virtio_dma_unmap_page(struct device *dev, dma_addr_t dma_handle,
 				      size_t size, enum dma_data_direction dir,
 				      unsigned long attrs)
 {
+	struct xen_virtio_data *data;
 	unsigned int i, n_pages = PFN_UP(size);
 	grant_ref_t grant;
 
 	grant = dma_to_grant(dma_handle);
 
+	data = find_xen_virtio_data(dev);
+	if (!data)
+		return;
+
+	spin_lock(&data->lock);
+
 	for (i = 0; i < n_pages; i++)
 		gnttab_end_foreign_access_ref(grant + i, dir == DMA_TO_DEVICE);
 
 	gnttab_free_grant_reference_seq(grant, n_pages);
+
+	spin_unlock(&data->lock);
 }
 
 static int xen_virtio_dma_map_sg(struct device *dev, struct scatterlist *sg,
@@ -239,6 +253,7 @@ void xen_virtio_setup_dma_ops(struct device *dev)
 	}
 	data->dev_domid = dev_domid;
 	data->dev = dev;
+	spin_lock_init(&data->lock);
 
 	spin_lock(&xen_virtio_lock);
 	list_add(&data->list, &xen_virtio_devices);
