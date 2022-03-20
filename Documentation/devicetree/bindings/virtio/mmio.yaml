@@ -13,6 +13,9 @@ description:
   See https://www.oasis-open.org/committees/tc_home.php?wg_abbrev=virtio for
   more details.
 
+allOf:
+  - $ref: /schemas/arm/xen,dev-domid.yaml#
+
 properties:
   compatible:
     const: virtio,mmio
@@ -32,6 +35,10 @@ properties:
   iommus:
     description: Required for devices making accesses thru an IOMMU.
     maxItems: 1
+
+  xen,dev-domid:
+    description: Required when Xen grant mappings need to be enabled for device.
+    $ref: /schemas/types.yaml#/definitions/uint32
 
 required:
   - compatible
