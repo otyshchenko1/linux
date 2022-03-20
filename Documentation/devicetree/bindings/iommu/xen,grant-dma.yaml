@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: (GPL-2.0-only or BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iommu/xen,grant-dma.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Xen specific IOMMU for virtualized devices (e.g. virtio)
+
+maintainers:
+  - Stefano Stabellini <sstabellini@kernel.org>
+
+description:
+  The reference to Xen specific IOMMU node using "iommus" property indicates
+  that Xen grant mappings need to be enabled for the device, and it specifies
+  the ID of the domain where the corresponding backend resides.
+  The binding is required to restrict memory access using Xen grant mappings.
+
+properties:
+  compatible:
+    const: xen,grant-dma
+
+  '#iommu-cells':
+    const: 1
+    description:
+      Xen specific IOMMU is multiple-master IOMMU device.
+      The single cell describes the domid (domain ID) of the domain where
+      the backend is running.
+
+required:
+  - compatible
+  - "#iommu-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    xen_iommu {
+        compatible = "xen,grant-dma";
+        #iommu-cells = <1>;
+    };
+
+    virtio@3000 {
+        compatible = "virtio,mmio";
+        reg = <0x3000 0x100>;
+        interrupts = <41>;
+
+        /* The backend is located in Xen domain with ID 1 */
+        iommus = <&xen_iommu 1>;
+    };
