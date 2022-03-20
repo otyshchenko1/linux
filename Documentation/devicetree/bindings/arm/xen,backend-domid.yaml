@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: (GPL-2.0-only or BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/xen,backend-domid.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Xen specific binding for virtualized devices (e.g. virtio)
+
+maintainers:
+  - Stefano Stabellini <sstabellini@kernel.org>
+
+description:
+  This binding indicates that Xen grant mappings need to be enabled for
+  the device, and it specifies the ID of the domain where the corresponding
+  backend resides. The property is required to restrict memory access using
+  Xen grant mappings.
+
+properties:
+  xen,backend-domid:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      The domid (domain ID) of the domain where the backend is running.
+
+additionalProperties: true
+
+examples:
+  - |
+    virtio@3000 {
+            compatible = "virtio,mmio";
+            reg = <0x3000 0x100>;
+            interrupts = <41>;
+
+            /* The backend is located in Xen domain with ID 1 */
+            xen,backend-domid = <1>;
+    };
