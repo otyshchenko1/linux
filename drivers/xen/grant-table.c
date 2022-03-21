@@ -254,13 +254,14 @@ static int get_free_seq(unsigned int count)
 				continue;
 		}
 
-		*gnttab_free_tail_ptr = from;
 		while (from < to) {
 			*last = from;
 			last = __gnttab_entry(from);
 			gnttab_last_free = from;
 			from++;
 		}
+		if (to < gnttab_size)
+			gnttab_free_tail_ptr = __gnttab_entry(to - 1);
 	}
 
 	*last = GNTTAB_LIST_END;
@@ -293,7 +294,7 @@ static int get_free_entries_seq(unsigned int count)
 	}
 
 	ret = *gnttab_free_tail_ptr;
-	*gnttab_free_tail_ptr = gnttab_entry(ret + count - 1);
+	*gnttab_free_tail_ptr = gnttab_entry(ret + count);
 	gnttab_free_count -= count;
 	if (!gnttab_free_count)
 		gnttab_free_tail_ptr = NULL;
