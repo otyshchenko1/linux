@@ -212,6 +212,7 @@ static int get_free_entries(unsigned count)
 			gnttab_free_tail_ptr = &gnttab_free_head;
 		head = gnttab_entry(head);
 	}
+	bitmap_clear(gnttab_free_bitmap, head, 1);
 	gnttab_free_head = gnttab_entry(head);
 	gnttab_entry(head) = GNTTAB_LIST_END;
 
@@ -253,17 +254,19 @@ static int get_free_seq(unsigned int count)
 			ret = from;
 			bitmap_clear(gnttab_free_bitmap, ret, count);
 			from += count;
+			gnttab_free_count -= count;
 			if (from == to)
 				continue;
 		}
 
-		*gnttab_free_tail_ptr = from;
 		while (from < to) {
 			*last = from;
 			last = __gnttab_entry(from);
 			gnttab_last_free = from;
 			from++;
 		}
+		if (to < gnttab_size)
+			gnttab_free_tail_ptr = __gnttab_entry(to - 1);
 	}
 
 	*last = GNTTAB_LIST_END;
@@ -364,7 +367,7 @@ static void gnttab_set_free(unsigned int start, unsigned int n)
 		gnttab_entry(i) = i + 1;
 
 	gnttab_entry(i) = GNTTAB_LIST_END;
-	if (!gnttab_free_count) {
+	if (!gnttab_free_count || !gnttab_free_tail_ptr) {
 		gnttab_free_head = start;
 		gnttab_free_tail_ptr = &gnttab_free_head;
 	} else {
