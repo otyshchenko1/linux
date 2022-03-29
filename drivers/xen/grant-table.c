@@ -367,7 +367,7 @@ static void gnttab_set_free(unsigned int start, unsigned int n)
 		gnttab_entry(i) = i + 1;
 
 	gnttab_entry(i) = GNTTAB_LIST_END;
-	if (!gnttab_free_count || !gnttab_free_tail_ptr) {
+	if (!gnttab_free_count) {
 		gnttab_free_head = start;
 		gnttab_free_tail_ptr = &gnttab_free_head;
 	} else {
@@ -847,7 +847,10 @@ static int grow_gnttab_list(unsigned int more_frames)
 			goto grow_nomem;
 	}
 
-	gnttab_set_free(grefs_per_frame * nr_grant_frames, extra_entries);
+	gnttab_set_free(gnttab_size, extra_entries);
+
+	if (!gnttab_free_tail_ptr)
+		gnttab_free_tail_ptr = __gnttab_entry(gnttab_size);
 
 	nr_grant_frames = new_nr_grant_frames;
 	gnttab_size += extra_entries;
