@@ -409,7 +409,7 @@ err:
 }
 #endif
 
-#ifdef CONFIG_XEN_VIRTIO
+#ifdef CONFIG_ARCH_HAS_RESTRICTED_VIRTIO_MEMORY_ACCESS
 int arch_has_restricted_virtio_memory_access(void)
 {
 	if (IS_ENABLED(CONFIG_XEN_HVM_VIRTIO_GRANT) && xen_hvm_domain())
