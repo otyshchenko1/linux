@@ -71,4 +71,17 @@ static inline void xen_free_unpopulated_pages(unsigned int nr_pages,
 }
 #endif
 
+#ifdef CONFIG_XEN_VIRTIO
+void xen_virtio_setup_dma_ops(struct device *dev);
+bool xen_is_virtio_device(struct device *dev);
+#else
+static inline void xen_virtio_setup_dma_ops(struct device *dev)
+{
+}
+static inline bool xen_is_virtio_device(struct device *dev)
+{
+	return false;
+}
+#endif /* CONFIG_XEN_VIRTIO */
+
 #endif	/* _XEN_XEN_H */

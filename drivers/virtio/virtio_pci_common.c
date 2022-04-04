@@ -555,10 +555,10 @@ static int virtio_pci_probe(struct pci_dev *pci_dev,
 		return -ENOMEM;
 
 	pci_set_drvdata(pci_dev, vp_dev);
-#ifdef CONFIG_XEN_VIRTIO
+/*#ifdef CONFIG_XEN_VIRTIO
 	if (arch_has_restricted_virtio_memory_access())
 		xen_virtio_setup_dma_ops(&pci_dev->dev);
-#endif
+#endif*/
 	vp_dev->vdev.dev.parent = &pci_dev->dev;
 	vp_dev->vdev.dev.release = virtio_pci_release_dev;
 	vp_dev->pci_dev = pci_dev;

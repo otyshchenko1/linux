@@ -8,6 +8,7 @@
 #include <linux/cache.h>
 #include <linux/dma-map-ops.h>
 #include <linux/dma-iommu.h>
+#include <linux/virtio_config.h>
 #include <xen/xen.h>
 #include <xen/swiotlb-xen.h>
 
@@ -55,5 +56,10 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 #ifdef CONFIG_XEN
 	if (xen_swiotlb_detect())
 		dev->dma_ops = &xen_swiotlb_dma_ops;
+#endif
+
+#ifdef CONFIG_XEN_VIRTIO
+	if (arch_has_restricted_virtio_memory_access() && xen_is_virtio_device(dev))
+		xen_virtio_setup_dma_ops(dev);
 #endif
 }

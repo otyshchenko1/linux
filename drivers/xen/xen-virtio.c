@@ -251,7 +251,7 @@ static void xen_virtio_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
 
 static int xen_virtio_dma_dma_supported(struct device *dev, u64 mask)
 {
-	return (XEN_GRANT_ADDR_OFF - 1) <= mask;
+	return mask == DMA_BIT_MASK(64);
 }
 
 static const struct dma_map_ops xen_virtio_dma_ops = {
@@ -268,11 +268,21 @@ static const struct dma_map_ops xen_virtio_dma_ops = {
 	.dma_supported = xen_virtio_dma_dma_supported,
 };
 
+bool xen_is_virtio_device(struct device *dev)
+{
+	if (!dev->of_node)
+		return false;
+
+	if (!of_device_is_compatible(dev->of_node, "virtio,mmio"))
+		return false;
+
+	return of_property_read_bool(dev->of_node, "xen,dev-domid");
+}
+
 void xen_virtio_setup_dma_ops(struct device *dev)
 {
 	struct xen_virtio_data *data;
 	uint32_t dev_domid;
-	u64 mask;
 
 	data = find_xen_virtio_data(dev);
 	if (data) {
@@ -304,13 +314,6 @@ void xen_virtio_setup_dma_ops(struct device *dev)
 	spin_lock(&xen_virtio_lock);
 	list_add(&data->list, &xen_virtio_devices);
 	spin_unlock(&xen_virtio_lock);
-
-	/* XXX Not sure it is the best place to set DMA mask */
-	mask = min_not_zero(dev->coherent_dma_mask, XEN_GRANT_ADDR_OFF - 1);
-	if (dma_set_mask_and_coherent(dev, mask)) {
-		dev_err(dev, "Сannot set DMA mask\n");
-		goto err;
-	}
 
 	dev->dma_ops = &xen_virtio_dma_ops;
 

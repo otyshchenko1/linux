@@ -574,12 +574,4 @@ static inline int arch_has_restricted_virtio_memory_access(void)
 }
 #endif /* CONFIG_ARCH_HAS_RESTRICTED_VIRTIO_MEMORY_ACCESS */
 
-#ifdef CONFIG_XEN_VIRTIO
-void xen_virtio_setup_dma_ops(struct device *dev);
-#else
-static inline void xen_virtio_setup_dma_ops(struct device *dev)
-{
-}
-#endif /* CONFIG_XEN_VIRTIO */
-
 #endif /* _LINUX_VIRTIO_CONFIG_H */
