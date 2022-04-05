@@ -203,13 +203,13 @@ static int get_free_entries(unsigned count)
 
 	ref = head = gnttab_free_head;
 	gnttab_free_count -= count;
-	while (count-- > 1) {
+	while (count--) {
 		bitmap_clear(gnttab_free_bitmap, head, 1);
 		if (gnttab_free_tail_ptr == __gnttab_entry(head))
 			gnttab_free_tail_ptr = &gnttab_free_head;
-		head = gnttab_entry(head);
+		if (count)
+			head = gnttab_entry(head);
 	}
-	bitmap_clear(gnttab_free_bitmap, head, 1);
 	gnttab_free_head = gnttab_entry(head);
 	gnttab_entry(head) = GNTTAB_LIST_END;
 
@@ -751,7 +751,12 @@ EXPORT_SYMBOL_GPL(gnttab_alloc_grant_references);
 
 int gnttab_alloc_grant_reference_seq(unsigned int count, grant_ref_t *first)
 {
-	int h = get_free_entries_seq(count);
+	int h;
+
+	if (count == 1)
+		h = get_free_entries(1);
+	else
+		h = get_free_entries_seq(count);
 
 	if (h < 0)
 		return -ENOSPC;
