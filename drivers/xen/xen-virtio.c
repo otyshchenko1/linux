@@ -268,6 +268,17 @@ static const struct dma_map_ops xen_virtio_dma_ops = {
 	.dma_supported = xen_virtio_dma_dma_supported,
 };
 
+bool xen_is_virtio_device(struct device *dev)
+{
+	if (!dev->of_node)
+		return false;
+
+	if (!of_device_is_compatible(dev->of_node, "virtio,mmio"))
+		return false;
+
+	return of_property_read_bool(dev->of_node, "xen,dev-domid");
+}
+
 void xen_virtio_setup_dma_ops(struct device *dev)
 {
 	struct xen_virtio_data *data;
