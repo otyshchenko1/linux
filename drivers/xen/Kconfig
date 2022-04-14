@@ -347,7 +347,7 @@ config XEN_VIRTIO
 
 config XEN_HVM_VIRTIO_GRANT
 	bool "Require virtio for fully virtualized guests to use grant mappings"
-	depends on XEN_VIRTIO && X86_64
+	depends on XEN_VIRTIO && (X86_64 || ARM || ARM64)
 	default y
 	help
 	  Require virtio for fully virtualized guests to use grant mappings.
