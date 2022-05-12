@@ -245,6 +245,11 @@ static int get_free_seq(unsigned int count)
 				continue;
 		}
 
+		/*
+		 * Recreate the free list in order to have it properly sorted.
+		 * This is needed to make sure that the free tail has the maximum
+		 * possible size.
+		 */
 		while (from < to) {
 			*last = from;
 			last = __gnttab_entry(from);
@@ -1596,19 +1601,20 @@ static int gnttab_expand(unsigned int req_entries)
 int gnttab_init(void)
 {
 	int i;
-	unsigned long max_nr_grant_frames;
+	unsigned long max_nr_grant_frames, max_nr_grefs;
 	unsigned int max_nr_glist_frames, nr_glist_frames;
 	int ret;
 
 	gnttab_request_version();
 	max_nr_grant_frames = gnttab_max_grant_frames();
+	max_nr_grefs = max_nr_grant_frames *
+			gnttab_interface->grefs_per_grant_frame;
 	nr_grant_frames = 1;
 
 	/* Determine the maximum number of frames required for the
 	 * grant reference free list on the current hypervisor.
 	 */
-	max_nr_glist_frames = (max_nr_grant_frames *
-			       gnttab_interface->grefs_per_grant_frame / RPP);
+	max_nr_glist_frames = max_nr_grefs / RPP;
 
 	gnttab_list = kmalloc_array(max_nr_glist_frames,
 				    sizeof(grant_ref_t *),
@@ -1625,8 +1631,7 @@ int gnttab_init(void)
 		}
 	}
 
-	i = gnttab_interface->grefs_per_grant_frame * max_nr_grant_frames;
-	gnttab_free_bitmap = bitmap_zalloc(i, GFP_KERNEL);
+	gnttab_free_bitmap = bitmap_zalloc(max_nr_grefs, GFP_KERNEL);
 	if (!gnttab_free_bitmap) {
 		ret = -ENOMEM;
 		goto ini_nomem;
