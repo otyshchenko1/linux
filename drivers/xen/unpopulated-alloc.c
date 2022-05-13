@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/errno.h>
+#include <linux/genalloc.h>
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -15,6 +16,8 @@
 static DEFINE_MUTEX(list_lock);
 static struct page *page_list;
 static unsigned int list_count;
+
+static struct gen_pool *dma_pool;
 
 static struct resource *target_resource;
 
@@ -230,6 +233,159 @@ void xen_free_unpopulated_pages(unsigned int nr_pages, struct page **pages)
 }
 EXPORT_SYMBOL(xen_free_unpopulated_pages);
 
+static int fill_dma_pool(unsigned int nr_pages, u64 dma_mask)
+{
+	struct dev_pagemap *pgmap;
+	struct resource *res, *tmp_res = NULL;
+	void *vaddr;
+	unsigned int alloc_pages = round_up(nr_pages, PAGES_PER_SECTION);
+	struct range mhp_range;
+	resource_size_t end;
+	int ret;
+
+	res = kzalloc(sizeof(*res), GFP_KERNEL);
+	if (!res)
+		return -ENOMEM;
+
+	res->name = "Xen DMA pool";
+	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+
+	mhp_range = mhp_get_pluggable_range(true);
+	end = min(dma_mask, mhp_range.end);
+
+	ret = allocate_resource(target_resource, res,
+				alloc_pages * PAGE_SIZE, mhp_range.start, end,
+				PAGES_PER_SECTION * PAGE_SIZE, NULL, NULL);
+	if (ret < 0) {
+		pr_err("Cannot allocate new IOMEM resource\n");
+		goto err_resource;
+	}
+
+	/*
+	 * Reserve the region previously allocated from Xen resource to avoid
+	 * re-using it by someone else.
+	 */
+	if (target_resource != &iomem_resource) {
+		tmp_res = kzalloc(sizeof(*tmp_res), GFP_KERNEL);
+		if (!res) {
+			ret = -ENOMEM;
+			goto err_insert;
+		}
+
+		tmp_res->name = res->name;
+		tmp_res->start = res->start;
+		tmp_res->end = res->end;
+		tmp_res->flags = res->flags;
+
+		ret = request_resource(&iomem_resource, tmp_res);
+		if (ret < 0) {
+			pr_err("Cannot request resource %pR (%d)\n", tmp_res, ret);
+			kfree(tmp_res);
+			goto err_insert;
+		}
+	}
+
+	pgmap = kzalloc(sizeof(*pgmap), GFP_KERNEL);
+	if (!pgmap) {
+		ret = -ENOMEM;
+		goto err_pgmap;
+	}
+
+	pgmap->type = MEMORY_DEVICE_GENERIC;
+	pgmap->range = (struct range) {
+		.start = res->start,
+		.end = res->end,
+	};
+	pgmap->nr_range = 1;
+	pgmap->owner = res;
+
+	vaddr = memremap_pages(pgmap, NUMA_NO_NODE);
+	if (IS_ERR(vaddr)) {
+		pr_err("Cannot remap memory range\n");
+		ret = PTR_ERR(vaddr);
+		goto err_memremap;
+	}
+
+	ret = gen_pool_add_virt(dma_pool, (unsigned long)vaddr, res->start,
+			alloc_pages * PAGE_SIZE, NUMA_NO_NODE);
+	if (ret)
+		goto err_pool;
+
+	return 0;
+
+err_pool:
+	memunmap_pages(pgmap);
+err_memremap:
+	kfree(pgmap);
+err_pgmap:
+	if (tmp_res) {
+		release_resource(tmp_res);
+		kfree(tmp_res);
+	}
+err_insert:
+	release_resource(res);
+err_resource:
+	kfree(res);
+	return ret;
+}
+
+/**
+ * xen_alloc_unpopulated_dma_pages - alloc unpopulated DMAable pages
+ * @dev: valid struct device pointer
+ * @nr_pages: Number of pages
+ * @pages: pages returned
+ * @return 0 on success, error otherwise
+ */
+int xen_alloc_unpopulated_dma_pages(struct device *dev, unsigned int nr_pages,
+		struct page **pages)
+{
+	void *vaddr;
+	bool filled = false;
+	unsigned int i;
+	int ret;
+
+	if (!dma_pool)
+		return -ENODEV;
+
+	while (!(vaddr = (void *)gen_pool_alloc(dma_pool, nr_pages * PAGE_SIZE))) {
+		if (filled)
+			return -ENOMEM;
+		else {
+			ret = fill_dma_pool(nr_pages, dma_get_mask(dev));
+			if (ret)
+				return ret;
+
+			filled = true;
+		}
+	}
+
+	for (i = 0; i < nr_pages; i++)
+		pages[i] = virt_to_page(vaddr + PAGE_SIZE * i);
+
+	return 0;
+}
+EXPORT_SYMBOL(xen_alloc_unpopulated_dma_pages);
+
+/**
+ * xen_free_unpopulated_dma_pages - return unpopulated DMAable pages
+ * @dev: valid struct device pointer
+ * @nr_pages: Number of pages
+ * @pages: pages to return
+ */
+void xen_free_unpopulated_dma_pages(struct device *dev, unsigned int nr_pages,
+		struct page **pages)
+{
+	void *vaddr;
+
+	if (!dma_pool)
+		return;
+
+	vaddr = page_to_virt(pages[0]);
+
+	gen_pool_free(dma_pool, (unsigned long)vaddr, nr_pages * PAGE_SIZE);
+}
+EXPORT_SYMBOL(xen_free_unpopulated_dma_pages);
+
 static int __init unpopulated_init(void)
 {
 	int ret;
@@ -241,7 +397,16 @@ static int __init unpopulated_init(void)
 	if (ret) {
 		pr_err("xen:unpopulated: Cannot initialize target resource\n");
 		target_resource = NULL;
+		return ret;
 	}
+
+	dma_pool = gen_pool_create(PAGE_SHIFT, NUMA_NO_NODE);
+	if (!dma_pool) {
+		pr_err("xen:unpopulated: Cannot create DMA pool\n");
+		return -ENOMEM;
+	}
+
+	gen_pool_set_algo(dma_pool, gen_pool_best_fit, NULL);
 
 	return ret;
 }
