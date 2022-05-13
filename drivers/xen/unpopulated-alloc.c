@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/dma-mapping.h>
 #include <linux/errno.h>
+#include <linux/genalloc.h>
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -8,12 +10,12 @@
 
 #include <asm/page.h>
 
+#include <xen/balloon.h>
 #include <xen/page.h>
 #include <xen/xen.h>
 
-static DEFINE_MUTEX(list_lock);
-static struct page *page_list;
-static unsigned int list_count;
+static DEFINE_MUTEX(pool_lock);
+static struct gen_pool *unpopulated_pool;
 
 static struct resource *target_resource;
 
@@ -30,12 +32,12 @@ int __weak __init arch_xen_unpopulated_init(struct resource **res)
 	return 0;
 }
 
-static int fill_list(unsigned int nr_pages)
+static int fill_pool(unsigned int nr_pages)
 {
 	struct dev_pagemap *pgmap;
 	struct resource *res, *tmp_res = NULL;
 	void *vaddr;
-	unsigned int i, alloc_pages = round_up(nr_pages, PAGES_PER_SECTION);
+	unsigned int alloc_pages = round_up(nr_pages, PAGES_PER_SECTION);
 	struct range mhp_range;
 	int ret;
 
@@ -62,7 +64,7 @@ static int fill_list(unsigned int nr_pages)
 	 */
 	if (target_resource != &iomem_resource) {
 		tmp_res = kzalloc(sizeof(*tmp_res), GFP_KERNEL);
-		if (!res) {
+		if (!tmp_res) {
 			ret = -ENOMEM;
 			goto err_insert;
 		}
@@ -80,6 +82,9 @@ static int fill_list(unsigned int nr_pages)
 		}
 	}
 
+	pr_err(">>> NON-RAM Allocate 0x%llx - 0x%llx (size %lu)\n",
+			res->start, res->end, alloc_pages * PAGE_SIZE);
+
 	pgmap = kzalloc(sizeof(*pgmap), GFP_KERNEL);
 	if (!pgmap) {
 		ret = -ENOMEM;
@@ -95,16 +100,17 @@ static int fill_list(unsigned int nr_pages)
 	pgmap->owner = res;
 
 #ifdef CONFIG_XEN_HAVE_PVMMU
-        /*
-         * memremap will build page tables for the new memory so
-         * the p2m must contain invalid entries so the correct
-         * non-present PTEs will be written.
-         *
-         * If a failure occurs, the original (identity) p2m entries
-         * are not restored since this region is now known not to
-         * conflict with any devices.
-         */
+	/*
+	 * memremap will build page tables for the new memory so
+	 * the p2m must contain invalid entries so the correct
+	 * non-present PTEs will be written.
+	 *
+	 * If a failure occurs, the original (identity) p2m entries
+	 * are not restored since this region is now known not to
+	 * conflict with any devices.
+	 */
 	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+		unsigned int i;
 		xen_pfn_t pfn = PFN_DOWN(res->start);
 
 		for (i = 0; i < alloc_pages; i++) {
@@ -113,7 +119,7 @@ static int fill_list(unsigned int nr_pages)
 				ret = -ENOMEM;
 				goto err_memremap;
 			}
-                }
+		}
 	}
 #endif
 
@@ -124,16 +130,17 @@ static int fill_list(unsigned int nr_pages)
 		goto err_memremap;
 	}
 
-	for (i = 0; i < alloc_pages; i++) {
-		struct page *pg = virt_to_page(vaddr + PAGE_SIZE * i);
-
-		pg->zone_device_data = page_list;
-		page_list = pg;
-		list_count++;
+	ret = gen_pool_add_virt(unpopulated_pool, (unsigned long)vaddr, res->start,
+			alloc_pages * PAGE_SIZE, NUMA_NO_NODE);
+	if (ret) {
+		pr_err("Cannot add memory range to the unpopulated pool\n");
+		goto err_pool;
 	}
 
 	return 0;
 
+err_pool:
+	memunmap_pages(pgmap);
 err_memremap:
 	kfree(pgmap);
 err_pgmap:
@@ -148,6 +155,120 @@ err_resource:
 	return ret;
 }
 
+static int alloc_unpopulated_pages(unsigned int nr_pages, struct page **pages,
+		bool contiguous)
+{
+	unsigned int i;
+	int ret = 0;
+	void *vaddr;
+	bool filled = false;
+
+	/*
+	 * Fallback to default behavior if we do not have any suitable resource
+	 * to allocate required region from and as the result we won't be able to
+	 * construct pages.
+	 */
+	if (!target_resource) {
+		if (contiguous && nr_pages > 1)
+			return -ENODEV;
+
+		return alloc_xenballooned_pages(nr_pages, pages);
+	}
+
+	mutex_lock(&pool_lock);
+
+	while (!(vaddr = (void *)gen_pool_alloc(unpopulated_pool,
+			nr_pages * PAGE_SIZE))) {
+		if (filled)
+			ret = -ENOMEM;
+		else {
+			ret = fill_pool(nr_pages);
+			filled = true;
+		}
+		if (ret)
+			goto out;
+	}
+
+	for (i = 0; i < nr_pages; i++) {
+		pages[i] = virt_to_page(vaddr + PAGE_SIZE * i);
+
+#ifdef CONFIG_XEN_HAVE_PVMMU
+		if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+			ret = xen_alloc_p2m_entry(page_to_pfn(pages[i]));
+			if (ret < 0) {
+				gen_pool_free(unpopulated_pool, (unsigned long)vaddr,
+						nr_pages * PAGE_SIZE);
+				goto out;
+			}
+		}
+#endif
+	}
+
+	printk("%s[%d] (cont %d/%d) %u: 0x%p -> 0x%llx/ aval 0x%lu, total 0x%lu\n", __func__, __LINE__,
+			contiguous, is_xen_unpopulated_page(pages[0]), nr_pages, page_to_virt(pages[0]),
+			page_to_phys(pages[0]), gen_pool_avail(unpopulated_pool), gen_pool_size(unpopulated_pool));
+
+out:
+	mutex_unlock(&pool_lock);
+	return ret;
+}
+
+static bool in_unpopulated_pool(unsigned int nr_pages, struct page *page)
+{
+	return gen_pool_has_addr(unpopulated_pool,
+			(unsigned long)page_to_virt(page), nr_pages * PAGE_SIZE);
+}
+
+static void free_unpopulated_pages(unsigned int nr_pages, struct page **pages,
+		bool contiguous)
+{
+	if (!target_resource) {
+		if (contiguous && nr_pages > 1)
+			return;
+
+		free_xenballooned_pages(nr_pages, pages);
+		return;
+	}
+
+	mutex_lock(&pool_lock);
+
+	if (!contiguous && nr_pages > 1 && in_unpopulated_pool(nr_pages, pages[0])) {
+		printk("+++ DETECT contiguous\n");
+		contiguous = true;
+	}
+
+	if (contiguous)
+		gen_pool_free(unpopulated_pool, (unsigned long)page_to_virt(pages[0]),
+				nr_pages * PAGE_SIZE);
+	else {
+		unsigned int i;
+
+		for (i = 0; i < nr_pages; i++)
+			gen_pool_free(unpopulated_pool,
+					(unsigned long)page_to_virt(pages[i]), PAGE_SIZE);
+	}
+
+	printk("%s[%d] (cont %d/%d) %u: 0x%p -> 0x%llx/ aval 0x%lu, total 0x%lu\n", __func__, __LINE__,
+				contiguous, is_xen_unpopulated_page(pages[0]), nr_pages, page_to_virt(pages[0]),
+				page_to_phys(pages[0]), gen_pool_avail(unpopulated_pool), gen_pool_size(unpopulated_pool));
+
+	mutex_unlock(&pool_lock);
+}
+
+/**
+ * is_xen_unpopulated_page - check whether page is unpopulated
+ * @page: page to be checked
+ * @return true if page is unpopulated, else otherwise
+ */
+bool is_xen_unpopulated_page(struct page *page)
+{
+	if (!target_resource)
+		return false;
+
+	return in_unpopulated_pool(1, page);
+}
+EXPORT_SYMBOL(is_xen_unpopulated_page);
+
 /**
  * xen_alloc_unpopulated_pages - alloc unpopulated pages
  * @nr_pages: Number of pages
@@ -156,52 +277,7 @@ err_resource:
  */
 int xen_alloc_unpopulated_pages(unsigned int nr_pages, struct page **pages)
 {
-	unsigned int i;
-	int ret = 0;
-
-	/*
-	 * Bail out early if we do not have any suitable resource to allocate
-	 * required region from and as the result we won't be able to construct
-	 * pages.
-	 */
-	if (!target_resource)
-		return -ENODEV;
-
-	mutex_lock(&list_lock);
-	if (list_count < nr_pages) {
-		ret = fill_list(nr_pages - list_count);
-		if (ret)
-			goto out;
-	}
-
-	for (i = 0; i < nr_pages; i++) {
-		struct page *pg = page_list;
-
-		BUG_ON(!pg);
-		page_list = pg->zone_device_data;
-		list_count--;
-		pages[i] = pg;
-
-#ifdef CONFIG_XEN_HAVE_PVMMU
-		if (!xen_feature(XENFEAT_auto_translated_physmap)) {
-			ret = xen_alloc_p2m_entry(page_to_pfn(pg));
-			if (ret < 0) {
-				unsigned int j;
-
-				for (j = 0; j <= i; j++) {
-					pages[j]->zone_device_data = page_list;
-					page_list = pages[j];
-					list_count++;
-				}
-				goto out;
-			}
-		}
-#endif
-	}
-
-out:
-	mutex_unlock(&list_lock);
-	return ret;
+	return alloc_unpopulated_pages(nr_pages, pages, false);
 }
 EXPORT_SYMBOL(xen_alloc_unpopulated_pages);
 
@@ -212,58 +288,64 @@ EXPORT_SYMBOL(xen_alloc_unpopulated_pages);
  */
 void xen_free_unpopulated_pages(unsigned int nr_pages, struct page **pages)
 {
-	unsigned int i;
-
-	if (!target_resource)
-		return;
-
-	mutex_lock(&list_lock);
-	for (i = 0; i < nr_pages; i++) {
-		pages[i]->zone_device_data = page_list;
-		page_list = pages[i];
-		list_count++;
-	}
-	mutex_unlock(&list_lock);
+	free_unpopulated_pages(nr_pages, pages, false);
 }
 EXPORT_SYMBOL(xen_free_unpopulated_pages);
 
-static int __init init(void)
+/**
+ * xen_alloc_unpopulated_contiguous_pages - alloc unpopulated contiguous pages
+ * @dev: valid struct device pointer
+ * @nr_pages: Number of pages
+ * @pages: pages returned
+ * @return 0 on success, error otherwise
+ */
+int xen_alloc_unpopulated_contiguous_pages(struct device *dev,
+		unsigned int nr_pages, struct page **pages)
+{
+	/* XXX Handle devices which support 64-bit DMA address only for now */
+	if (dma_get_mask(dev) != DMA_BIT_MASK(64))
+		return -EINVAL;
+
+	return alloc_unpopulated_pages(nr_pages, pages, true);
+}
+EXPORT_SYMBOL(xen_alloc_unpopulated_contiguous_pages);
+
+/**
+ * xen_free_unpopulated_contiguous_pages - return unpopulated contiguous pages
+ * @dev: valid struct device pointer
+ * @nr_pages: Number of pages
+ * @pages: pages to return
+ */
+void xen_free_unpopulated_contiguous_pages(struct device *dev,
+		unsigned int nr_pages, struct page **pages)
+{
+	free_unpopulated_pages(nr_pages, pages, true);
+}
+EXPORT_SYMBOL(xen_free_unpopulated_contiguous_pages);
+
+static int __init unpopulated_init(void)
 {
 	int ret;
-
-#ifdef CONFIG_XEN_PV
-	unsigned int i;
 
 	if (!xen_domain())
 		return -ENODEV;
 
-	if (!xen_pv_domain())
-		return 0;
-
-	/*
-	 * Initialize with pages from the extra memory regions (see
-	 * arch/x86/xen/setup.c).
-	 */
-	for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++) {
-		unsigned int j;
-
-		for (j = 0; j < xen_extra_mem[i].n_pfns; j++) {
-			struct page *pg =
-				pfn_to_page(xen_extra_mem[i].start_pfn + j);
-
-			pg->zone_device_data = page_list;
-			page_list = pg;
-			list_count++;
-		}
+	unpopulated_pool = gen_pool_create(PAGE_SHIFT, NUMA_NO_NODE);
+	if (!unpopulated_pool) {
+		pr_err("xen:unpopulated: Cannot create unpopulated pool\n");
+		return -ENOMEM;
 	}
-#endif
+
+	gen_pool_set_algo(unpopulated_pool, gen_pool_best_fit, NULL);
 
 	ret = arch_xen_unpopulated_init(&target_resource);
 	if (ret) {
 		pr_err("xen:unpopulated: Cannot initialize target resource\n");
+		gen_pool_destroy(unpopulated_pool);
+		unpopulated_pool = NULL;
 		target_resource = NULL;
 	}
 
 	return ret;
 }
-subsys_initcall(init);
+early_initcall(unpopulated_init);
