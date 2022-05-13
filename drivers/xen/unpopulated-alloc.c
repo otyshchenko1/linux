@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/dma-mapping.h>
 #include <linux/errno.h>
+#include <linux/genalloc.h>
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -16,6 +18,8 @@ static DEFINE_MUTEX(list_lock);
 static struct page *page_list;
 static unsigned int list_count;
 
+static struct gen_pool *dma_pool;
+
 static struct resource *target_resource;
 
 /*
@@ -31,7 +35,7 @@ int __weak __init arch_xen_unpopulated_init(struct resource **res)
 	return 0;
 }
 
-static int fill_list(unsigned int nr_pages)
+static int fill_list(unsigned int nr_pages, bool use_pool)
 {
 	struct dev_pagemap *pgmap;
 	struct resource *res, *tmp_res = NULL;
@@ -125,12 +129,21 @@ static int fill_list(unsigned int nr_pages)
 		goto err_memremap;
 	}
 
-	for (i = 0; i < alloc_pages; i++) {
-		struct page *pg = virt_to_page(vaddr + PAGE_SIZE * i);
+	if (use_pool) {
+		ret = gen_pool_add_virt(dma_pool, (unsigned long)vaddr, res->start,
+				alloc_pages * PAGE_SIZE, NUMA_NO_NODE);
+		if (ret) {
+			memunmap_pages(pgmap);
+			goto err_memremap;
+		}
+	} else {
+		for (i = 0; i < alloc_pages; i++) {
+			struct page *pg = virt_to_page(vaddr + PAGE_SIZE * i);
 
-		pg->zone_device_data = page_list;
-		page_list = pg;
-		list_count++;
+			pg->zone_device_data = page_list;
+			page_list = pg;
+			list_count++;
+		}
 	}
 
 	return 0;
@@ -149,13 +162,8 @@ err_resource:
 	return ret;
 }
 
-/**
- * xen_alloc_unpopulated_pages - alloc unpopulated pages
- * @nr_pages: Number of pages
- * @pages: pages returned
- * @return 0 on success, error otherwise
- */
-int xen_alloc_unpopulated_pages(unsigned int nr_pages, struct page **pages)
+static int alloc_unpopulated_pages(unsigned int nr_pages, struct page **pages,
+		bool contiguous)
 {
 	unsigned int i;
 	int ret = 0;
@@ -165,44 +173,122 @@ int xen_alloc_unpopulated_pages(unsigned int nr_pages, struct page **pages)
 	 * to allocate required region from and as the result we won't be able to
 	 * construct pages.
 	 */
-	if (!target_resource)
-		return xen_alloc_ballooned_pages(nr_pages, pages);
+	if (!target_resource) {
+		if (contiguous)
+			return -ENODEV;
 
-	mutex_lock(&list_lock);
-	if (list_count < nr_pages) {
-		ret = fill_list(nr_pages - list_count);
-		if (ret)
-			goto out;
+		return xen_alloc_ballooned_pages(nr_pages, pages);
 	}
 
-	for (i = 0; i < nr_pages; i++) {
-		struct page *pg = page_list;
+	mutex_lock(&list_lock);
 
-		BUG_ON(!pg);
-		page_list = pg->zone_device_data;
-		list_count--;
-		pages[i] = pg;
+	if (contiguous) {
+		void *vaddr;
+		bool filled = false;
+
+		while (!(vaddr = (void *)gen_pool_alloc(dma_pool, nr_pages * PAGE_SIZE))) {
+			if (filled)
+				ret = -ENOMEM;
+			else {
+				ret = fill_list(nr_pages, true);
+				filled = true;
+			}
+			if (ret)
+				goto out;
+		}
+
+		for (i = 0; i < nr_pages; i++) {
+			pages[i] = virt_to_page(vaddr + PAGE_SIZE * i);
 
 #ifdef CONFIG_XEN_HAVE_PVMMU
-		if (!xen_feature(XENFEAT_auto_translated_physmap)) {
-			ret = xen_alloc_p2m_entry(page_to_pfn(pg));
-			if (ret < 0) {
-				unsigned int j;
-
-				for (j = 0; j <= i; j++) {
-					pages[j]->zone_device_data = page_list;
-					page_list = pages[j];
-					list_count++;
+			if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+				ret = xen_alloc_p2m_entry(page_to_pfn(pages[i]));
+				if (ret < 0) {
+					/* XXX Do we need to zeroed pages[i]? */
+					gen_pool_free(dma_pool, (unsigned long)vaddr,
+							nr_pages * PAGE_SIZE);
+					goto out;
 				}
-				goto out;
 			}
-		}
 #endif
+		}
+	} else {
+		if (list_count < nr_pages) {
+			ret = fill_list(nr_pages - list_count, false);
+			if (ret)
+				goto out;
+		}
+
+		for (i = 0; i < nr_pages; i++) {
+			struct page *pg = page_list;
+
+			BUG_ON(!pg);
+			page_list = pg->zone_device_data;
+			list_count--;
+			pages[i] = pg;
+
+#ifdef CONFIG_XEN_HAVE_PVMMU
+			if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+				ret = xen_alloc_p2m_entry(page_to_pfn(pg));
+				if (ret < 0) {
+					unsigned int j;
+
+					for (j = 0; j <= i; j++) {
+						pages[j]->zone_device_data = page_list;
+						page_list = pages[j];
+						list_count++;
+					}
+					goto out;
+				}
+			}
+#endif
+		}
 	}
 
 out:
 	mutex_unlock(&list_lock);
 	return ret;
+}
+
+static void free_unpopulated_pages(unsigned int nr_pages, struct page **pages,
+		bool contiguous)
+{
+	if (!target_resource) {
+		if (contiguous)
+			return;
+
+		xen_free_ballooned_pages(nr_pages, pages);
+		return;
+	}
+
+	mutex_lock(&list_lock);
+
+	/* XXX Do we need to check the range (gen_pool_has_addr)? */
+	if (contiguous)
+		gen_pool_free(dma_pool, (unsigned long)page_to_virt(pages[0]),
+				nr_pages * PAGE_SIZE);
+	else {
+		unsigned int i;
+
+		for (i = 0; i < nr_pages; i++) {
+			pages[i]->zone_device_data = page_list;
+			page_list = pages[i];
+			list_count++;
+		}
+	}
+
+	mutex_unlock(&list_lock);
+}
+
+/**
+ * xen_alloc_unpopulated_pages - alloc unpopulated pages
+ * @nr_pages: Number of pages
+ * @pages: pages returned
+ * @return 0 on success, error otherwise
+ */
+int xen_alloc_unpopulated_pages(unsigned int nr_pages, struct page **pages)
+{
+	return alloc_unpopulated_pages(nr_pages, pages, false);
 }
 EXPORT_SYMBOL(xen_alloc_unpopulated_pages);
 
@@ -213,22 +299,40 @@ EXPORT_SYMBOL(xen_alloc_unpopulated_pages);
  */
 void xen_free_unpopulated_pages(unsigned int nr_pages, struct page **pages)
 {
-	unsigned int i;
-
-	if (!target_resource) {
-		xen_free_ballooned_pages(nr_pages, pages);
-		return;
-	}
-
-	mutex_lock(&list_lock);
-	for (i = 0; i < nr_pages; i++) {
-		pages[i]->zone_device_data = page_list;
-		page_list = pages[i];
-		list_count++;
-	}
-	mutex_unlock(&list_lock);
+	free_unpopulated_pages(nr_pages, pages, false);
 }
 EXPORT_SYMBOL(xen_free_unpopulated_pages);
+
+/**
+ * xen_alloc_unpopulated_dma_pages - alloc unpopulated DMAable pages
+ * @dev: valid struct device pointer
+ * @nr_pages: Number of pages
+ * @pages: pages returned
+ * @return 0 on success, error otherwise
+ */
+int xen_alloc_unpopulated_dma_pages(struct device *dev, unsigned int nr_pages,
+		struct page **pages)
+{
+	/* XXX Handle devices which support 64-bit DMA address only for now */
+	if (dma_get_mask(dev) != DMA_BIT_MASK(64))
+		return -EINVAL;
+
+	return alloc_unpopulated_pages(nr_pages, pages, true);
+}
+EXPORT_SYMBOL(xen_alloc_unpopulated_dma_pages);
+
+/**
+ * xen_free_unpopulated_dma_pages - return unpopulated DMAable pages
+ * @dev: valid struct device pointer
+ * @nr_pages: Number of pages
+ * @pages: pages to return
+ */
+void xen_free_unpopulated_dma_pages(struct device *dev, unsigned int nr_pages,
+		struct page **pages)
+{
+	free_unpopulated_pages(nr_pages, pages, true);
+}
+EXPORT_SYMBOL(xen_free_unpopulated_dma_pages);
 
 static int __init unpopulated_init(void)
 {
@@ -237,9 +341,19 @@ static int __init unpopulated_init(void)
 	if (!xen_domain())
 		return -ENODEV;
 
+	dma_pool = gen_pool_create(PAGE_SHIFT, NUMA_NO_NODE);
+	if (!dma_pool) {
+		pr_err("xen:unpopulated: Cannot create DMA pool\n");
+		return -ENOMEM;
+	}
+
+	gen_pool_set_algo(dma_pool, gen_pool_best_fit, NULL);
+
 	ret = arch_xen_unpopulated_init(&target_resource);
 	if (ret) {
 		pr_err("xen:unpopulated: Cannot initialize target resource\n");
+		gen_pool_destroy(dma_pool);
+		dma_pool = NULL;
 		target_resource = NULL;
 	}
 
