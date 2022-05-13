@@ -52,9 +52,15 @@ bool xen_biovec_phys_mergeable(const struct bio_vec *vec1,
 extern u64 xen_saved_max_mem_size;
 #endif
 
+struct device;
+
 #ifdef CONFIG_XEN_UNPOPULATED_ALLOC
 int xen_alloc_unpopulated_pages(unsigned int nr_pages, struct page **pages);
 void xen_free_unpopulated_pages(unsigned int nr_pages, struct page **pages);
+int xen_alloc_unpopulated_dma_pages(struct device *dev, unsigned int nr_pages,
+		struct page **pages);
+void xen_free_unpopulated_dma_pages(struct device *dev, unsigned int nr_pages,
+		struct page **pages);
 #include <linux/ioport.h>
 int arch_xen_unpopulated_init(struct resource **res);
 #else
@@ -68,6 +74,15 @@ static inline void xen_free_unpopulated_pages(unsigned int nr_pages,
 		struct page **pages)
 {
 	xen_free_ballooned_pages(nr_pages, pages);
+}
+static inline int xen_alloc_unpopulated_dma_pages(struct device *dev,
+		unsigned int nr_pages, struct page **pages)
+{
+	return -1;
+}
+static inline void xen_free_unpopulated_dma_pages(struct device *dev,
+		unsigned int nr_pages, struct page **pages)
+{
 }
 #endif
 
