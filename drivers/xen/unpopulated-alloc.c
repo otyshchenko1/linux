@@ -311,6 +311,8 @@ static int fill_dma_pool(unsigned int nr_pages, u64 dma_mask)
 	if (ret)
 		goto err_pool;
 
+	printk("%s[%d] %u: 0x%p -> 0x%llx\n", __func__, __LINE__, nr_pages, vaddr, virt_to_phys(vaddr));
+
 	return 0;
 
 err_pool:
@@ -362,6 +364,10 @@ int xen_alloc_unpopulated_dma_pages(struct device *dev, unsigned int nr_pages,
 	for (i = 0; i < nr_pages; i++)
 		pages[i] = virt_to_page(vaddr + PAGE_SIZE * i);
 
+	printk("%s[%d] %u: 0x%p -> 0x%llx/ 0x%p -> 0x%llx\n", __func__, __LINE__,
+			nr_pages, page_to_virt(pages[0]), page_to_phys(pages[0]), vaddr,
+			gen_pool_virt_to_phys(dma_pool, (unsigned long)vaddr));
+
 	return 0;
 }
 EXPORT_SYMBOL(xen_alloc_unpopulated_dma_pages);
@@ -381,6 +387,9 @@ void xen_free_unpopulated_dma_pages(struct device *dev, unsigned int nr_pages,
 		return;
 
 	vaddr = page_to_virt(pages[0]);
+
+	printk("%s[%d] %u: 0x%p -> 0x%llx\n", __func__, __LINE__,
+			nr_pages, page_to_virt(pages[0]), page_to_phys(pages[0]));
 
 	gen_pool_free(dma_pool, (unsigned long)vaddr, nr_pages * PAGE_SIZE);
 }
