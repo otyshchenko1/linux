@@ -296,16 +296,6 @@ static void __init xen_acpi_guest_init(void)
 #endif
 }
 
-
-static struct resource *next_resource1(struct resource *p)
-{
-	if (p->child)
-		return p->child;
-	while (!p->sibling && p->parent)
-		p = p->parent;
-	return p->sibling;
-}
-
 #ifdef CONFIG_XEN_UNPOPULATED_ALLOC
 /*
  * A type-less specific Xen resource which contains extended regions
@@ -321,7 +311,6 @@ int __init arch_xen_unpopulated_init(struct resource **res)
 	struct resource *regs, *tmp_res;
 	uint64_t min_gpaddr = -1, max_gpaddr = 0;
 	unsigned int i, nr_reg = 0;
-	struct resource *p;
 	int rc;
 
 	if (!xen_domain())
@@ -356,8 +345,6 @@ int __init arch_xen_unpopulated_init(struct resource **res)
 		if (rc)
 			goto err;
 
-		pr_err("Proccess %d: 0x%llx - 0x%llx\n", i, regs[i].start, regs[i].end);
-
 		if (max_gpaddr < regs[i].end)
 			max_gpaddr = regs[i].end;
 		if (min_gpaddr > regs[i].start)
@@ -366,8 +353,6 @@ int __init arch_xen_unpopulated_init(struct resource **res)
 
 	xen_resource.start = min_gpaddr;
 	xen_resource.end = max_gpaddr;
-
-	pr_err("Max: 0x%llx - 0x%llx\n", min_gpaddr, max_gpaddr);
 
 	/*
 	 * Mark holes between extended regions as unavailable. The rest of that
@@ -408,9 +393,6 @@ int __init arch_xen_unpopulated_init(struct resource **res)
 	}
 
 	*res = &xen_resource;
-
-	for (p = xen_resource.child; p; p = next_resource1(p))
-		pr_err("holes [%llx - %llx]\n", p->start, p->end);
 
 err:
 	kfree(regs);
