@@ -167,6 +167,11 @@ void virtio_add_status(struct virtio_device *dev, unsigned int status)
 }
 EXPORT_SYMBOL_GPL(virtio_add_status);
 
+int __weak device_has_restricted_virtio_memory_access(struct device *dev)
+{
+	return platform_has(PLATFORM_VIRTIO_RESTRICTED_MEM_ACCESS);
+}
+
 /* Do some validation, then set FEATURES_OK */
 static int virtio_features_ok(struct virtio_device *dev)
 {
@@ -174,7 +179,7 @@ static int virtio_features_ok(struct virtio_device *dev)
 
 	might_sleep();
 
-	if (platform_has(PLATFORM_VIRTIO_RESTRICTED_MEM_ACCESS)) {
+	if (device_has_restricted_virtio_memory_access(dev->dev.parent)) {
 		if (!virtio_has_feature(dev, VIRTIO_F_VERSION_1)) {
 			dev_warn(&dev->dev,
 				 "device must provide VIRTIO_F_VERSION_1\n");

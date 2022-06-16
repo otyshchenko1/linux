@@ -559,4 +559,6 @@ static inline void virtio_cwrite64(struct virtio_device *vdev,
 		_r;							\
 	})
 
+int device_has_restricted_virtio_memory_access(struct device *dev);
+
 #endif /* _LINUX_VIRTIO_CONFIG_H */

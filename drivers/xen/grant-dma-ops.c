@@ -11,6 +11,7 @@
 #include <linux/dma-map-ops.h>
 #include <linux/of.h>
 #include <linux/pfn.h>
+#include <linux/virtio_config.h>
 #include <linux/xarray.h>
 #include <xen/xen.h>
 #include <xen/grant_table.h>
@@ -284,6 +285,11 @@ bool xen_is_grant_dma_device(struct device *dev)
 	of_node_put(iommu_np);
 
 	return has_iommu;
+}
+
+int device_has_restricted_virtio_memory_access(struct device *dev)
+{
+	return (xen_pv_domain() || xen_is_grant_dma_device(dev));
 }
 
 void xen_grant_setup_dma_ops(struct device *dev)
