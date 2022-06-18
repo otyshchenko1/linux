@@ -204,6 +204,7 @@ static int alloc_unpopulated_pages(unsigned int nr_pages, struct page **pages,
 #endif
 	}
 
+	if (contiguous)
 	printk("%s[%d] (cont %d/%d) %u: 0x%p -> 0x%llx/ aval 0x%lu, total 0x%lu\n", __func__, __LINE__,
 			contiguous, is_xen_unpopulated_page(pages[0]), nr_pages, page_to_virt(pages[0]),
 			page_to_phys(pages[0]), gen_pool_avail(unpopulated_pool), gen_pool_size(unpopulated_pool));
@@ -215,6 +216,9 @@ out:
 
 static bool in_unpopulated_pool(unsigned int nr_pages, struct page *page)
 {
+	if (!target_resource)
+		return false;
+
 	return gen_pool_has_addr(unpopulated_pool,
 			(unsigned long)page_to_virt(page), nr_pages * PAGE_SIZE);
 }
@@ -230,12 +234,12 @@ static void free_unpopulated_pages(unsigned int nr_pages, struct page **pages,
 		return;
 	}
 
-	mutex_lock(&pool_lock);
+	/*if (!contiguous && nr_pages > 1 && in_unpopulated_pool(nr_pages, pages[0])) {
+	    printk("+++ DETECT contiguous\n");
+	    contiguous = true;
+	}*/
 
-	if (!contiguous && nr_pages > 1 && in_unpopulated_pool(nr_pages, pages[0])) {
-		printk("+++ DETECT contiguous\n");
-		contiguous = true;
-	}
+	mutex_lock(&pool_lock);
 
 	if (contiguous)
 		gen_pool_free(unpopulated_pool, (unsigned long)page_to_virt(pages[0]),
@@ -248,6 +252,7 @@ static void free_unpopulated_pages(unsigned int nr_pages, struct page **pages,
 					(unsigned long)page_to_virt(pages[i]), PAGE_SIZE);
 	}
 
+	if (contiguous)
 	printk("%s[%d] (cont %d/%d) %u: 0x%p -> 0x%llx/ aval 0x%lu, total 0x%lu\n", __func__, __LINE__,
 				contiguous, is_xen_unpopulated_page(pages[0]), nr_pages, page_to_virt(pages[0]),
 				page_to_phys(pages[0]), gen_pool_avail(unpopulated_pool), gen_pool_size(unpopulated_pool));
@@ -262,9 +267,6 @@ static void free_unpopulated_pages(unsigned int nr_pages, struct page **pages,
  */
 bool is_xen_unpopulated_page(struct page *page)
 {
-	if (!target_resource)
-		return false;
-
 	return in_unpopulated_pool(1, page);
 }
 EXPORT_SYMBOL(is_xen_unpopulated_page);
