@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+		/* Change property in existing node (or target = <phandle>) */
+		target-path = "/virtio@2000000";
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+};

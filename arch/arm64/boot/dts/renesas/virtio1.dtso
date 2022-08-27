@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@1 {
+		target-path = "/";
+
+		__overlay__ {
+			/* needed to avoid dtc warning */
+			#address-cells = <0x02>;
+			#size-cells = <0x02>;
+
+			/* create new node 1 */
+			virtio@2000200 {
+				compatible = "virtio,mmio";
+				reg = <0x00 0x2000200 0x00 0x200>;
+				interrupts = <0x00 0x02 0xf01>;
+				interrupt-parent = <0xfde8>;
+				iommus = <0xfde9 0x01>;
+				dma-coherent;
+				status = "okay";
+			};
+		};
+	};
+};
+
+&{/} {
+	/* needed to avoid dtc warning */
+	#address-cells = <0x02>;
+	#size-cells = <0x02>;
+
+	/* create new node 2 */
+	virtio@2000400 {
+		compatible = "virtio,mmio";
+		reg = <0x00 0x2000400 0x00 0x200>;
+		interrupts = <0x00 0x03 0xf01>;
+		interrupt-parent = <0xfde8>;
+		iommus = <0xfde9 0x01>;
+		dma-coherent;
+		status = "okay";
+	};
+};
