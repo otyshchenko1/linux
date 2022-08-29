@@ -372,6 +372,16 @@ err:
 	dev_err(dev, "Cannot set up Xen grant DMA ops, retain platform DMA ops\n");
 }
 
+bool xen_virtio_restricted_mem_acc(struct virtio_device *dev)
+{
+	bool ret = xen_virtio_mem_acc(dev);
+
+	if (ret)
+		xen_grant_setup_dma_ops(dev->dev.parent);
+
+	return ret;
+}
+
 MODULE_DESCRIPTION("Xen grant DMA-mapping layer");
 MODULE_AUTHOR("Juergen Gross <jgross@suse.com>");
 MODULE_LICENSE("GPL");
