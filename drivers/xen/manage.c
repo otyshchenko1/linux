@@ -308,7 +308,8 @@ static void sysrq_handler(struct xenbus_watch *watch, const char *path,
 		goto again;
 
 	if (sysrq_key != '\0')
-		handle_sysrq(sysrq_key);
+		/*handle_sysrq(sysrq_key);*/
+		xen_grant_dma_handle_sysrq(sysrq_key);
 }
 
 static struct xenbus_watch sysrq_watch = {

@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/dma-map-ops.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/pfn.h>
 #include <linux/xarray.h>
 #include <linux/virtio_anchor.h>
@@ -287,6 +288,107 @@ bool xen_is_grant_dma_device(struct device *dev)
 	of_node_put(iommu_np);
 
 	return has_iommu;
+}
+
+/* TODO: Consider using statically allocated (struct property status) */
+static int xen_grant_dma_enable_device(struct device_node *np)
+{
+	struct property *status;
+
+	status = kzalloc(sizeof(*status), GFP_KERNEL);
+	if (!status)
+		return -ENOMEM;
+
+	status->name = kstrdup("status", GFP_KERNEL);
+	if (!status->name)
+		return -ENOMEM;
+
+	status->value = kstrdup("okay", GFP_KERNEL);
+	if (!status->value)
+		return -ENOMEM;
+
+	status->length = sizeof("okay");
+
+	return of_update_property(np, status);
+}
+
+static int xen_grant_dma_disable_device(struct device_node *np)
+{
+	struct property *status;
+
+	status = kzalloc(sizeof(*status), GFP_KERNEL);
+	if (!status)
+		return -ENOMEM;
+
+	status->name = kstrdup("status", GFP_KERNEL);
+	if (!status->name)
+		return -ENOMEM;
+
+	status->value = kstrdup("disabled", GFP_KERNEL);
+	if (!status->value)
+		return -ENOMEM;
+
+	status->length = sizeof("disabled");
+
+	return of_update_property(np, status);
+}
+
+void xen_grant_dma_handle_sysrq(int key)
+{
+	struct device_node *np;
+	const char *path;
+
+	printk("%s: got key %d\n", __func__, key);
+
+	switch (key) {
+	case '0':
+		path = "/virtio@2000000";
+		np = of_find_node_by_path(path);
+		if (!np) {
+			printk("%s: failed to find node by path %s\n", __func__, path);
+			return;
+		}
+
+		xen_grant_dma_enable_device(np);
+		printk("%s: enable virtio0\n", __func__);
+		break;
+
+	case '1':
+		path = "/virtio@2000200";
+		np = of_find_node_by_path(path);
+		if (!np) {
+			printk("%s: failed to find node by path %s\n", __func__, path);
+			return;
+		}
+
+		xen_grant_dma_enable_device(np);
+		printk("%s: enable virtio1\n", __func__);
+		break;
+
+	case '2':
+		path = "/virtio@2000000";
+		np = of_find_node_by_path(path);
+		if (!np) {
+			printk("%s: failed to find node by path %s\n", __func__, path);
+			return;
+		}
+
+		xen_grant_dma_disable_device(np);
+		printk("%s: disable virtio0\n", __func__);
+		break;
+
+	case '3':
+		path = "/virtio@2000200";
+		np = of_find_node_by_path(path);
+		if (!np) {
+			printk("%s: failed to find node by path %s\n", __func__, path);
+			return;
+		}
+
+		xen_grant_dma_disable_device(np);
+		printk("%s: disable virtio1\n", __func__);
+		break;
+	}
 }
 
 bool xen_virtio_mem_acc(struct virtio_device *dev)
