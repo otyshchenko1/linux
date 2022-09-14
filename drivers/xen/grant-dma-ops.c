@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/dma-map-ops.h>
 #include <linux/of.h>
+#include <linux/pci.h>
 #include <linux/pfn.h>
 #include <linux/xarray.h>
 #include <linux/virtio_anchor.h>
@@ -273,12 +274,28 @@ static const struct dma_map_ops xen_grant_dma_ops = {
 	.dma_supported = xen_grant_dma_supported,
 };
 
-static bool xen_is_dt_grant_dma_device(struct device *dev)
+static struct device_node *xen_dt_get_node(struct device *dev)
+{
+	if (dev_is_pci(dev)) {
+		struct pci_dev *pdev = to_pci_dev(dev);
+		struct pci_bus *bus = pdev->bus;
+
+		/* Walk up to the root bus to look for PCI Host controller */
+		while (!pci_is_root_bus(bus))
+			bus = bus->parent;
+
+		return of_node_get(bus->bridge->parent->of_node);
+	}
+
+	return of_node_get(dev->of_node);
+}
+
+static bool xen_is_dt_grant_dma_device(struct device_node *np)
 {
 	struct device_node *iommu_np;
 	bool has_iommu;
 
-	iommu_np = of_parse_phandle(dev->of_node, "iommus", 0);
+	iommu_np = of_parse_phandle(np, "iommus", 0);
 	has_iommu = iommu_np &&
 		    of_device_is_compatible(iommu_np, "xen,grant-dma");
 	of_node_put(iommu_np);
@@ -288,9 +305,17 @@ static bool xen_is_dt_grant_dma_device(struct device *dev)
 
 bool xen_is_grant_dma_device(struct device *dev)
 {
+	struct device_node *np;
+
 	/* XXX Handle only DT devices for now */
-	if (dev->of_node)
-		return xen_is_dt_grant_dma_device(dev);
+	np = xen_dt_get_node(dev);
+	if (np) {
+		bool ret;
+
+		ret = xen_is_dt_grant_dma_device(np);
+		of_node_put(np);
+		return ret;
+	}
 
 	return false;
 }
@@ -303,20 +328,20 @@ bool xen_virtio_mem_acc(struct virtio_device *dev)
 	return xen_is_grant_dma_device(dev->dev.parent);
 }
 
-static int xen_dt_grant_setup_dma_ops(struct device *dev,
+static int xen_dt_grant_setup_dma_ops(struct device_node *np,
 				       struct xen_grant_dma_data *data)
 {
 	struct of_phandle_args iommu_spec;
 
-	if (of_parse_phandle_with_args(dev->of_node, "iommus", "#iommu-cells",
+	if (of_parse_phandle_with_args(np, "iommus", "#iommu-cells",
 			0, &iommu_spec)) {
-		dev_err(dev, "Cannot parse iommus property\n");
+		pr_err("%s: Cannot parse iommus property\n", np->name);
 		return -ESRCH;
 	}
 
 	if (!of_device_is_compatible(iommu_spec.np, "xen,grant-dma") ||
 			iommu_spec.args_count != 1) {
-		dev_err(dev, "Incompatible IOMMU node\n");
+		pr_err("%s: Incompatible IOMMU node\n", iommu_spec.np->name);
 		of_node_put(iommu_spec.np);
 		return -ESRCH;
 	}
@@ -335,6 +360,7 @@ static int xen_dt_grant_setup_dma_ops(struct device *dev,
 void xen_grant_setup_dma_ops(struct device *dev)
 {
 	struct xen_grant_dma_data *data;
+	struct device_node *np;
 
 	data = find_xen_grant_dma_data(dev);
 	if (data) {
@@ -346,8 +372,13 @@ void xen_grant_setup_dma_ops(struct device *dev)
 	if (!data)
 		goto err;
 
-	if (dev->of_node) {
-		if (xen_dt_grant_setup_dma_ops(dev, data))
+	np = xen_dt_get_node(dev);
+	if (np) {
+		int ret;
+
+		ret = xen_dt_grant_setup_dma_ops(np, data);
+		of_node_put(np);
+		if (ret)
 			goto err;
 	} else if (IS_ENABLED(CONFIG_XEN_VIRTIO_FORCE_GRANT)) {
 		dev_info(dev, "Using dom0 as backend\n");
