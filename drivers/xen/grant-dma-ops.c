@@ -297,7 +297,7 @@ bool xen_is_grant_dma_device(struct device *dev)
 
 bool xen_virtio_mem_acc(struct virtio_device *dev)
 {
-	if (IS_ENABLED(CONFIG_XEN_VIRTIO_FORCE_GRANT))
+	if (IS_ENABLED(CONFIG_XEN_VIRTIO_FORCE_GRANT) || xen_pv_domain())
 		return true;
 
 	return xen_is_grant_dma_device(dev->dev.parent);
