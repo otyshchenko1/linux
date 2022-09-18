@@ -235,6 +235,11 @@ static inline bool xen_virtio_mem_acc(struct virtio_device *dev)
 {
 	return false;
 }
+
+static inline bool xen_virtio_restricted_mem_acc(struct virtio_device *dev)
+{
+	return false;
+}
 #endif /* CONFIG_XEN_GRANT_DMA_OPS */
 
 #endif /* INCLUDE_XEN_OPS_H */
