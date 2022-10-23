@@ -326,12 +326,16 @@ static int xen_dt_grant_init_backend_domid(struct device *dev,
 			dev_dbg(dev, "Cannot translate ID\n");
 			return -ESRCH;
 		}
+
+		dev_err(dev, "pci: sid 0x%x\n", iommu_spec.args[0]);
 	} else {
 		if (of_parse_phandle_with_args(np, "iommus", "#iommu-cells",
 				0, &iommu_spec)) {
 			dev_dbg(dev, "Cannot parse iommus property\n");
 			return -ESRCH;
 		}
+
+		dev_err(dev, "platform: sid 0x%x\n", iommu_spec.args[0]);
 	}
 
 	if (!of_device_is_compatible(iommu_spec.np, "xen,grant-dma") ||
@@ -398,6 +402,8 @@ static void xen_grant_setup_dma_ops(struct device *dev, domid_t backend_domid)
 	}
 
 	dev->dma_ops = &xen_grant_dma_ops;
+
+	dev_err(dev, "Set up Xen grant DMA ops\n");
 
 	return;
 
