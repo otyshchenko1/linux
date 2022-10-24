@@ -26,6 +26,8 @@ struct xen_grant_dma_data {
 	bool broken;
 };
 
+#define INVALID_BACKEND_DOMID   ~0U
+
 static DEFINE_XARRAY_FLAGS(xen_grant_dma_devices, XA_FLAGS_LOCK_IRQ);
 
 #define XEN_GRANT_DMA_ADDR_OFF	(1ULL << 63)
@@ -340,6 +342,11 @@ static int xen_dt_grant_init_backend_domid(struct device *dev,
 	}
 
 	of_node_put(iommu_spec.np);
+
+	if (iommu_spec.args[0] == INVALID_BACKEND_DOMID) {
+		dev_dbg(dev, "Invalid ID\n");
+		return -EINVAL;
+	}
 
 	/*
 	 * The endpoint ID here means the ID of the domain where the
