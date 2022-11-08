@@ -82,6 +82,8 @@ static int fill_pool(unsigned int nr_pages)
 		}
 	}
 
+	pr_err("!!! NON-RAM Allocate 0x%llx - 0x%llx (size %lu)\n", res->start, res->end, alloc_pages * PAGE_SIZE);
+
 	pgmap = kzalloc(sizeof(*pgmap), GFP_KERNEL);
 	if (!pgmap) {
 		ret = -ENOMEM;
@@ -201,6 +203,11 @@ static int alloc_unpopulated_pages(unsigned int nr_pages, struct page **pages,
 #endif
 	}
 
+	if (contiguous)
+		printk("+++ %s[%d] nr_pages %u: virt 0x%p -> phys 0x%llx/ aval 0x%lu, total 0x%lu\n", __func__, __LINE__,
+			nr_pages, page_to_virt(pages[0]), page_to_phys(pages[0]),
+			gen_pool_avail(unpopulated_pool), gen_pool_size(unpopulated_pool));
+
 out:
 	mutex_unlock(&pool_lock);
 	return ret;
@@ -239,6 +246,11 @@ static void free_unpopulated_pages(unsigned int nr_pages, struct page **pages,
 			gen_pool_free(unpopulated_pool,
 					(unsigned long)page_to_virt(pages[i]), PAGE_SIZE);
 	}
+
+	if (contiguous)
+		printk("--- %s[%d] nr_pages %u: virt 0x%p -> phys 0x%llx /aval 0x%lu, total 0x%lu\n", __func__, __LINE__,
+			nr_pages, page_to_virt(pages[0]), page_to_phys(pages[0]),
+			gen_pool_avail(unpopulated_pool), gen_pool_size(unpopulated_pool));
 
 	mutex_unlock(&pool_lock);
 }
